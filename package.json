@@ -2,7 +2,7 @@
   "name": "tana-helper",
   "version": "1.0.0",
   "description": "Localhost http service for Tana commands to call",
-  "main": "main.ts",
+  "main": "src/main.ts",
   "type": "module",
   "scripts": {
     "start": "tsc && node ./dist/main.js",
