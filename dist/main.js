@@ -71,7 +71,7 @@ async function getOpenAiEmbedding(text) {
     return response.data;
 }
 app.post('/upsert', async (req, res) => {
-    console.log(req);
+    console.log(req.body);
     const lines = req.body.split(/\r?\n/);
     // strip first line as tana node ID
     // const tana_node_id = `doc-${Date.now()}`;
