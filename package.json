@@ -5,9 +5,17 @@
   "main": "main.ts",
   "type": "module",
   "scripts": {
-    "build": "tsc",
-    "start": "tsc && node ./dist/main.js"
+    "start": "tsc && node ./dist/main.js",
+    "build": "rimraf dist && tsc",
+    "ts.check": "tsc --project tsconfig.json",
+    "add-build": "git add dist",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "pre-commit": [
+    "ts.check",
+    "build",
+    "add-build"
+  ],
   "dependencies": {
     "@pinecone-database/pinecone": "^0.0.12",
     "@types/cors": "^2.8.13",
@@ -30,6 +38,9 @@
     "@types/dotenv": "^8.2.0",
     "@types/express": "^4.17.17",
     "@types/node": "^18.15.11",
+    "nodemon": "^2.0.22",
+    "pre-commit": "^1.2.2",
+    "rimraf": "^5.0.0",
     "typescript": "^5.0.4"
   },
   "author": "Your Name",
