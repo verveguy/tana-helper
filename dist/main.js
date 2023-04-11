@@ -5,7 +5,8 @@ import { PineconeClient } from "@pinecone-database/pinecone";
 import { config as dotenvConfig } from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
-import morgan from 'morgan';
+import winston from "winston";
+import expressWinston from 'express-winston';
 import { expressjwt } from "express-jwt";
 import jwksRsa from "jwks-rsa";
 // read .env to get our API keys
@@ -17,7 +18,25 @@ const PINECONE_ENVIRONMENT = process.env.PINECONE_ENVIRONMENT;
 const PINECONE_INDEX = process.env.PINECONE_INDEX;
 const AUTH0_AUDIENCE = process.env.AUTH0_AUDIENCE;
 const AUTH0_DOMAIN = process.env.AUTH0_DOMAIN;
+// Pinecone keys
+const TANA_NAMESPACE = "tana-namespace";
+const TANA_INDEX = "tana-helper";
+const TANA_TYPE = "tana_type";
+// create our web server
 const app = express();
+// turn on logging via winston
+// more options here - https://github.com/bithavoc/express-winston#request-logging
+app.use(expressWinston.logger({
+    transports: [
+        new winston.transports.Console()
+    ],
+    format: winston.format.combine(winston.format.colorize(), winston.format.json()),
+    meta: false,
+    msg: "HTTP  ",
+    expressFormat: true,
+    colorize: false,
+    ignoreRoute: function (req, res) { return false; }
+}));
 // API security middleware
 app.use(helmet());
 // Configure CORS for localhost access
@@ -27,11 +46,10 @@ const corsOptions = {
 };
 // activate CORES middleware
 app.use(cors(corsOptions));
-// adding morgan for HTTP logging
-app.use(morgan('combined'));
-// for the occasional JSON response
-app.use(bodyParser.json());
-app.use(bodyParser.text({ type: 'text/plain' }));
+// assume JSON in all cases
+app.use(bodyParser.json({ type: ['text/plain', 'application/json'] }));
+//app.use(bodyParser.text({ type: 'text/plain' }));
+// connect to Pinecone
 const pinecone = new PineconeClient();
 await pinecone.init({
     environment: PINECONE_ENVIRONMENT,
@@ -45,7 +63,8 @@ await pinecone.init({
 //     res.status(403).send('Forbidden');
 //   }
 // });
-// unauthenticated helath check endpoint
+// unauthenticated health check endpoint
+// keeps Vercel happy
 app.get('/', (req, res) => {
     res.send({ success: true, message: "It is working" });
 });
@@ -65,57 +84,95 @@ const checkJwt = expressjwt({
 });
 // secure the endpoints
 app.use(checkJwt);
+// helper functions for working with payloads
+// and OpenAI embeddings
 async function getOpenAiEmbedding(text) {
     const response = await axios.post('https://api.openai.com/v1/embeddings', { model: 'text-embedding-ada-002',
         input: text }, { headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}` } });
     return response.data;
 }
-app.post('/upsert', async (req, res) => {
+function paramsFromPayload(req) {
     console.log(req.body);
-    const lines = req.body.split(/\r?\n/);
-    // strip first line as tana node ID
-    // const tana_node_id = `doc-${Date.now()}`;
-    const tana_node_id = lines[0].trim();
-    const text = lines.slice(1).reduce((result, next) => { return result + next + '\n'; });
-    const embedding = await getOpenAiEmbedding(text);
-    // TODO: extract tana node id from text
-    const tana_supertag = "#task";
-    // TODO: convert embedding to pinecode upsert
+    const node_id = req.body.nodeId; // what if empty? Barf...
+    const threshold = req.body.score ?? 0.80; // default to 0.8
+    const top = req.body.top ?? 10; // default to top 10
+    const context = req.body.context ?? ""; // not always present
+    const supertags = ["#task"]; // TODO: get supertags passed from Tana
+    return { context, threshold, top, node_id, supertags };
+}
+// UPSERT an embedding by Tana node_id
+app.post('/upsert', async (req, res) => {
+    const { context, node_id, supertags } = paramsFromPayload(req);
+    const embedding = await getOpenAiEmbedding(context);
+    // convert embedding to pinecode upsert
     const upsertRequest = {
-        namespace: "tana-namespace",
+        namespace: TANA_NAMESPACE,
         vectors: [
             {
-                id: tana_node_id,
+                id: node_id,
                 metadata: {
-                    category: "tana_type",
-                    supertag: tana_supertag,
+                    category: TANA_TYPE,
+                    supertag: supertags,
                 },
                 values: embedding.data[0].embedding,
             }
         ],
     };
-    const index = pinecone.Index("tana-helper");
-    const upsert_result = await index.upsert({ upsertRequest });
-    // TODO: process result
-    res.status(200).send(`Upserted document with ID: ${tana_node_id}`);
+    const index = pinecone.Index(TANA_INDEX);
+    await index.upsert({ upsertRequest });
+    console.log(`Upserted document with ID: ${node_id}`);
+    res.status(200).send();
 });
+// DELETE an embedding by Tana node_id
+app.post('/delete', async (req, res) => {
+    const { node_id } = paramsFromPayload(req);
+    const index = pinecone.Index(TANA_INDEX);
+    const deleteRequest = {
+        namespace: TANA_NAMESPACE,
+        ids: [node_id]
+    };
+    await index.delete1(deleteRequest);
+    console.log(`Deleted document with ID: ${node_id}`);
+    res.status(200).send();
+});
+// QUERY embeddings by comparative embedding
+// returns: Tana paste formatted node references
 app.post('/query', async (req, res) => {
-    const text = req.body;
-    const embedding = await getOpenAiEmbedding(text);
-    const index = pinecone.Index("tana-helper");
+    const { context, threshold, top, supertags } = paramsFromPayload(req);
+    const embedding = await getOpenAiEmbedding(context);
+    const index = pinecone.Index(TANA_INDEX);
     const queryRequest = {
-        namespace: "tana-namespace",
+        namespace: TANA_NAMESPACE,
         vector: embedding.data[0].embedding,
-        topK: 10,
+        topK: top,
         includeValues: true,
         includeMetadata: true,
+        filter: {
+            category: TANA_TYPE,
+            supertag: { $in: supertags },
+        }
     };
     const query_response = await index.query({ queryRequest });
-    const documentIds = query_response.matches?.map((match) => match.id);
-    // TODO: convert documentIds to Tan apaste format
-    let tanaPasteFormat = "- Results from Pinecone\n";
-    for (let node of documentIds ?? []) {
-        tanaPasteFormat += "  - [[^" + node + "]]\n";
+    const best = query_response.matches?.filter((value, index, results) => {
+        const score = value?.score ?? 0;
+        if (score > threshold) {
+            console.log(`Matching score ${score} > ${threshold}`);
+            return value;
+        }
+        else {
+            console.log(`Low score: ${score} < ${threshold}`);
+        }
+    });
+    const documentIds = best?.map((match) => match.id);
+    // convert documentIds back to Tana paste format as refs
+    let tanaPasteFormat = "";
+    if (best?.length == 0) {
+        tanaPasteFormat = "No sufficiently well-scored results";
+    }
+    else {
+        for (let node of documentIds ?? []) {
+            tanaPasteFormat += "- [[^" + node + "]]\n";
+        }
     }
     res.status(200).send(tanaPasteFormat);
 });
