@@ -81,7 +81,7 @@ const checkJwt = expressjwt({
   algorithms: ['RS256']
 });
 
-app.use(checkJwt);
+//app.use(checkJwt);
 
 async function getOpenAiEmbedding(text:string): Promise<any> {
   const response = await axios.post(
@@ -125,6 +125,8 @@ app.post('/upsert', async (req:Request, res:Response) => {
   const index = pinecone.Index("tana-helper");
 
   const upsert_result = await index.upsert({upsertRequest});
+
+  // TODO: process result
   res.status(200).send(`Upserted document with ID: ${tana_node_id}`);
 });
 
@@ -146,7 +148,7 @@ app.post('/query', async (req:Request, res:Response) => {
   const documentIds:string[] | undefined = query_response.matches?.map((match:any) => match.id as string);
 
   // TODO: convert documentIds to Tan apaste format
-  let tanaPasteFormat = "%%tana%%\n- Results from Pinecone\n";
+  let tanaPasteFormat = "- Results from Pinecone\n";
   for (let node of documentIds ?? []) {
     tanaPasteFormat += "  - [[^"+node+"]]\n";
   }

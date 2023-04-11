@@ -63,7 +63,7 @@ const checkJwt = expressjwt({
     issuer: `https://${AUTH0_DOMAIN}/`,
     algorithms: ['RS256']
 });
-app.use(checkJwt);
+//app.use(checkJwt);
 async function getOpenAiEmbedding(text) {
     const response = await axios.post('https://api.openai.com/v1/embeddings', { model: 'text-embedding-ada-002',
         input: text }, { headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}` } });
@@ -94,6 +94,7 @@ app.post('/upsert', async (req, res) => {
     };
     const index = pinecone.Index("tana-helper");
     const upsert_result = await index.upsert({ upsertRequest });
+    // TODO: process result
     res.status(200).send(`Upserted document with ID: ${tana_node_id}`);
 });
 app.post('/query', async (req, res) => {
@@ -110,7 +111,7 @@ app.post('/query', async (req, res) => {
     const query_response = await index.query({ queryRequest });
     const documentIds = query_response.matches?.map((match) => match.id);
     // TODO: convert documentIds to Tan apaste format
-    let tanaPasteFormat = "%%tana%%\n- Results from Pinecone\n";
+    let tanaPasteFormat = "- Results from Pinecone\n";
     for (let node of documentIds ?? []) {
         tanaPasteFormat += "  - [[^" + node + "]]\n";
     }
