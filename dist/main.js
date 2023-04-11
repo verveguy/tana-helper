@@ -63,7 +63,8 @@ const checkJwt = expressjwt({
     issuer: `https://${AUTH0_DOMAIN}/`,
     algorithms: ['RS256']
 });
-//app.use(checkJwt);
+// secure the endpoints
+app.use(checkJwt);
 async function getOpenAiEmbedding(text) {
     const response = await axios.post('https://api.openai.com/v1/embeddings', { model: 'text-embedding-ada-002',
         input: text }, { headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}` } });

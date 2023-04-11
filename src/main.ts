@@ -81,7 +81,8 @@ const checkJwt = expressjwt({
   algorithms: ['RS256']
 });
 
-//app.use(checkJwt);
+// secure the endpoints
+app.use(checkJwt);
 
 async function getOpenAiEmbedding(text:string): Promise<any> {
   const response = await axios.post(
