@@ -14,7 +14,7 @@ import jwksRsa, { GetVerificationKey } from "jwks-rsa";
 // read .env to get our API keys
 dotenvConfig();
 
-const PORT = (process.env.PORT ?? 8080) as number;
+const PORT = (process.env.PORT ?? 4000) as number;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY as string;
 const PINECONE_API_KEY = process.env.PINECONE_API_KEY as string;
 const PINECONE_ENVIRONMENT = process.env.PINECONE_ENVIRONMENT as string;
@@ -61,7 +61,7 @@ await pinecone.init({
 // });
 
 // unauthenticated helath check endpoint
-app.get("/", (req:Request, res:Response) => {
+app.get('/', (req:Request, res:Response) => {
   res.send({ success: true, message: "It is working" });
 });
 
