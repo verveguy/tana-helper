@@ -96,8 +96,8 @@ async function getOpenAiEmbedding(text:string): Promise<any> {
 
 app.post('/upsert', async (req:Request, res:Response) => {
   
-  console.log(req);
-  
+  console.log(req.body);
+
   const lines:string[] = req.body.split(/\r?\n/);
 
   // strip first line as tana node ID
