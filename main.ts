@@ -157,3 +157,5 @@ app.post('/query', async (req:Request, res:Response) => {
 app.listen(PORT, 'localhost', () => {
   console.log(`Server is listening on http://localhost:${PORT}`);
 });
+
+export default app;
