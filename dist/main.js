@@ -32,21 +32,31 @@ dotenvConfig();
 const LOCAL_SERVICE = (process.env.LOCAL_SERVICE ?? false);
 const PORT = (process.env.PORT ?? 4000);
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const OPENAI_EMBEDDING_MODEL = process.env.OPENAI_EMBEDDING_MODEL;
 const PINECONE_API_KEY = process.env.PINECONE_API_KEY;
 const PINECONE_ENVIRONMENT = process.env.PINECONE_ENVIRONMENT;
 const PINECONE_INDEX = process.env.PINECONE_INDEX;
 const AUTH0_AUDIENCE = process.env.AUTH0_AUDIENCE;
 const AUTH0_DOMAIN = process.env.AUTH0_DOMAIN;
-if (OPENAI_API_KEY === undefined || PINECONE_API_KEY === undefined) {
-    throw new Error("Missing OPENAI_API_KEY or PINECONE_API_KEY. These keys are required.");
+if (OPENAI_API_KEY === undefined
+    || OPENAI_EMBEDDING_MODEL === undefined
+    || PINECONE_API_KEY === undefined
+    || PINECONE_ENVIRONMENT === undefined
+    || PINECONE_INDEX === undefined) {
+    throw new Error("Missing OpenAI or Pinecone configuration. These keys are all required.");
+}
+if (!LOCAL_SERVICE) {
+    if (AUTH0_AUDIENCE === undefined
+        || AUTH0_DOMAIN === undefined) {
+        throw new Error("Missing Auth0 configuration. These keys are required when running as a hosted service.");
+    }
 }
 // Localservice operation is configured differently. Notify such.
 if (LOCAL_SERVICE) {
     console.log('Running as local service. No authentication required.');
 }
-// Pinecone keys
+// Pinecone keys that are not configured
 const TANA_NAMESPACE = "tana-namespace";
-const TANA_INDEX = "tana-helper";
 const TANA_TYPE = "tana_type";
 // create our web server
 const app = express();
@@ -95,9 +105,9 @@ await pinecone.init({
 app.get('/', (req, res) => {
     res.send({ success: true, message: "It is working" });
 });
-// secure the endpoints before declaring them
-// but only if we're running in production
-// If we're running as localservice, skip auth
+// If we are running in production, secure the endpoints 
+// before declaring them using Auth0
+// TODO: find simpler method to secure things
 if (!LOCAL_SERVICE) {
     console.log('Enabling Auth0 authentication on API endpoints');
     const secret = jwksRsa.expressJwtSecret({
@@ -116,11 +126,12 @@ if (!LOCAL_SERVICE) {
     // secure the endpoints
     app.use(checkJwt);
 }
+//-------------------------
 // helper functions for working with payloads
 // and OpenAI embeddings
 async function getOpenAiEmbedding(text) {
     const response = await axios.post('https://api.openai.com/v1/embeddings', {
-        model: 'text-embedding-ada-002',
+        model: `${OPENAI_EMBEDDING_MODEL}`,
         input: text
     }, { headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}` } });
     return response.data;
@@ -158,7 +169,7 @@ app.post('/upsert', async (req, res) => {
             }
         ],
     };
-    const index = pinecone.Index(TANA_INDEX);
+    const index = pinecone.Index(PINECONE_INDEX);
     await index.upsert({ upsertRequest });
     console.log(`Upserted document with ID: ${node_id}`);
     res.status(200).send();
@@ -166,7 +177,7 @@ app.post('/upsert', async (req, res) => {
 // DELETE an embedding by Tana node_id
 app.post('/delete', async (req, res) => {
     const { node_id } = paramsFromPayload(req);
-    const index = pinecone.Index(TANA_INDEX);
+    const index = pinecone.Index(PINECONE_INDEX);
     const deleteRequest = {
         namespace: TANA_NAMESPACE,
         ids: [node_id]
@@ -180,7 +191,7 @@ app.post('/delete', async (req, res) => {
 app.post('/query', async (req, res) => {
     const { context, threshold, top, supertags } = paramsFromPayload(req);
     const embedding = await getOpenAiEmbedding(context);
-    const index = pinecone.Index(TANA_INDEX);
+    const index = pinecone.Index(PINECONE_INDEX);
     const queryRequest = {
         namespace: TANA_NAMESPACE,
         vector: embedding.data[0].embedding,
@@ -223,6 +234,12 @@ app.post('/query', async (req, res) => {
     }
     console.log(tanaPasteFormat);
     res.status(200).send(tanaPasteFormat);
+});
+// PURGE to dump the database
+// TODO: Implement this!
+app.post('/purge', async (req, res) => {
+    console.log(req.body);
+    res.status(200).send("Not yet implemented");
 });
 // LOG so we can see the data in the log
 app.post('/log', async (req, res) => {
