@@ -31,3 +31,4 @@ See `env.template` for further comments on configuration.
 
 Make Auth0 easier to use.
 Potentially use another solution to secure the API endpoints on Vercel.
+(Could be as simple as a hard-coded .env secret. Anything more complex is overkill)
