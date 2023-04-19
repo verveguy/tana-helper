@@ -25,8 +25,6 @@ import cors from 'cors';
 import helmet from 'helmet';
 import winston from "winston";
 import expressWinston from 'express-winston';
-import { expressjwt } from "express-jwt";
-import jwksRsa from "jwks-rsa";
 // read .env to get our API keys
 dotenvConfig();
 const LOCAL_SERVICE = (process.env.LOCAL_SERVICE ?? true);
@@ -37,19 +35,9 @@ let PINECONE_API_KEY = process.env.PINECONE_API_KEY;
 const OPENAI_EMBEDDING_MODEL = process.env.OPENAI_EMBEDDING_MODEL ?? "text-embedding-ada-002";
 const PINECONE_ENVIRONMENT = process.env.PINECONE_ENVIRONMENT;
 const PINECONE_INDEX = process.env.PINECONE_INDEX ?? "tana-helper";
-// TODO: remove Auth0 code. Use passed keys instead
-const AUTH0_AUDIENCE = process.env.AUTH0_AUDIENCE;
-const AUTH0_DOMAIN = process.env.AUTH0_DOMAIN;
 if (OPENAI_EMBEDDING_MODEL === undefined
-    || PINECONE_ENVIRONMENT === undefined
-    || PINECONE_INDEX === undefined) {
+    || PINECONE_ENVIRONMENT === undefined) {
     throw new Error("Missing OpenAI or Pinecone configuration. These keys are all required.");
-}
-if (!LOCAL_SERVICE) {
-    if (AUTH0_AUDIENCE === undefined
-        || AUTH0_DOMAIN === undefined) {
-        throw new Error("Missing Auth0 configuration. These keys are required when running as a hosted service.");
-    }
 }
 // Localservice operation is configured differently. Notify such.
 if (LOCAL_SERVICE) {
@@ -99,27 +87,6 @@ app.use(bodyParser.json({ type: ['text/plain', 'application/json'] }));
 app.get('/', (req, res) => {
     res.send({ success: true, message: "It is working" });
 });
-// If we are running in production, secure the endpoints 
-// before declaring them using Auth0
-// TODO: find simpler method to secure things
-if (!LOCAL_SERVICE) {
-    console.log('Enabling Auth0 authentication on API endpoints');
-    const secret = jwksRsa.expressJwtSecret({
-        cache: true,
-        rateLimit: true,
-        jwksRequestsPerMinute: 5,
-        jwksUri: `https://${AUTH0_DOMAIN}/.well-known/jwks.json`
-    });
-    const checkJwt = expressjwt({
-        secret: secret,
-        // Validate the audience and the issuer.
-        audience: AUTH0_AUDIENCE,
-        issuer: `https://${AUTH0_DOMAIN}/`,
-        algorithms: ['RS256']
-    });
-    // secure the endpoints
-    app.use(checkJwt);
-}
 //-------------------------
 // helper functions for working with payloads
 // and OpenAI embeddings
@@ -162,7 +129,7 @@ async function getPinecone() {
 //-------------------------
 // API ENDPOINTS START HERE
 // UPSERT an embedding by Tana node_id
-app.post('/upsert', async (req, res) => {
+app.post('/pinecone/upsert', async (req, res) => {
     getKeysFromPayload(req);
     const { context, node_id, supertags } = paramsFromPayload(req);
     const embedding = await getOpenAIEmbedding(context);
@@ -187,7 +154,7 @@ app.post('/upsert', async (req, res) => {
     res.status(200).send();
 });
 // DELETE an embedding by Tana node_id
-app.post('/delete', async (req, res) => {
+app.post('/pinecone/delete', async (req, res) => {
     const { node_id } = paramsFromPayload(req);
     const deleteRequest = {
         namespace: TANA_NAMESPACE,
@@ -201,7 +168,7 @@ app.post('/delete', async (req, res) => {
 });
 // QUERY embeddings by comparative embedding
 // returns: Tana paste formatted node references
-app.post('/query', async (req, res) => {
+app.post('/pinecone/query', async (req, res) => {
     const { context, threshold, top, supertags } = paramsFromPayload(req);
     const embedding = await getOpenAIEmbedding(context);
     const queryRequest = {
@@ -251,7 +218,7 @@ app.post('/query', async (req, res) => {
 });
 // PURGE to dump the database
 // TODO: Implement this!
-app.post('/purge', async (req, res) => {
+app.post('/pinecone/purge', async (req, res) => {
     console.log(req.body);
     res.status(200).send("Not yet implemented");
 });
