@@ -27,8 +27,36 @@ If you are running this as a shared, hosted service, say for your Tana team to u
 
 See `env.template` for further comments on configuration.
 
+## JSON payload format
+`./upsert` and `./query` both accept
+``` 
+{ 
+  "nodeId": "${sys:nodeId}",  
+  "tags": "${sys:tags}", 
+  "context": "${sys:context}" 
+}
+```
+
+`./query` also accepts
+```
+  "top": "10",  // how many results to return, maximum. 10 is default
+  "threashold": "0.80", // threashold for results. .80 is default
+```
+
+`./delete` accepts
+``` 
+{ 
+  "nodeId": "${sys:nodeId}",  
+}
+
+And all API calls optionally accept
+```
+  // optional, required if not configured in .env
+  "pinecone": "${secret:Pinecone}",
+  "openai": "${secret:OpenAI}",
+```
 ## TODO
 
-Make Auth0 easier to use.
+Make Auth0 easier to use, or just get rid of it entirely in favor of passed keys
 Potentially use another solution to secure the API endpoints on Vercel.
 (Could be as simple as a hard-coded .env secret. Anything more complex is overkill)

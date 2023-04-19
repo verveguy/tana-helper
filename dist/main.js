@@ -29,18 +29,18 @@ import { expressjwt } from "express-jwt";
 import jwksRsa from "jwks-rsa";
 // read .env to get our API keys
 dotenvConfig();
-const LOCAL_SERVICE = (process.env.LOCAL_SERVICE ?? false);
+const LOCAL_SERVICE = (process.env.LOCAL_SERVICE ?? true);
 const PORT = (process.env.PORT ?? 4000);
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const OPENAI_EMBEDDING_MODEL = process.env.OPENAI_EMBEDDING_MODEL;
-const PINECONE_API_KEY = process.env.PINECONE_API_KEY;
+let OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+let PINECONE_API_KEY = process.env.PINECONE_API_KEY;
+// TODO: consider making all of these passable in JSON payload
+const OPENAI_EMBEDDING_MODEL = process.env.OPENAI_EMBEDDING_MODEL ?? "text-embedding-ada-002";
 const PINECONE_ENVIRONMENT = process.env.PINECONE_ENVIRONMENT;
-const PINECONE_INDEX = process.env.PINECONE_INDEX;
+const PINECONE_INDEX = process.env.PINECONE_INDEX ?? "tana-helper";
+// TODO: remove Auth0 code. Use passed keys instead
 const AUTH0_AUDIENCE = process.env.AUTH0_AUDIENCE;
 const AUTH0_DOMAIN = process.env.AUTH0_DOMAIN;
-if (OPENAI_API_KEY === undefined
-    || OPENAI_EMBEDDING_MODEL === undefined
-    || PINECONE_API_KEY === undefined
+if (OPENAI_EMBEDDING_MODEL === undefined
     || PINECONE_ENVIRONMENT === undefined
     || PINECONE_INDEX === undefined) {
     throw new Error("Missing OpenAI or Pinecone configuration. These keys are all required.");
@@ -85,12 +85,6 @@ app.use(cors(corsOptions));
 // assume JSON in all cases
 app.use(bodyParser.json({ type: ['text/plain', 'application/json'] }));
 //app.use(bodyParser.text({ type: 'text/plain' }));
-// connect to Pinecone
-const pinecone = new PineconeClient();
-await pinecone.init({
-    environment: PINECONE_ENVIRONMENT,
-    apiKey: PINECONE_API_KEY,
-});
 // Middleware to accept only connections from localhost
 // app.use((req:Request, res:Response, next: NextFunction) => {
 //   if (req.hostname === 'localhost' || req.hostname === '127.0.0.1') {
@@ -129,7 +123,7 @@ if (!LOCAL_SERVICE) {
 //-------------------------
 // helper functions for working with payloads
 // and OpenAI embeddings
-async function getOpenAiEmbedding(text) {
+async function getOpenAIEmbedding(text) {
     const response = await axios.post('https://api.openai.com/v1/embeddings', {
         model: `${OPENAI_EMBEDDING_MODEL}`,
         input: text
@@ -149,12 +143,29 @@ function paramsFromPayload(req) {
     const supertags = req.body.tags == "" ? undefined : req.body.tags;
     return { context, threshold, top, node_id, supertags };
 }
+function getKeysFromPayload(req) {
+    OPENAI_API_KEY = req.body.openai ?? OPENAI_API_KEY;
+    PINECONE_API_KEY = req.body.pinecone ?? PINECONE_API_KEY;
+    if (OPENAI_API_KEY === undefined || PINECONE_API_KEY === undefined) {
+        throw new Error("Missing OpenAI and/or Pinecone API keys. These keys are all required.");
+    }
+}
+// connect to Pinecone
+async function getPinecone() {
+    const pinecone = new PineconeClient();
+    await pinecone.init({
+        environment: PINECONE_ENVIRONMENT,
+        apiKey: PINECONE_API_KEY,
+    });
+    return pinecone;
+}
 //-------------------------
 // API ENDPOINTS START HERE
 // UPSERT an embedding by Tana node_id
 app.post('/upsert', async (req, res) => {
+    getKeysFromPayload(req);
     const { context, node_id, supertags } = paramsFromPayload(req);
-    const embedding = await getOpenAiEmbedding(context);
+    const embedding = await getOpenAIEmbedding(context);
     // convert embedding to pinecode upsert
     const upsertRequest = {
         namespace: TANA_NAMESPACE,
@@ -169,6 +180,7 @@ app.post('/upsert', async (req, res) => {
             }
         ],
     };
+    const pinecone = await getPinecone();
     const index = pinecone.Index(PINECONE_INDEX);
     await index.upsert({ upsertRequest });
     console.log(`Upserted document with ID: ${node_id}`);
@@ -177,11 +189,12 @@ app.post('/upsert', async (req, res) => {
 // DELETE an embedding by Tana node_id
 app.post('/delete', async (req, res) => {
     const { node_id } = paramsFromPayload(req);
-    const index = pinecone.Index(PINECONE_INDEX);
     const deleteRequest = {
         namespace: TANA_NAMESPACE,
         ids: [node_id]
     };
+    const pinecone = await getPinecone();
+    const index = pinecone.Index(PINECONE_INDEX);
     await index.delete1(deleteRequest);
     console.log(`Deleted document with ID: ${node_id}`);
     res.status(200).send();
@@ -190,8 +203,7 @@ app.post('/delete', async (req, res) => {
 // returns: Tana paste formatted node references
 app.post('/query', async (req, res) => {
     const { context, threshold, top, supertags } = paramsFromPayload(req);
-    const embedding = await getOpenAiEmbedding(context);
-    const index = pinecone.Index(PINECONE_INDEX);
+    const embedding = await getOpenAIEmbedding(context);
     const queryRequest = {
         namespace: TANA_NAMESPACE,
         vector: embedding.data[0].embedding,
@@ -210,6 +222,8 @@ app.post('/query', async (req, res) => {
             supertag: { $in: supertags.split(' ') },
         };
     }
+    const pinecone = await getPinecone();
+    const index = pinecone.Index(PINECONE_INDEX);
     const query_response = await index.query({ queryRequest });
     const best = query_response.matches?.filter((value, index, results) => {
         const score = value?.score ?? 0;

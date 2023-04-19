@@ -102,3 +102,4 @@ typings/
 # TernJS port file
 .tern-port
 zitadel
+.DS_Store
