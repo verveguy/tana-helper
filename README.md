@@ -23,11 +23,13 @@ Importantly, you will need an OpenAI account that can access the `text-embedding
 
 You will also need a Pinecone account and will need to create a Pinecone index within a Pinecone "environment" (Region). The default index name is `tana-helper` although this can also be configured.
 
-If you are running this as a shared, hosted service, say for your Tana team to use, you will need to set up `Auth0`. 
+If you are running this as a shared, hosted service, say for your Tana team to use, you can run this on hosted infrastructure. However, you should NOT configure the .env file with OpenAI keys, since the service offers
+unauthenticated access. Instead, you can pass the OpenAI and Pinecone keys on each request.
 
 See `env.template` for further comments on configuration.
 
 ## JSON payload format
+
 `./upsert` and `./query` both accept
 ``` 
 { 
@@ -57,6 +59,5 @@ And all API calls optionally accept
 ```
 ## TODO
 
-Make Auth0 easier to use, or just get rid of it entirely in favor of passed keys
 Potentially use another solution to secure the API endpoints on Vercel.
 (Could be as simple as a hard-coded .env secret. Anything more complex is overkill)
