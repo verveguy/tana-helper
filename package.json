@@ -3,13 +3,15 @@
   "version": "1.0.0",
   "description": "Localhost http service for Tana commands to call",
   "main": "src/main.ts",
+  "bin": "dist/main.js",
   "type": "module",
   "scripts": {
     "start": "tsc && node ./dist/main.js",
     "build": "rimraf dist && tsc",
     "ts.check": "tsc --project tsconfig.json",
     "add-build": "git add dist",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "pack": "npx caxa --directory . \"{{caxa}}/dist/main.js\" --output \"TanaHelper.app\" -- \"{{caxa}}/node_modules/.bin/node\""
   },
   "pre-commit": [
     "ts.check",
@@ -40,8 +42,9 @@
     "@types/node": "^18.15.11",
     "pre-commit": "^1.2.2",
     "rimraf": "^5.0.0",
-    "typescript": "^5.0.4"
+    "typescript": "^5.0.4",
+    "caxa": "^3.0.1"
   },
-  "author": "Your Name",
+  "author": "Brett Adam <verveguy>",
   "license": "MIT"
 }
