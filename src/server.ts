@@ -80,6 +80,7 @@ app.get('/', (req: Request, res: Response) => {
   res.send({ success: true, message: "It is working" });
 });
 
+export const baseUrl = `http://localhost:${PORT}`;
 
 // LOG so we can see the data in the log
 app.post('/log', async (req: Request, res: Response) => {

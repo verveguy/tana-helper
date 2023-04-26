@@ -20,10 +20,9 @@ import { PineconeClient } from "@pinecone-database/pinecone";
 import { app } from './server.js';
 let OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 let PINECONE_API_KEY = process.env.PINECONE_API_KEY;
-// TODO: consider making all of these passable in JSON payload
-const OPENAI_EMBEDDING_MODEL = process.env.OPENAI_EMBEDDING_MODEL ?? "text-embedding-ada-002";
-const PINECONE_ENVIRONMENT = process.env.PINECONE_ENVIRONMENT;
-const PINECONE_INDEX = process.env.PINECONE_INDEX ?? "tana-helper";
+let OPENAI_EMBEDDING_MODEL = process.env.OPENAI_EMBEDDING_MODEL ?? "text-embedding-ada-002";
+let PINECONE_ENVIRONMENT = process.env.PINECONE_ENVIRONMENT ?? "asia-southeast1-gcp";
+let PINECONE_INDEX = process.env.PINECONE_INDEX ?? "tana-helper";
 // Pinecone keys that are not configured
 const TANA_NAMESPACE = "tana-namespace";
 const TANA_TYPE = "tana_type";
@@ -57,6 +56,9 @@ function paramsFromPayload(req) {
 function getKeysFromPayload(req) {
     OPENAI_API_KEY = req.body.openai ?? OPENAI_API_KEY;
     PINECONE_API_KEY = req.body.pinecone ?? PINECONE_API_KEY;
+    OPENAI_EMBEDDING_MODEL = req.body.model ?? OPENAI_EMBEDDING_MODEL;
+    PINECONE_ENVIRONMENT = req.body.environment ?? PINECONE_ENVIRONMENT;
+    PINECONE_INDEX = req.body.index ?? PINECONE_INDEX;
     if (OPENAI_API_KEY === undefined || PINECONE_API_KEY === undefined) {
         throw new Error("Missing OpenAI and/or Pinecone API keys. These keys are all required.");
     }

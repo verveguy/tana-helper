@@ -62,6 +62,7 @@ app.use(bodyParser.json({ type: ['text/plain', 'application/json'] }));
 app.get('/', (req, res) => {
     res.send({ success: true, message: "It is working" });
 });
+export const baseUrl = `http://localhost:${PORT}`;
 // LOG so we can see the data in the log
 app.post('/log', async (req, res) => {
     console.log(req.body);

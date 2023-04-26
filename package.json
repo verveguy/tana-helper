@@ -6,12 +6,12 @@
   "bin": "dist/main.js",
   "type": "module",
   "scripts": {
-    "start": "tsc && node ./dist/main.js",
+    "start": "tsc && nodemon ./dist/main.js",
     "build": "rimraf dist && tsc",
     "ts.check": "tsc --project tsconfig.json",
     "add-build": "git add dist",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "pack": "npx caxa --directory . \"{{caxa}}/dist/main.js\" --output \"TanaHelper.app\" -- \"{{caxa}}/node_modules/.bin/node\""
+    "package": "yarn build && npx caxa --input ./dist --output \"TanaHelper.app\" -- \"{{caxa}}/node_modules/.bin/node\" \"{{caxa}}/main.js\""
   },
   "pre-commit": [
     "ts.check",
@@ -40,10 +40,11 @@
     "@types/helmet": "^4.0.0",
     "@types/morgan": "^1.9.4",
     "@types/node": "^18.15.11",
+    "caxa": "^3.0.1",
+    "nodemon": "^2.0.22",
     "pre-commit": "^1.2.2",
     "rimraf": "^5.0.0",
-    "typescript": "^5.0.4",
-    "caxa": "^3.0.1"
+    "typescript": "^5.0.4"
   },
   "author": "Brett Adam <verveguy>",
   "license": "MIT"

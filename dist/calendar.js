@@ -15,10 +15,10 @@
 
     {
         me: "self name",
-        one2one: true | false,
+        one2one: "#tag",
         meeting: "#tag",
         person: "#tag",
-        solo: true | false,
+        solo: true | false,  // if true, include self-meetings
         calendar: "Calendar to read from",
         offset: -n | 0 | +n
         range: >= 1 - how many days
