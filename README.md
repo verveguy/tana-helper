@@ -113,4 +113,4 @@ For my own use, here's what I pass as payload, in my Tana Command node.
 
 ![GGet Calendar Command node](assets/get-calendar-config.png?raw=true "Config")
 
-See the [getcalendar.swift](./src/getcalendar.swift) script for more details.
+See the [getcalendar.swift](src/scripts/getcalendar.swift) script for more details.

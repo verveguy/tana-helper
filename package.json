@@ -7,11 +7,11 @@
   "type": "module",
   "scripts": {
     "start": "tsc && nodemon ./dist/main.js",
-    "build": "rimraf dist && tsc",
+    "build": "rimraf dist && esbuild src/main.ts --bundle --platform=node --outfile=dist/main.js && cp src/scripts/* dist",
     "ts.check": "tsc --project tsconfig.json",
     "add-build": "git add dist",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "package": "yarn build && npx caxa --input ./dist --output \"TanaHelper.app\" -- \"{{caxa}}/node_modules/.bin/node\" \"{{caxa}}/main.js\""
+    "package": "yarn build && npx caxa --input ./dist --output \"TanaHelper.app\" -- \"{{caxa}}/node_modules/.bin/node\" \"{{caxa}}/main.js\" && cp TanaHelper TanaHelper.app/Contents/Resources && cp env.template TanaHelper.app/Contents/Resources/application/.env"
   },
   "pre-commit": [
     "ts.check",
@@ -41,6 +41,7 @@
     "@types/morgan": "^1.9.4",
     "@types/node": "^18.15.11",
     "caxa": "^3.0.1",
+    "esbuild": "^0.17.18",
     "nodemon": "^2.0.22",
     "pre-commit": "^1.2.2",
     "rimraf": "^5.0.0",
