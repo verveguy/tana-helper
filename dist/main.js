@@ -51726,7 +51726,7 @@ function paramsFromPayload2(req) {
 }
 app.post("/calendar", async (req, res) => {
   const { me, calendar, solo, one2one, meeting, person, offset, range, ignores } = paramsFromPayload2(req);
-  let cmdLine = "osascript ./calendar_auth.scpt >/dev/null && ./getcalendar.swift -noheader";
+  let cmdLine = "osascript ./scripts/calendar_auth.scpt >/dev/null && ./scripts/getcalendar.swift -noheader";
   cmdLine += ` ${me} ${calendar} ${solo} ${one2one} ${meeting} ${person} ${offset} ${range} ${ignores}`;
   console.log("Cmd line: " + cmdLine);
   await (0, import_child_process.exec)(cmdLine, (error, stdout, stderr) => {

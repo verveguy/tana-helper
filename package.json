@@ -6,12 +6,12 @@
   "bin": "dist/main.js",
   "type": "module",
   "scripts": {
-    "start": "tsc && nodemon ./dist/main.js",
-    "build": "rimraf dist && esbuild src/main.ts --bundle --platform=node --outfile=dist/main.js && cp src/scripts/* dist",
+    "start": "nodemon ./src/main.ts",
+    "build": "rimraf dist && esbuild src/main.ts --bundle --platform=node --outfile=dist/main.js && cp -r scripts dist",
     "ts.check": "tsc --project tsconfig.json",
     "add-build": "git add dist",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "package": "yarn build && npx caxa --input ./dist --output \"TanaHelper.app\" -- \"{{caxa}}/node_modules/.bin/node\" \"{{caxa}}/main.js\" && cp TanaHelper TanaHelper.app/Contents/Resources && cp env.template TanaHelper.app/Contents/Resources/application/.env"
+    "package": "yarn build && npx caxa --input ./dist --output \"TanaHelper.app\" -- \"{{caxa}}/node_modules/.bin/node\" \"{{caxa}}/main.js\" && cp TanaHelper TanaHelper.app/Contents/Resources && cp env.template TanaHelper.app/Contents/Resources/application/.env && zip -r TanaHelper.app.zip TanaHelper.app"
   },
   "pre-commit": [
     "ts.check",
@@ -45,6 +45,7 @@
     "nodemon": "^2.0.22",
     "pre-commit": "^1.2.2",
     "rimraf": "^5.0.0",
+    "ts-node": "^10.9.1",
     "typescript": "^5.0.4"
   },
   "author": "Brett Adam <verveguy>",

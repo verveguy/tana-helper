@@ -56,7 +56,7 @@ app.post('/calendar', async (req: Request, res: Response) => {
 
   // calendar_auth.scpt is important to ensure authentication UI presented 
   // to the user on the first time they run this service invocation
-  let cmdLine = "osascript ./calendar_auth.scpt >/dev/null && ./getcalendar.swift -noheader";
+  let cmdLine = "osascript ./scripts/calendar_auth.scpt >/dev/null && ./scripts/getcalendar.swift -noheader";
   cmdLine += ` ${me} ${calendar} ${solo} ${one2one} ${meeting} ${person} ${offset} ${range} ${ignores}`;
 
   console.log("Cmd line: " + cmdLine);
