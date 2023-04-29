@@ -14,12 +14,10 @@ import helmet from 'helmet';
 import winston from "winston";
 import expressWinston from 'express-winston';
 
-console.log("Loading server");
-
 // read .env to get our API keys
 dotenvConfig();
 
-const LOCAL_SERVICE = (process.env.LOCAL_SERVICE ?? true) as boolean;
+export const LOCAL_SERVICE = (process.env.LOCAL_SERVICE ?? false) as boolean;
 const PORT = (process.env.PORT ?? 4000) as number;
 
 // Localservice operation is configured differently. Notify such.
@@ -89,7 +87,9 @@ app.post('/log', async (req: Request, res: Response) => {
 });
 
 app.listen(PORT, 'localhost', () => {
-  console.log(`Server is listening on http://localhost:${PORT}`);
+  if (LOCAL_SERVICE) {
+    console.log(`Server is listening on http://localhost:${PORT}`);
+  }
 });
 
 export default app;

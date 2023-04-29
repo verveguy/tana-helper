@@ -19,7 +19,7 @@
 import { Request, Response } from "express";
 import axios from "axios";
 import { PineconeClient, QueryRequest } from "@pinecone-database/pinecone";
-import { app } from './server.js';
+import { LOCAL_SERVICE, app } from './server.js';
 
 let OPENAI_API_KEY = process.env.OPENAI_API_KEY as string;
 let PINECONE_API_KEY = process.env.PINECONE_API_KEY as string;
@@ -57,7 +57,10 @@ async function getOpenAIEmbedding(text: string): Promise<any> {
 
 function paramsFromPayload(req: Request) {
   // debug log
-  console.log(req.body);
+  if (LOCAL_SERVICE) {
+    console.log(req.body);
+  }
+
   const node_id = req.body.nodeId; // what if empty? Barf...
   if (node_id === undefined) {
     throw new Error("Missing node_id. node_id is required on all API calls.");
@@ -126,7 +129,10 @@ app.post('/pinecone/upsert', async (req: Request, res: Response) => {
 
   await index.upsert({ upsertRequest });
 
-  console.log(`Upserted document with ID: ${node_id}`);
+  if (LOCAL_SERVICE) {
+    console.log(`Upserted document with ID: ${node_id}`);
+  }
+
   res.status(200).send();
 });
 
@@ -148,7 +154,10 @@ app.post('/pinecone/delete', async (req: Request, res: Response) => {
 
   await index.delete1(deleteRequest);
 
-  console.log(`Deleted document with ID: ${node_id}`);
+  if (LOCAL_SERVICE) {
+    console.log(`Deleted document with ID: ${node_id}`);
+  }
+
   res.status(200).send();
 });
 
@@ -156,9 +165,9 @@ app.post('/pinecone/delete', async (req: Request, res: Response) => {
 // QUERY embeddings by comparative embedding
 // returns: Tana paste formatted node references
 app.post('/pinecone/query', async (req: Request, res: Response) => {
-  
+
   getKeysFromPayload(req);
-  
+
   const { context, threshold, top, supertags } = paramsFromPayload(req);
   const embedding = await getOpenAIEmbedding(context);
 
@@ -189,11 +198,15 @@ app.post('/pinecone/query', async (req: Request, res: Response) => {
   const best = query_response.matches?.filter((value, index, results) => {
     const score = value?.score ?? 0;
     if (score > threshold) {
-      console.log(`Matching score ${score} > ${threshold}`);
+      if (LOCAL_SERVICE) {
+        console.log(`Matching score ${score} > ${threshold}`);
+      }
       return value;
     }
     else {
-      console.log(`Low score: ${score} < ${threshold}`);
+      if (LOCAL_SERVICE) {
+        console.log(`Low score: ${score} < ${threshold}`);
+      }
     }
   });
   const documentIds: string[] | undefined = best?.map((match: any) => match.id as string);
@@ -208,7 +221,9 @@ app.post('/pinecone/query', async (req: Request, res: Response) => {
       tanaPasteFormat += "- [[^" + node + "]]\n";
     }
   }
-  console.log(tanaPasteFormat);
+  if (LOCAL_SERVICE) {
+    console.log(tanaPasteFormat);
+  }
 
   res.status(200).send(tanaPasteFormat);
 });
@@ -218,8 +233,10 @@ app.post('/pinecone/query', async (req: Request, res: Response) => {
 // TODO: Implement this!
 app.post('/pinecone/purge', async (req: Request, res: Response) => {
   getKeysFromPayload(req);
-  
-  console.log(req.body);
+
+  if (LOCAL_SERVICE) {
+    console.log(req.body);
+  }
   res.status(200).send("Not yet implemented");
 });
 

@@ -48627,9 +48627,8 @@ var helmet = Object.assign(
 // src/server.ts
 var import_winston = __toESM(require_winston(), 1);
 var import_express_winston = __toESM(require_express_winston(), 1);
-console.log("Loading server");
 (0, import_dotenv.config)();
-var LOCAL_SERVICE = process.env.LOCAL_SERVICE ?? true;
+var LOCAL_SERVICE = process.env.LOCAL_SERVICE ?? false;
 var PORT = process.env.PORT ?? 4e3;
 if (LOCAL_SERVICE) {
   console.log("Running as local service. No authentication required.");
@@ -48667,7 +48666,9 @@ app.post("/log", async (req, res) => {
   res.status(200).send();
 });
 app.listen(PORT, "localhost", () => {
-  console.log(`Server is listening on http://localhost:${PORT}`);
+  if (LOCAL_SERVICE) {
+    console.log(`Server is listening on http://localhost:${PORT}`);
+  }
 });
 
 // node_modules/axios/lib/helpers/bind.js
@@ -51591,7 +51592,9 @@ async function getOpenAIEmbedding(text) {
   return response.data;
 }
 function paramsFromPayload(req) {
-  console.log(req.body);
+  if (LOCAL_SERVICE) {
+    console.log(req.body);
+  }
   const node_id = req.body.nodeId;
   if (node_id === void 0) {
     throw new Error("Missing node_id. node_id is required on all API calls.");
@@ -51640,7 +51643,9 @@ app.post("/pinecone/upsert", async (req, res) => {
   const pinecone = await getPinecone();
   const index = pinecone.Index(PINECONE_INDEX);
   await index.upsert({ upsertRequest });
-  console.log(`Upserted document with ID: ${node_id}`);
+  if (LOCAL_SERVICE) {
+    console.log(`Upserted document with ID: ${node_id}`);
+  }
   res.status(200).send();
 });
 app.post("/pinecone/delete", async (req, res) => {
@@ -51653,7 +51658,9 @@ app.post("/pinecone/delete", async (req, res) => {
   const pinecone = await getPinecone();
   const index = pinecone.Index(PINECONE_INDEX);
   await index.delete1(deleteRequest);
-  console.log(`Deleted document with ID: ${node_id}`);
+  if (LOCAL_SERVICE) {
+    console.log(`Deleted document with ID: ${node_id}`);
+  }
   res.status(200).send();
 });
 app.post("/pinecone/query", async (req, res) => {
@@ -51682,10 +51689,14 @@ app.post("/pinecone/query", async (req, res) => {
   const best = query_response.matches?.filter((value, index2, results) => {
     const score = value?.score ?? 0;
     if (score > threshold) {
-      console.log(`Matching score ${score} > ${threshold}`);
+      if (LOCAL_SERVICE) {
+        console.log(`Matching score ${score} > ${threshold}`);
+      }
       return value;
     } else {
-      console.log(`Low score: ${score} < ${threshold}`);
+      if (LOCAL_SERVICE) {
+        console.log(`Low score: ${score} < ${threshold}`);
+      }
     }
   });
   const documentIds = best?.map((match) => match.id);
@@ -51697,12 +51708,16 @@ app.post("/pinecone/query", async (req, res) => {
       tanaPasteFormat += "- [[^" + node + "]]\n";
     }
   }
-  console.log(tanaPasteFormat);
+  if (LOCAL_SERVICE) {
+    console.log(tanaPasteFormat);
+  }
   res.status(200).send(tanaPasteFormat);
 });
 app.post("/pinecone/purge", async (req, res) => {
   getKeysFromPayload(req);
-  console.log(req.body);
+  if (LOCAL_SERVICE) {
+    console.log(req.body);
+  }
   res.status(200).send("Not yet implemented");
 });
 
