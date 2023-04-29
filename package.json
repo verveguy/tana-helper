@@ -3,11 +3,11 @@
   "version": "1.0.0",
   "description": "Localhost http service for Tana commands to call",
   "main": "src/main.ts",
-  "bin": "dist/main.js",
+  "bin": "dist/main.cjs",
   "type": "module",
   "scripts": {
     "start": "nodemon ./src/main.ts",
-    "build": "rimraf dist && esbuild src/main.ts --bundle --platform=node --outfile=dist/main.js && cp -r scripts dist",
+    "build": "rimraf dist && esbuild src/main.ts --bundle --platform=node --outfile=dist/main.cjs && cp -r scripts dist",
     "ts.check": "tsc --project tsconfig.json",
     "add-build": "git add dist",
     "test": "echo \"Error: no test specified\" && exit 1",
