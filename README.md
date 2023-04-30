@@ -5,6 +5,17 @@ Simple API service that provides a form of "Semantic search" for Tana along with
 All payloads are in JSON.
 All results are in Tana paste format.
 
+## Running
+
+You will need `node` already installed.
+
+Using a terminal app, clone this git repo
+`git clone https://github.com/verveguy/tana-helper.git`
+
+`cd tana-helper`
+`yarn install`
+`yarn start`
+
 ## Usage
 
 You can hit the `/usage` endpoint to get a Tana paste format self-documenting instructions for this service. When Tana paste can create command nodes, this will be a form of "self-install" into Tana. Right now it returns some documentation and screen shots of commands that you can set up to use this service.
