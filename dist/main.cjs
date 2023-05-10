@@ -29494,9 +29494,9 @@ var require_production = __commonJS({
   }
 });
 
-// node_modules/color-string/node_modules/color-name/index.js
+// node_modules/color-name/index.js
 var require_color_name = __commonJS({
-  "node_modules/color-string/node_modules/color-name/index.js"(exports, module2) {
+  "node_modules/color-name/index.js"(exports, module2) {
     "use strict";
     module2.exports = {
       "aliceblue": [240, 248, 255],
@@ -29875,9 +29875,9 @@ var require_color_string = __commonJS({
   }
 });
 
-// node_modules/color-name/index.js
+// node_modules/color-convert/node_modules/color-name/index.js
 var require_color_name2 = __commonJS({
-  "node_modules/color-name/index.js"(exports, module2) {
+  "node_modules/color-convert/node_modules/color-name/index.js"(exports, module2) {
     "use strict";
     module2.exports = {
       "aliceblue": [240, 248, 255],
@@ -48486,98 +48486,210 @@ function xXssProtection() {
     next();
   };
 }
-function getArgs(option, middlewareConfig = {}) {
-  switch (option) {
+function getMiddlewareFunctionsFromOptions(options) {
+  var _a, _b, _c, _d, _e, _f, _g, _h;
+  const result = [];
+  switch (options.contentSecurityPolicy) {
     case void 0:
     case true:
-      return [];
+      result.push(contentSecurityPolicy());
+      break;
     case false:
-      return null;
+      break;
     default:
-      if (middlewareConfig.takesOptions === false) {
-        console.warn(`${middlewareConfig.name} does not take options. Remove the property to silence this warning.`);
-        return [];
-      } else {
-        return [option];
-      }
+      result.push(contentSecurityPolicy(options.contentSecurityPolicy));
+      break;
   }
-}
-function getMiddlewareFunctionsFromOptions(options) {
-  const result = [];
-  const contentSecurityPolicyArgs = getArgs(options.contentSecurityPolicy);
-  if (contentSecurityPolicyArgs) {
-    result.push(contentSecurityPolicy(...contentSecurityPolicyArgs));
+  switch (options.crossOriginEmbedderPolicy) {
+    case void 0:
+    case true:
+      result.push(crossOriginEmbedderPolicy());
+      break;
+    case false:
+      break;
+    default:
+      result.push(crossOriginEmbedderPolicy(options.crossOriginEmbedderPolicy));
+      break;
   }
-  const crossOriginEmbedderPolicyArgs = getArgs(options.crossOriginEmbedderPolicy);
-  if (crossOriginEmbedderPolicyArgs) {
-    result.push(crossOriginEmbedderPolicy(...crossOriginEmbedderPolicyArgs));
+  switch (options.crossOriginOpenerPolicy) {
+    case void 0:
+    case true:
+      result.push(crossOriginOpenerPolicy());
+      break;
+    case false:
+      break;
+    default:
+      result.push(crossOriginOpenerPolicy(options.crossOriginOpenerPolicy));
+      break;
   }
-  const crossOriginOpenerPolicyArgs = getArgs(options.crossOriginOpenerPolicy);
-  if (crossOriginOpenerPolicyArgs) {
-    result.push(crossOriginOpenerPolicy(...crossOriginOpenerPolicyArgs));
+  switch (options.crossOriginResourcePolicy) {
+    case void 0:
+    case true:
+      result.push(crossOriginResourcePolicy());
+      break;
+    case false:
+      break;
+    default:
+      result.push(crossOriginResourcePolicy(options.crossOriginResourcePolicy));
+      break;
   }
-  const crossOriginResourcePolicyArgs = getArgs(options.crossOriginResourcePolicy);
-  if (crossOriginResourcePolicyArgs) {
-    result.push(crossOriginResourcePolicy(...crossOriginResourcePolicyArgs));
+  switch (options.expectCt) {
+    case void 0:
+    case false:
+      break;
+    case true:
+      result.push(expectCt());
+      break;
+    default:
+      result.push(expectCt(options.expectCt));
+      break;
   }
-  const xDnsPrefetchControlArgs = getArgs(options.dnsPrefetchControl);
-  if (xDnsPrefetchControlArgs) {
-    result.push(xDnsPrefetchControl(...xDnsPrefetchControlArgs));
+  switch (options.originAgentCluster) {
+    case void 0:
+    case true:
+      result.push(originAgentCluster());
+      break;
+    case false:
+      break;
+    default:
+      console.warn("Origin-Agent-Cluster does not take options. Remove the property to silence this warning.");
+      result.push(originAgentCluster());
+      break;
   }
-  const expectCtArgs = options.expectCt && getArgs(options.expectCt);
-  if (expectCtArgs) {
-    result.push(expectCt(...expectCtArgs));
+  switch (options.referrerPolicy) {
+    case void 0:
+    case true:
+      result.push(referrerPolicy());
+      break;
+    case false:
+      break;
+    default:
+      result.push(referrerPolicy(options.referrerPolicy));
+      break;
   }
-  const xFrameOptionsArgs = getArgs(options.frameguard);
-  if (xFrameOptionsArgs) {
-    result.push(xFrameOptions(...xFrameOptionsArgs));
+  if ("strictTransportSecurity" in options && "hsts" in options) {
+    throw new Error("Strict-Transport-Security option was specified twice. Remove `hsts` to silence this warning.");
   }
-  const xPoweredByArgs = getArgs(options.hidePoweredBy, {
-    name: "hidePoweredBy",
-    takesOptions: false
-  });
-  if (xPoweredByArgs) {
-    result.push(xPoweredBy());
+  const strictTransportSecurityOption = (_a = options.strictTransportSecurity) !== null && _a !== void 0 ? _a : options.hsts;
+  switch (strictTransportSecurityOption) {
+    case void 0:
+    case true:
+      result.push(strictTransportSecurity());
+      break;
+    case false:
+      break;
+    default:
+      result.push(strictTransportSecurity(strictTransportSecurityOption));
+      break;
   }
-  const strictTransportSecurityArgs = getArgs(options.hsts);
-  if (strictTransportSecurityArgs) {
-    result.push(strictTransportSecurity(...strictTransportSecurityArgs));
+  if ("xContentTypeOptions" in options && "noSniff" in options) {
+    throw new Error("X-Content-Type-Options option was specified twice. Remove `noSniff` to silence this warning.");
   }
-  const xDownloadOptionsArgs = getArgs(options.ieNoOpen, {
-    name: "ieNoOpen",
-    takesOptions: false
-  });
-  if (xDownloadOptionsArgs) {
-    result.push(xDownloadOptions());
+  const xContentTypeOptionsOption = (_b = options.xContentTypeOptions) !== null && _b !== void 0 ? _b : options.noSniff;
+  switch (xContentTypeOptionsOption) {
+    case void 0:
+    case true:
+      result.push(xContentTypeOptions());
+      break;
+    case false:
+      break;
+    default:
+      console.warn("X-Content-Type-Options does not take options. Remove the property to silence this warning.");
+      result.push(xContentTypeOptions());
+      break;
   }
-  const xContentTypeOptionsArgs = getArgs(options.noSniff, {
-    name: "noSniff",
-    takesOptions: false
-  });
-  if (xContentTypeOptionsArgs) {
-    result.push(xContentTypeOptions());
+  if ("xDnsPrefetchControl" in options && "dnsPrefetchControl" in options) {
+    throw new Error("X-DNS-Prefetch-Control option was specified twice. Remove `dnsPrefetchControl` to silence this warning.");
   }
-  const originAgentClusterArgs = getArgs(options.originAgentCluster, {
-    name: "originAgentCluster",
-    takesOptions: false
-  });
-  if (originAgentClusterArgs) {
-    result.push(originAgentCluster());
+  const xDnsPrefetchControlOption = (_c = options.xDnsPrefetchControl) !== null && _c !== void 0 ? _c : options.dnsPrefetchControl;
+  switch (xDnsPrefetchControlOption) {
+    case void 0:
+    case true:
+      result.push(xDnsPrefetchControl());
+      break;
+    case false:
+      break;
+    default:
+      result.push(xDnsPrefetchControl(xDnsPrefetchControlOption));
+      break;
   }
-  const xPermittedCrossDomainPoliciesArgs = getArgs(options.permittedCrossDomainPolicies);
-  if (xPermittedCrossDomainPoliciesArgs) {
-    result.push(xPermittedCrossDomainPolicies(...xPermittedCrossDomainPoliciesArgs));
+  if ("xDownloadOptions" in options && "ieNoOpen" in options) {
+    throw new Error("X-Download-Options option was specified twice. Remove `ieNoOpen` to silence this warning.");
   }
-  const referrerPolicyArgs = getArgs(options.referrerPolicy);
-  if (referrerPolicyArgs) {
-    result.push(referrerPolicy(...referrerPolicyArgs));
+  const xDownloadOptionsOption = (_d = options.xDownloadOptions) !== null && _d !== void 0 ? _d : options.ieNoOpen;
+  switch (xDownloadOptionsOption) {
+    case void 0:
+    case true:
+      result.push(xDownloadOptions());
+      break;
+    case false:
+      break;
+    default:
+      console.warn("X-Download-Options does not take options. Remove the property to silence this warning.");
+      result.push(xDownloadOptions());
+      break;
   }
-  const xXssProtectionArgs = getArgs(options.xssFilter, {
-    name: "xssFilter",
-    takesOptions: false
-  });
-  if (xXssProtectionArgs) {
-    result.push(xXssProtection());
+  if ("xFrameOptions" in options && "frameguard" in options) {
+    throw new Error("X-Frame-Options option was specified twice. Remove `frameguard` to silence this warning.");
+  }
+  const xFrameOptionsOption = (_e = options.xFrameOptions) !== null && _e !== void 0 ? _e : options.frameguard;
+  switch (xFrameOptionsOption) {
+    case void 0:
+    case true:
+      result.push(xFrameOptions());
+      break;
+    case false:
+      break;
+    default:
+      result.push(xFrameOptions(xFrameOptionsOption));
+      break;
+  }
+  if ("xPermittedCrossDomainPolicies" in options && "permittedCrossDomainPolicies" in options) {
+    throw new Error("X-Permitted-Cross-Domain-Policies option was specified twice. Remove `permittedCrossDomainPolicies` to silence this warning.");
+  }
+  const xPermittedCrossDomainPoliciesOption = (_f = options.xPermittedCrossDomainPolicies) !== null && _f !== void 0 ? _f : options.permittedCrossDomainPolicies;
+  switch (xPermittedCrossDomainPoliciesOption) {
+    case void 0:
+    case true:
+      result.push(xPermittedCrossDomainPolicies());
+      break;
+    case false:
+      break;
+    default:
+      result.push(xPermittedCrossDomainPolicies(xPermittedCrossDomainPoliciesOption));
+      break;
+  }
+  if ("xPoweredBy" in options && "hidePoweredBy" in options) {
+    throw new Error("X-Powered-By option was specified twice. Remove `hidePoweredBy` to silence this warning.");
+  }
+  const xPoweredByOption = (_g = options.xPoweredBy) !== null && _g !== void 0 ? _g : options.hidePoweredBy;
+  switch (xPoweredByOption) {
+    case void 0:
+    case true:
+      result.push(xPoweredBy());
+      break;
+    case false:
+      break;
+    default:
+      console.warn("X-Powered-By does not take options. Remove the property to silence this warning.");
+      result.push(xPoweredBy());
+      break;
+  }
+  if ("xXssProtection" in options && "xssFilter" in options) {
+    throw new Error("X-XSS-Protection option was specified twice. Remove `xssFilter` to silence this warning.");
+  }
+  const xXssProtectionOption = (_h = options.xXssProtection) !== null && _h !== void 0 ? _h : options.xssFilter;
+  switch (xXssProtectionOption) {
+    case void 0:
+    case true:
+      result.push(xXssProtection());
+      break;
+    case false:
+      break;
+    default:
+      console.warn("X-XSS-Protection does not take options. Remove the property to silence this warning.");
+      result.push(xXssProtection());
+      break;
   }
   return result;
 }
@@ -48610,17 +48722,26 @@ var helmet = Object.assign(
     crossOriginEmbedderPolicy,
     crossOriginOpenerPolicy,
     crossOriginResourcePolicy,
-    dnsPrefetchControl: xDnsPrefetchControl,
     expectCt,
-    frameguard: xFrameOptions,
-    hidePoweredBy: xPoweredBy,
-    hsts: strictTransportSecurity,
+    originAgentCluster,
+    referrerPolicy,
+    strictTransportSecurity,
+    xContentTypeOptions,
+    xDnsPrefetchControl,
+    xDownloadOptions,
+    xFrameOptions,
+    xPermittedCrossDomainPolicies,
+    xPoweredBy,
+    xXssProtection,
+    // Legacy aliases
+    dnsPrefetchControl: xDnsPrefetchControl,
+    xssFilter: xXssProtection,
+    permittedCrossDomainPolicies: xPermittedCrossDomainPolicies,
     ieNoOpen: xDownloadOptions,
     noSniff: xContentTypeOptions,
-    originAgentCluster,
-    permittedCrossDomainPolicies: xPermittedCrossDomainPolicies,
-    referrerPolicy,
-    xssFilter: xXssProtection
+    frameguard: xFrameOptions,
+    hidePoweredBy: xPoweredBy,
+    hsts: strictTransportSecurity
   }
 );
 
@@ -48723,8 +48844,9 @@ var isBlob = kindOfTest("Blob");
 var isFileList = kindOfTest("FileList");
 var isStream = (val) => isObject(val) && isFunction(val.pipe);
 var isFormData = (thing) => {
-  const pattern = "[object FormData]";
-  return thing && (typeof FormData === "function" && thing instanceof FormData || toString.call(thing) === pattern || isFunction(thing.toString) && thing.toString() === pattern);
+  let kind;
+  return thing && (typeof FormData === "function" && thing instanceof FormData || isFunction(thing.append) && ((kind = kindOf(thing)) === "formdata" || // detect form-data instance
+  kind === "object" && isFunction(thing.toString) && thing.toString() === "[object FormData]"));
 };
 var isURLSearchParams = kindOfTest("URLSearchParams");
 var trim = (str) => str.trim ? str.trim() : str.replace(/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g, "");
@@ -48978,6 +49100,8 @@ var toJSONObject = (obj) => {
   };
   return visit(obj, 0);
 };
+var isAsyncFn = kindOfTest("AsyncFunction");
+var isThenable = (thing) => thing && (isObject(thing) || isFunction(thing)) && isFunction(thing.then) && isFunction(thing.catch);
 var utils_default = {
   isArray,
   isArrayBuffer,
@@ -49028,7 +49152,9 @@ var utils_default = {
   ALPHABET,
   generateString,
   isSpecCompliantForm,
-  toJSONObject
+  toJSONObject,
+  isAsyncFn,
+  isThenable
 };
 
 // node_modules/axios/lib/core/AxiosError.js
@@ -49872,7 +49998,7 @@ var import_follow_redirects = __toESM(require_follow_redirects(), 1);
 var import_zlib = __toESM(require("zlib"), 1);
 
 // node_modules/axios/lib/env/data.js
-var VERSION = "1.3.5";
+var VERSION = "1.4.0";
 
 // node_modules/axios/lib/helpers/parseProtocol.js
 function parseProtocol(url2) {
@@ -50250,6 +50376,21 @@ var ZlibHeaderTransformStream = class extends import_stream3.default.Transform {
 };
 var ZlibHeaderTransformStream_default = ZlibHeaderTransformStream;
 
+// node_modules/axios/lib/helpers/callbackify.js
+var callbackify = (fn, reducer) => {
+  return utils_default.isAsyncFn(fn) ? function(...args) {
+    const cb = args.pop();
+    fn.apply(this, args).then((value) => {
+      try {
+        reducer ? cb(null, ...reducer(value)) : cb(null, value);
+      } catch (err) {
+        cb(err);
+      }
+    }, cb);
+  } : fn;
+};
+var callbackify_default = callbackify;
+
 // node_modules/axios/lib/adapters/http.js
 var zlibOptions = {
   flush: import_zlib.default.constants.Z_SYNC_FLUSH,
@@ -50330,12 +50471,22 @@ var wrapAsync = (asyncExecutor) => {
 };
 var http_default = isHttpAdapterSupported && function httpAdapter(config) {
   return wrapAsync(async function dispatchHttpRequest(resolve, reject, onDone) {
-    let { data } = config;
+    let { data, lookup, family } = config;
     const { responseType, responseEncoding } = config;
     const method = config.method.toUpperCase();
     let isDone;
     let rejected = false;
     let req;
+    if (lookup && utils_default.isAsyncFn(lookup)) {
+      lookup = callbackify_default(lookup, (entry) => {
+        if (utils_default.isString(entry)) {
+          entry = [entry, entry.indexOf(".") < 0 ? 6 : 4];
+        } else if (!utils_default.isArray(entry)) {
+          throw new TypeError("lookup async function must return an array [ip: string, family: number]]");
+        }
+        return entry;
+      });
+    }
     const emitter = new import_events.default();
     const onFinished = () => {
       if (config.cancelToken) {
@@ -50515,6 +50666,8 @@ var http_default = isHttpAdapterSupported && function httpAdapter(config) {
       agents: { http: config.httpAgent, https: config.httpsAgent },
       auth,
       protocol,
+      family,
+      lookup,
       beforeRedirect: dispatchBeforeRedirect,
       beforeRedirects: {}
     };
@@ -50851,8 +51004,12 @@ var xhr_default = isXHRAdapterSupported && function(config) {
         config.signal.removeEventListener("abort", onCanceled);
       }
     }
-    if (utils_default.isFormData(requestData) && (node_default.isStandardBrowserEnv || node_default.isStandardBrowserWebWorkerEnv)) {
-      requestHeaders.setContentType(false);
+    if (utils_default.isFormData(requestData)) {
+      if (node_default.isStandardBrowserEnv || node_default.isStandardBrowserWebWorkerEnv) {
+        requestHeaders.setContentType(false);
+      } else {
+        requestHeaders.setContentType("multipart/form-data;", false);
+      }
     }
     let request = new XMLHttpRequest();
     if (config.auth) {
@@ -51134,7 +51291,7 @@ function mergeConfig(config1, config2) {
     validateStatus: mergeDirectKeys,
     headers: (a, b) => mergeDeepProperties(headersToObject(a), headersToObject(b), true)
   };
-  utils_default.forEach(Object.keys(config1).concat(Object.keys(config2)), function computeConfigValue(prop) {
+  utils_default.forEach(Object.keys(Object.assign({}, config1, config2)), function computeConfigValue(prop) {
     const merge2 = mergeMap[prop] || mergeDeepProperties;
     const configValue = merge2(config1[prop], config2[prop], prop);
     utils_default.isUndefined(configValue) && merge2 !== mergeDirectKeys || (config[prop] = configValue);
@@ -51719,43 +51876,6 @@ app.post("/pinecone/purge", async (req, res) => {
     console.log(req.body);
   }
   res.status(200).send("Not yet implemented");
-});
-
-// src/calendar.ts
-var import_child_process = require("child_process");
-function makeCmdSwitch(cmdSwitch, value) {
-  return value == null ? "" : `${cmdSwitch} '${value}'`;
-}
-function paramsFromPayload2(req) {
-  console.log(req.body);
-  const me = makeCmdSwitch("-me", req.body.me);
-  const calendar = makeCmdSwitch("-calendar", req.body.calendar);
-  const solo = req.body.solo ? "-solo" : "";
-  const one2one = makeCmdSwitch("-one2one", req.body.one2one);
-  const meeting = makeCmdSwitch("-meeting", req.body.meeting);
-  const person = makeCmdSwitch("-person", req.body.person);
-  const offset = makeCmdSwitch("-offset", req.body.offset);
-  const range = makeCmdSwitch("-range", req.body.range);
-  let ignores = (req.body.ignore ?? []).reduce((result, x) => makeCmdSwitch("-ignore", x), "");
-  return { me, calendar, solo, one2one, meeting, person, offset, range, ignores };
-}
-app.post("/calendar", async (req, res) => {
-  const { me, calendar, solo, one2one, meeting, person, offset, range, ignores } = paramsFromPayload2(req);
-  let cmdLine = "osascript ./scripts/calendar_auth.scpt >/dev/null && ./scripts/getcalendar.swift -noheader";
-  cmdLine += ` ${me} ${calendar} ${solo} ${one2one} ${meeting} ${person} ${offset} ${range} ${ignores}`;
-  console.log("Cmd line: " + cmdLine);
-  await (0, import_child_process.exec)(cmdLine, (error, stdout, stderr) => {
-    if (error) {
-      res.status(200).send(stderr);
-      return;
-    }
-    if (stderr) {
-      res.status(200).send(stderr);
-      return;
-    }
-    console.log(stdout);
-    res.status(200).send(stdout);
-  });
 });
 
 // src/usage.ts

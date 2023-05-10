@@ -37,11 +37,6 @@ Pinecone database.
 
 `/pinecone/purge` empties the entire Pinecone database. NOT YET IMPLEMENTED
 
-## Calendar support
-
-Also, having absolutely nothing to do with Pinecone or OpenAI, you can also use this to retrieve your Apple Calendar as Tana paste format. 
-`/calendar` will fetch today's Calendar.
-
 ## Self bootstrapping into Tana
 
 To make it easier to configure this for Tana access, you can hit the `/bootstraps` endpoint from any browser and then paste the results into Tana. This will create a set of Tana command nodes that are correctly configured to call the API.
@@ -96,32 +91,10 @@ And all Pinecone related API calls optionally accept
 ```
   "pinecone": "${secret:Pinecone}", // required if not configured in .env
   "openai": "${secret:OpenAI}", // required if not configured in .env
-  "index": "${secrete:PineconeIndex}",  // defaults to tana-helper
+  "index": "${secret:PineconeIndex}",  // defaults to tana-helper
 ```
 
 ### Calendar API stuff
 
-The Calendar API only works when run as a localhost service on a Mac since it relies on your Apple Calendar configuration to act as a "gateway" to your calendar services. This does allow it to reach iCloud, Google and Office365 calendars however.
-
-The `/calendar` endpoint will by default return you a list of your meetings for today from a calendar named "Calendar".
-
-You can change things with the following JSON payload. All fields are optional.
-
-```
-{
-  "me": "self name", // your own name to avoid adding you as an attendee
-  "meeting": "#tag", // the tag to use for meetings
-  "person": "#tag", // tag for people / attendees
-  "solo": true | false, // include meetings with just one person (yourself?)
-  "one2one": "#tag", // tag for 1 to 1 meetings
-  "calendar": "Calendar",
-  "offset": -n | 0 | +n  // how many days before or after today to start from
-  "range": >= 1 // how many daysto retrieve. Defaults to 1
-}
-```
-
-For my own use, here's what I pass as payload, in my Tana Command node.
-
-![GGet Calendar Command node](assets/get-calendar-config.png?raw=true "Config")
-
-See the [getcalendar.swift](src/scripts/getcalendar.swift) script for more details.
+The Calendar API previously supported by tana-helper has been moved out to tana-calendar-helper.
+Why? These features are only available on a local Mac and so it was confusing to have Mac-only features in this service, which is intended to be run on a hosted server supporting team usage.
