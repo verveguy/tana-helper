@@ -2,6 +2,7 @@
     Load all the modules that do the actual work
 */
 
-import './server.js';
-import './pinecone.js';
-import './usage.js';
+import './server';
+import './pinecone';
+import './langchain';
+import './usage';

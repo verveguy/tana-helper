@@ -30,7 +30,7 @@ let PINECONE_INDEX = process.env.PINECONE_INDEX ?? "tana-helper";
 
 // Pinecone keys that are not configured
 const TANA_NAMESPACE = "tana-namespace";
-const TANA_TYPE = "tana_type";
+const TANA_TYPE = "tana_node";
 
 if (OPENAI_EMBEDDING_MODEL === undefined
   || PINECONE_ENVIRONMENT === undefined
@@ -88,6 +88,7 @@ function getKeysFromPayload(req: Request) {
 }
 
 
+// TODO: move to utils file
 // connect to Pinecone
 async function getPinecone() {
   const pinecone = new PineconeClient();
@@ -110,6 +111,9 @@ app.post('/pinecone/upsert', async (req: Request, res: Response) => {
   const embedding = await getOpenAIEmbedding(context);
 
   // convert embedding to pinecode upsert
+  // we include the context as the text: metadata
+  // so that other systems like langchain can use the context data
+  // without calling back to Tana
   const upsertRequest = {
     namespace: TANA_NAMESPACE,
     vectors: [
@@ -118,6 +122,7 @@ app.post('/pinecone/upsert', async (req: Request, res: Response) => {
         metadata: {
           category: TANA_TYPE,
           supertag: supertags,
+          text: context
         },
         values: embedding.data[0].embedding,
       }
@@ -175,7 +180,6 @@ app.post('/pinecone/query', async (req: Request, res: Response) => {
     namespace: TANA_NAMESPACE,
     vector: embedding.data[0].embedding,
     topK: top,
-    includeValues: true,
     includeMetadata: true,
     filter: {
       category: TANA_TYPE,
