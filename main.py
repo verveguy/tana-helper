@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from typing import Annotated
 from pydantic import BaseModel
 import pinecone
@@ -78,7 +79,7 @@ async def delete(req: PineconeRequest):
   delete_response = index.delete(ids=[req.nodeId], namespace=TANA_NAMESPACE)
   return None
 
-@app.post("/pinecone/query")
+@app.post("/pinecone/query", response_class=HTMLResponse)
 async def delete(req: PineconeRequest, res: Response):  
   embedding = get_embedding(req)
 
@@ -121,9 +122,79 @@ async def delete(req: PineconeRequest, res: Response):
 
 
 @app.post("/pinecone/purge", status_code=status.HTTP_204_NO_CONTENT)
-async def delete(req: PineconeRequest):  
+async def purge(req: PineconeRequest):  
   pinecone = get_pincone(req)
   index = pinecone.Index(req.index)
 
   return "Not yet implemented"
 
+@app.get("/usage", response_class=HTMLResponse)
+async def usage():
+  return """
+- Pinecone Experiments
+  - What is this?
+    - These commands take Tana nodes (+context) and add them to the Pinecone vector database. This is done by first passing them to OpenAI to generate an embedding (a vector with 1536 dimensions). This vector is then inserted into Pinecone with the Tana nodeId as the key.
+    - Pinecone allows us to then query for "similar nodes", each with a "score" relative to our query. The query is also just a Tana node, converted into an embedding by OpenAI. The richer the query, the better the vector search should be in theory.
+    - Importantly, this is not ChatGPT-style "completions". It's a form of search for your own Tana content. It won't find (or generate) things you don't already know. 
+    - API URLs
+      - BaseURL: ${baseUrl}
+  - Pinecone Commands
+    - Update Pinecone embedding #command
+      - Make API request
+        - **Associated data**
+          - Avoid using proxy:: [X] 
+          - API method:: POST
+          - URL:: ${baseUrl}/pinecone/upsert
+          - Parse result:: Disregard (don't insert)
+          - Payload:: 
+            - { 
+              - "pinecone": "\${secret:Pinecone}",
+              - "openai": "\${secret:OpenAI}",
+              - "nodeId": "\${sys:nodeId}",  
+              - "tags": "\${sys:tags}", 
+              - "context": "\${sys:context}"  
+            - }
+    - Query Pinecone embedding #command
+      - Make API request
+        - **Associated data**
+          - Avoid using proxy:: [X] 
+          - API method:: POST
+          - URL:: ${baseUrl}/pinecone/query
+          - Parse result:: Tana Paste (default)
+          - Payload:: 
+            - {
+              - "pinecone": "\${secret:Pinecone}",
+              - "openai": "\${secret:OpenAI}",
+              - "nodeId": "\${sys:nodeId}",
+              - "tags": "\${sys:tags}",
+              - "score": "0.78",
+              - "context": "\${sys:context}"
+            - }
+    - Remove Pinecone embedding #command
+      - Make API request
+        - **Associated data**
+          - Avoid using proxy:: [X] 
+          - Parse result:: Disregard (don't insert)
+          - URL:: ${baseUrl}/pinecone/delete
+          - Payload:: 
+            - {
+              - "pinecone": "\${secret:Pinecone}",
+              - "openai": "\${secret:OpenAI}",
+              - "nodeId": "\${sys:nodeId}",
+            - }
+          - API method:: POST
+  - Calendar commands
+    - Get Calendar #command
+      - Make API request
+        - **Associated data**
+          - Avoid using proxy:: [X] 
+          - Parse result:: Disregard (don't insert)
+          - URL:: ${baseUrl}/pinecone/delete
+          - Payload:: 
+            - {
+              - "pinecone": "\${secret:Pinecone}",
+              - "openai": "\${secret:OpenAI}",
+              - "nodeId": "\${sys:nodeId}",
+            - }
+          - API method:: POST
+  """
