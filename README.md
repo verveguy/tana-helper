@@ -7,14 +7,17 @@ All results are in Tana paste format.
 
 ## Running
 
-You will need `node` already installed.
+You will need `python3` already installed as well as `virtualenv`
+You can install `virtualenv` via 
+`pip install virtualenv`
 
 Using a terminal app, clone this git repo
 `git clone https://github.com/verveguy/tana-helper.git`
 
 `cd tana-helper`
-`yarn install`
-`yarn start`
+`python3 -m venv env` 
+`source env/bin/activate`
+`uvicorn main:app`
 
 ## Usage
 
