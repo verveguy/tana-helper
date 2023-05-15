@@ -20,7 +20,8 @@ Using a terminal app, clone this git repo
 
 You can hit the `/usage` endpoint to get a Tana paste format self-documenting instructions for this service. When Tana paste can create command nodes, this will be a form of "self-install" into Tana. Right now it returns some documentation and screen shots of commands that you can set up to use this service.
 
-![Getting Usage into Tana](assets/Tana-helper-usage.jpeg?raw=true "Title")
+Use the Tana template located at [https://app.tana.inc/?bundle=cVYW2gX8nY.G3v4049e-A](https://app.tana.inc/?bundle=cVYW2gX8nY.G3v4049e-A)
+
 
 ## Pinecone support
 
@@ -96,5 +97,5 @@ And all Pinecone related API calls optionally accept
 
 ### Calendar API stuff
 
-The Calendar API previously supported by tana-helper has been moved out to tana-calendar-helper.
+The Calendar API previously supported by tana-helper has been moved out to [tana-calendar-helper](https://github.com/verveguy/tana-calendar-helper).
 Why? These features are only available on a local Mac and so it was confusing to have Mac-only features in this service, which is intended to be run on a hosted server supporting team usage.
