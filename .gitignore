@@ -105,3 +105,5 @@ zitadel
 .DS_Store
 zitadel.config
 TanaHelper.app
+env
+__pycache__
