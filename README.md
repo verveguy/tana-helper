@@ -1,33 +1,33 @@
 # tana-helper
-
 Simple API service that provides a form of "Semantic search" for Tana along with potentially other useful API services.
 
 All payloads are in JSON.
 All results are in Tana paste format.
 
 ## Running
-
 You will need `python3` already installed as well as `virtualenv`
-You can install `virtualenv` via 
+
+You can install `virtualenv` via:
+
 `pip install virtualenv`
 
 Using a terminal app, clone this git repo
+
 `git clone https://github.com/verveguy/tana-helper.git`
 
 `cd tana-helper`
+
 `python3 -m venv env` 
+
 `source env/bin/activate`
+
 `uvicorn main:app`
 
 ## Usage
-
-You can hit the `/usage` endpoint to get a Tana paste format self-documenting instructions for this service. When Tana paste can create command nodes, this will be a form of "self-install" into Tana. Right now it returns some documentation and screen shots of commands that you can set up to use this service.
-
-Use the Tana template located at [https://app.tana.inc/?bundle=cVYW2gX8nY.G3v4049e-A](https://app.tana.inc/?bundle=cVYW2gX8nY.G3v4049e-A)
+For details, see the Tana template located at [https://app.tana.inc/?bundle=cVYW2gX8nY.G3v4049e-A](https://app.tana.inc/?bundle=cVYW2gX8nY.G3v4049e-A)
 
 
 ## Pinecone support
-
 All APIs are POST endpoints
 
 `/pinecone/upsert` accepts Tana node data and creates
@@ -43,18 +43,17 @@ Pinecone database.
 
 ## Self bootstrapping into Tana
 
-To make it easier to configure this for Tana access, you can hit the `/bootstraps` endpoint from any browser and then paste the results into Tana. This will create a set of Tana command nodes that are correctly configured to call the API.
-
 (NOT YET IMPLEMENTED. SEE `/usage`)
 
-## Prerequisites
+To make it easier to configure this for Tana access, you can hit the `/bootstraps` endpoint from any browser and then paste the results into Tana. This will create a set of Tana command nodes that are correctly configured to call the API.
 
+
+## Prerequisites
 You will need an OpenAI account that can access the `text-embedding-ada-002` model. (This is configurable, but is the only model currently tested.)
 
 You will also need a Pinecone account and will need to create a Pinecone index within a Pinecone "environment" (Region). The default index name is `tana-helper` although this can also be configured.
 
 ## Configuration
-
 This service is intended to be run in one of two ways currently: either as a localhost service, private to your local machine, or as a hosted service on the Vercel hosting platform.
 
 You can either configure this service via a `.env` file for things like OpenAI keys, etc. or you can pass these keys on every API call as part of the JSON payload.
@@ -81,7 +80,7 @@ See `env.template` for further comments on configuration.
 `/pinecone/query` also accepts
 ```
   "top": "10",  // how many results to return, maximum. 10 is default
-  "threashold": "0.80", // threashold for results. .80 is default
+  "threshold": "0.80", // threashold for results. .80 is default
 ```
 
 `/pinecone/delete` accepts
@@ -99,6 +98,5 @@ And all Pinecone related API calls optionally accept
 ```
 
 ### Calendar API stuff
-
 The Calendar API previously supported by tana-helper has been moved out to [tana-calendar-helper](https://github.com/verveguy/tana-calendar-helper).
 Why? These features are only available on a local Mac and so it was confusing to have Mac-only features in this service, which is intended to be run on a hosted server supporting team usage.
