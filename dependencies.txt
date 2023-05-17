@@ -1,0 +1,7 @@
+pip install uvicorn
+pip install FastAPI
+pip install pinecone-client
+pip install openai
+pip install wikipedia
+pip install wolframalpha
+pip install aim
