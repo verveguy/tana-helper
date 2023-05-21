@@ -1,34 +1,30 @@
-from fastapi import APIRouter, Response, status
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
-from typing import Annotated
-from pydantic import BaseModel
-import pinecone
-import openai
-from typing import Optional, Type
+from typing import Optional
 
 from langchain.chat_models import ChatOpenAI
-from langchain.chains import RetrievalQA
-from langchain.vectorstores import Pinecone
-from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.memory import ConversationBufferMemory
-from langchain.chains import RetrievalQAWithSourcesChain
-from langchain.agents import load_tools, initialize_agent, AgentType
-from langchain.utilities.serpapi import SerpAPIWrapper
-from langchain.agents.react.base import DocstoreExplorer
-from langchain import Wikipedia
-from langchain.agents import Tool
-from langchain.chains import RetrievalQAWithSourcesChain
+from langchain.agents import load_tools, initialize_agent
 from langchain.callbacks import AimCallbackHandler, StdOutCallbackHandler
 from langchain.callbacks.manager import AsyncCallbackManagerForToolRun, CallbackManagerForToolRun
 from langchain.schema import OutputParserException
-from langchain.tools import BaseTool, tool
-from langchain.chains.qa_with_sources import load_qa_with_sources_chain
+from langchain.tools import BaseTool
 
 from .pinecone import get_tana_nodes_for_query
 
-from ..dependencies import *
+from ..dependencies import ChainsRequest, PineconeRequest, get_date
+
+# from langchain.chains import RetrievalQA
+# from langchain.vectorstores import Pinecone
+# from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+# from langchain.embeddings.openai import OpenAIEmbeddings
+# from langchain.memory import ConversationBufferMemory
+# from langchain.chains import RetrievalQAWithSourcesChain
+# from langchain.utilities.serpapi import SerpAPIWrapper
+# from langchain.agents.react.base import DocstoreExplorer
+# from langchain import Wikipedia
+# from langchain.agents import Tool
+# from langchain.chains import RetrievalQAWithSourcesChain
+# from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 
 
 router = APIRouter()
