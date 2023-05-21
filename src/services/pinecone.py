@@ -1,11 +1,6 @@
-from fastapi import APIRouter, Response, status
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import APIRouter, status
 from fastapi.responses import HTMLResponse
-from typing import Annotated
-from pydantic import BaseModel
-import pinecone
-import openai
-from ..dependencies import *
+from ..dependencies import PineconeRequest, get_embedding, get_pincone, TANA_NAMESPACE, TANA_TYPE
 
 
 router = APIRouter()
@@ -24,7 +19,7 @@ def upsert(req: PineconeRequest):
   pinecone = get_pincone(req)
   index = pinecone.Index(req.index)
 
-  upsert_response = index.upsert(vectors=vectors, namespace=TANA_NAMESPACE)
+  index.upsert(vectors=vectors, namespace=TANA_NAMESPACE)
   return None
 
 @router.post("/pinecone/delete", status_code=status.HTTP_204_NO_CONTENT)
@@ -32,11 +27,11 @@ def delete(req: PineconeRequest):
   pinecone = get_pincone(req)
   index = pinecone.Index(req.index)
 
-  delete_response = index.delete(ids=[req.nodeId], namespace=TANA_NAMESPACE)
+  index.delete(ids=[req.nodeId], namespace=TANA_NAMESPACE)
   return None
 
-@router.post("/pinecone/query", response_class=HTMLResponse)
-def query_pinecone(req: PineconeRequest, send_text: bool | None = False):  
+
+def get_tana_nodes_for_query(req: PineconeRequest, send_text: bool | None = False):  
   embedding = get_embedding(req)
 
   vector = embedding[0]['embedding']
@@ -65,27 +60,26 @@ def query_pinecone(req: PineconeRequest, send_text: bool | None = False):
     return match.score > req.score
 
   best = filter(threshold_function, query_response.matches)
-  text_stuff = [match.metadata['text'] for match in best]
-  ids = [match.id for match in best]
+  ids = ["[[^"+match.id+"]]" for match in best]
   
-  if send_text:
-    text_result = ''.join(text_stuff)
+  if not send_text:
+    return ids
+  else:
+    # iterator exhausted. do it again
+    best = filter(threshold_function, query_response.matches)
+    docs = [ {'sources': '[[^'+match.id+']]', 'answer': match.metadata['text']} for match in best]
+    return docs
 
-  tana_result = ""
+@router.post("/pinecone/query", response_class=HTMLResponse)
+def query_pinecone(req: PineconeRequest, send_text: bool | None = False):  
+  ids = get_tana_nodes_for_query(req)
   if len(ids) == 0:
     tana_result = "No sufficiently well-scored results"
   else:
-    tana_result += ''.join(["- [[^"+id+"]]\n" for id in ids])
-
-  if send_text:
-    return tana_result, text_result
-  else:
-    return tana_result
+    tana_result = ''.join(["- "+id+"\n" for id in ids])
+  return tana_result
 
 
 @router.post("/pinecone/purge", status_code=status.HTTP_204_NO_CONTENT)
 def purge(req: PineconeRequest):  
-  pinecone = get_pincone(req)
-  index = pinecone.Index(req.index)
-
   return "Not yet implemented"

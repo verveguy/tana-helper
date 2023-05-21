@@ -12,24 +12,28 @@ TANA_TYPE = "tana_node"
 
 class HelperRequest(BaseModel):
   context: str | None = ""
+
+class NodeRequest(HelperRequest):
+  nodeId: str
+
+class OpenAIRequest(BaseModel):
   openai: str
-  pinecone: str
   model: str | None = 'gpt-3.5-turbo'
+
+class PineconeRequest(HelperRequest, OpenAIRequest):
+  pinecone: str
   embedding_model: str | None = "text-embedding-ada-002"
   environment: str | None = "asia-southeast1-gcp"
   index: str | None = "tana-helper"
-
-
-class ChainsRequest(HelperRequest):
-  serpapi: str | None = None
-  wolfram: str | None = None
-
-
-class PineconeRequest(HelperRequest):
   score: float | None = 0.80
   top: int | None = 10
   tags: str | None = ""
   nodeId: str
+
+class ChainsRequest(HelperRequest, OpenAIRequest):
+  serpapi: str | None = None
+  wolfram: str | None = None
+  iterations: int | None = 6
 
 
 #TODO: Move thse to shared file

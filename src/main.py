@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
-from .services import pinecone, chains
+from .services import pinecone, chains, inlinerefs
 
 app = FastAPI()
 
@@ -23,6 +23,7 @@ app.add_middleware(
 # import our various service endpoints
 app.include_router(pinecone.router)
 app.include_router(chains.router)
+app.include_router(inlinerefs.router)
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/usage", response_class=HTMLResponse)
