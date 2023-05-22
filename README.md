@@ -21,7 +21,7 @@ Using a terminal app, clone this git repo
 
 `source env/bin/activate`
 
-`uvicorn main:app`
+`uvicorn src.main:app`
 
 ## Usage
 For details, see the Tana template located at [https://app.tana.inc/?bundle=cVYW2gX8nY.G3v4049e-A](https://app.tana.inc/?bundle=cVYW2gX8nY.G3v4049e-A)
