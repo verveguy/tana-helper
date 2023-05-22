@@ -11,7 +11,7 @@ NOTE: Your version of python3 should be at least 3.11
 Check it with `python3 --version`
 
 The default 3.9 on Mac OS X Ventura won't work.
-Upgrade python3 is whatever fashion you choose ([homebrew](https://brew.sh) is good)
+Upgrade python3 in whatever fashion you choose ([homebrew](https://brew.sh) is good)
 
 You can install `virtualenv` via:
 
