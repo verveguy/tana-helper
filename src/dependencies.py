@@ -16,6 +16,11 @@ class HelperRequest(BaseModel):
 class NodeRequest(HelperRequest):
   nodeId: str
 
+class ExecRequest(BaseModel):
+  code: str | None = ''
+  call: str 
+  payload: dict
+
 class OpenAIRequest(BaseModel):
   openai: str
   model: str | None = 'gpt-3.5-turbo'

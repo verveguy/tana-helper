@@ -1,7 +1,7 @@
 # tana-helper
 Simple API service that provides a form of "Semantic search" for Tana along with potentially other useful API services.
 
-All payloads are in JSON.
+All payloads are in JSON (with the exception of one, documented below)
 All results are in Tana paste format.
 
 ## Running
@@ -17,11 +17,13 @@ Using a terminal app, clone this git repo
 
 `cd tana-helper`
 
+Create a virtualenv called `env` ad activate it
+
 `python3 -m venv env` 
 
 `source env/bin/activate`
 
-`uvicorn main:app`
+`uvicorn src.main:app`
 
 ## Usage
 For details, see the Tana template located at [https://app.tana.inc/?bundle=cVYW2gX8nY.G3v4049e-A](https://app.tana.inc/?bundle=cVYW2gX8nY.G3v4049e-A)
@@ -41,6 +43,20 @@ Pinecone database.
 
 `/pinecone/purge` empties the entire Pinecone database. NOT YET IMPLEMENTED
 
+## Pushing nodes to inline references support
+
+`/inlinerefs` Given a node, finds and returns all inline refs as fields in Tana paste format.
+
+See the [Tana template](https://app.tana.inc/?bundle=cVYW2gX8nY.Eb8g90_U2G) for more information.
+
+## Python exec() helper
+
+`/exec` Executes an arbitrary chunk of python code passed as a parameter. Useful for adding simple functions to Tana.
+
+`/exec_loose` Same thing, but without the strict JSON format parameters requirement. Allows use of Tana formatted code nodes.
+
+See the [Tana template](https://app.tana.inc/?bundle=cVYW2gX8nY.l7dQ2eDwJK) for more information.
+
 ## Self bootstrapping into Tana
 
 (NOT YET IMPLEMENTED. SEE `/usage`)
@@ -54,15 +70,7 @@ You will need an OpenAI account that can access the `text-embedding-ada-002` mod
 You will also need a Pinecone account and will need to create a Pinecone index within a Pinecone "environment" (Region). The default index name is `tana-helper` although this can also be configured.
 
 ## Configuration
-This service is intended to be run in one of two ways currently: either as a localhost service, private to your local machine, or as a hosted service on the Vercel hosting platform.
-
-You can either configure this service via a `.env` file for things like OpenAI keys, etc. or you can pass these keys on every API call as part of the JSON payload.
-
-If you are running this as a shared, hosted service, say for your Tana team to use, you can run this on hosted infrastructure. However, you should NOT configure the `.env` file with OpenAI keys, since the service offers unauthenticated access. Instead, you can pass the OpenAI and Pinecone keys on each request.
-
-For `.env` configuration, you will need to copy the supplied `env.template` file as `.env` and fill in the various configuration fields. The config is only read at startup time, so if you change it, you need to restart the service to pick up the changes.
-
-See `env.template` for further comments on configuration.
+This service is intended to be run as a local server. At some point, I'll figure out how to get it running on a common hosting platform again.
 
 ## JSON payload format
 
