@@ -17,7 +17,7 @@ Using a terminal app, clone this git repo
 
 `cd tana-helper`
 
-Create a virtualenv called `env` ad activate it
+Create a virtualenv called `env` and activate it
 
 `python3 -m venv env` 
 
