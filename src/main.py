@@ -21,6 +21,8 @@ app.add_middleware(
 )
 
 # import our various service endpoints
+# Comment out any service you don't want here
+# and remove the import from above (line 4)
 app.include_router(pinecone.router)
 app.include_router(inlinerefs.router)
 app.include_router(exec_code.router)
