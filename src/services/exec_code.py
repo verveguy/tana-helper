@@ -27,7 +27,6 @@ async def exec_loose(req: Request):
     body = await req.body()
     body = body.decode('utf-8')
 
-    print(body)
     # find non-JSON parts Code, Params and Call
     # extract values
     mode = ''
