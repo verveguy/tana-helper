@@ -23,13 +23,24 @@ Create a virtualenv called `env` ad activate it
 
 `source env/bin/activate`
 
+You will then need to install the various python packages required by the service.
+See the commands in `dependencies.txt` for a full list. You can copy/paste this into your terminal session (Mac, Linux). Not sure what you do on Windows...
+
+Then you can start the service:
+
 `uvicorn src.main:app`
 
-## Usage
-For details, see the Tana template located at [https://app.tana.inc/?bundle=cVYW2gX8nY.G3v4049e-A](https://app.tana.inc/?bundle=cVYW2gX8nY.G3v4049e-A)
+# Usage
 
+There's a few different services provided by tana-helper: you may not want all of them.
+You can remove services by modifying the file `src/main/py`. Comment out the line for the service you don't want.
+
+Each has a Tana template associated with it (links below)
 
 ## Pinecone support
+
+For details, see the Tana templates located at [https://app.tana.inc/?bundle=cVYW2gX8nY.G3v4049e-A](https://app.tana.inc/?bundle=cVYW2gX8nY.G3v4049e-A)
+
 All APIs are POST endpoints
 
 `/pinecone/upsert` accepts Tana node data and creates
