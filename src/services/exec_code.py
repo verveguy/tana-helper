@@ -64,9 +64,3 @@ async def exec_loose(req: Request):
     # now that we've normalized the data, do regular call
     exec_req = ExecRequest(code=code, call=call, payload=payload)
     return exec_function(exec_req)
-
-
-def do_something():
-  return "Hello world!"
-
-result = do_something()
