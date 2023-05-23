@@ -1,5 +1,6 @@
 from fastapi import APIRouter, status
 from fastapi.responses import HTMLResponse
+from typing import Optional
 from ..dependencies import PineconeRequest, get_embedding, get_pincone, TANA_NAMESPACE, TANA_TYPE
 
 
@@ -31,7 +32,7 @@ def delete(req: PineconeRequest):
   return None
 
 
-def get_tana_nodes_for_query(req: PineconeRequest, send_text: bool | None = False):  
+def get_tana_nodes_for_query(req: PineconeRequest, send_text: Optional[bool] = False):  
   embedding = get_embedding(req)
 
   vector = embedding[0]['embedding']
@@ -71,7 +72,7 @@ def get_tana_nodes_for_query(req: PineconeRequest, send_text: bool | None = Fals
     return docs
 
 @router.post("/pinecone/query", response_class=HTMLResponse)
-def query_pinecone(req: PineconeRequest, send_text: bool | None = False):  
+def query_pinecone(req: PineconeRequest, send_text: Optional[bool] = False):  
   ids = get_tana_nodes_for_query(req)
   if len(ids) == 0:
     tana_result = "No sufficiently well-scored results"

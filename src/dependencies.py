@@ -1,52 +1,51 @@
 import pinecone
 import openai
 from pydantic import BaseModel
+from typing import Union, Optional
 from datetime import datetime
 import pytz
 
-# TODO: import these from common file
 # Pinecone keys that are not configured
 TANA_NAMESPACE = "tana-namespace"
 TANA_TYPE = "tana_node"
 
 
 class HelperRequest(BaseModel):
-  context: str | None = ""
+  context: Optional[str] = ''
 
 class NodeRequest(HelperRequest):
   nodeId: str
 
 class ExecRequest(BaseModel):
-  code: str | None = ''
+  code: Optional[str] = ''
   call: str 
   payload: dict
 
 class OpenAIRequest(BaseModel):
   openai: str
-  model: str | None = 'gpt-3.5-turbo'
+  model: Optional[str] = 'gpt-3.5-turbo'
 
 class PineconeRequest(HelperRequest, OpenAIRequest):
   pinecone: str
-  embedding_model: str | None = "text-embedding-ada-002"
-  environment: str | None = "asia-southeast1-gcp"
-  index: str | None = "tana-helper"
-  score: float | None = 0.80
-  top: int | None = 10
-  tags: str | None = ""
+  embedding_model: Optional[str] = "text-embedding-ada-002"
+  environment: Optional[str] = "asia-southeast1-gcp"
+  index: Optional[str] = "tana-helper"
+  score: Optional[float] = 0.80
+  top: Optional[int] = 10
+  tags: Optional[str] = ''
   nodeId: str
 
 class ChainsRequest(HelperRequest, OpenAIRequest):
-  serpapi: str | None = None
-  wolfram: str | None = None
-  iterations: int | None = 6
+  serpapi: Optional[str] = None
+  wolfram: Optional[str] = None
+  iterations: Optional[int] = 6
 
 
-#TODO: Move thse to shared file
-def get_pincone(req:HelperRequest):
+def get_pincone(req:PineconeRequest):
   pinecone.init(api_key=req.pinecone, environment=req.environment)
   return pinecone
 
-def get_embedding(req:HelperRequest):
+def get_embedding(req:PineconeRequest):
   openai.api_key = req.openai
   embedding = openai.Embedding.create(input=req.context, model=req.embedding_model)
   return embedding.data
