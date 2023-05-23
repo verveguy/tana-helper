@@ -30,11 +30,14 @@ Create a virtualenv called `env` and activate it
 `source env/bin/activate`
 
 You will then need to install the various python packages required by the service.
-See the commands in `dependencies.txt` for a full list. You can copy/paste this into your terminal session (Mac, Linux). Not sure what you do on Windows...
+
+`pip install -r requirements.txt`
 
 Then you can start the service:
 
 `uvicorn src.main:app`
+
+(If you want to hack on tana-helper, run it with `--reload` to ease development)
 
 # Usage
 
