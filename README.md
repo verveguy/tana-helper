@@ -4,20 +4,19 @@ Simple API service that provides a form of "Semantic search" for Tana along with
 All payloads are in JSON (with the exception of one, documented below)
 All results are in Tana paste format.
 
-## Running
+# Running
 You will need `python3` already installed as well as `virtualenv`
 
-NOTE: Your version of python3 should be at least 3.11
+NOTE: Your version of python3 should be at least 3.9
 Check it with `python3 --version`
 
-The default 3.9 on Mac OS X Ventura won't work.
 Upgrade python3 in whatever fashion you choose ([homebrew](https://brew.sh) is good)
 
 You can install `virtualenv` via:
 
 `pip install virtualenv`
 
-Using a terminal app, clone this git repo
+Using a terminal app, clone this git repo:
 
 `git clone https://github.com/verveguy/tana-helper.git`
 
@@ -27,7 +26,15 @@ Create a virtualenv called `env` and activate it
 
 `python3 -m venv env` 
 
+For Mac/Linux:
+
 `source env/bin/activate`
+
+For Windows 11:
+
+ `.\\env\\Scripts\\Activate.ps1`
+ 
+ If you have problems doing this due to "Execution Policy", open PowerShell as Administrator and do `set-executionpolicy remotesigned`. This should let you run the virtualenv `Activate.ps1` script)
 
 You will then need to install the various python packages required by the service.
 
@@ -37,7 +44,12 @@ Then you can start the service:
 
 `uvicorn src.main:app`
 
-(If you want to hack on tana-helper, run it with `--reload` to ease development)
+(If you want to hack on tana-helper, run it with `--reload` to ease development iterations)
+
+## Experimental deployment to Deta Space
+If you want to host this service somewhere, there's experimental support for Deta Space in the main branch. Learn more about Deta Space [here](https://deta.space/).
+
+However, there's something wrong with Tana Proxy fetch right now...
 
 # Usage
 
