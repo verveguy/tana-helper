@@ -1,16 +1,15 @@
 {
   "version": 2,
   "builds": [
-    {
-      "src": "dist/main.cjs",
-      "use": "@vercel/node",
-      "config": { "includeFiles": ["dist/**"] }
-    }
+      {
+          "src": "./src/main.py",
+          "use": "@vercel/python"
+      }
   ],
   "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "dist/main.cjs"
-    }
+      {
+          "src": "/(.*)",
+          "dest": "/"
+      }
   ]
 }
