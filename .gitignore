@@ -109,3 +109,5 @@ env
 __pycache__
 .aim
 .vercel
+
+.space

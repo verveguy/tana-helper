@@ -1,0 +1,11 @@
+# Spacefile Docs: https://go.deta.dev/docs/spacefile/v0
+v: 0
+micros:
+  - name: tana-helper
+    src: .
+    engine: python3.9
+    primary: true
+    run: uvicorn src.main:app
+    presets:
+      api_keys: true
+    
