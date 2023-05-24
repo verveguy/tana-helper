@@ -1,7 +1,7 @@
 from fastapi import APIRouter, status
 from fastapi.responses import HTMLResponse
 from typing import Optional
-from ..dependencies import PineconeRequest, get_embedding, get_pincone, TANA_NAMESPACE, TANA_TYPE
+from ..dependencies import PineconeRequest, get_embedding, get_pinecone, TANA_NAMESPACE, TANA_TYPE
 
 
 router = APIRouter()
@@ -17,7 +17,7 @@ def upsert(req: PineconeRequest):
               })
             ]
   
-  pinecone = get_pincone(req)
+  pinecone = get_pinecone(req)
   index = pinecone.Index(req.index)
 
   index.upsert(vectors=vectors, namespace=TANA_NAMESPACE)
@@ -25,7 +25,7 @@ def upsert(req: PineconeRequest):
 
 @router.post("/pinecone/delete", status_code=status.HTTP_204_NO_CONTENT)
 def delete(req: PineconeRequest):  
-  pinecone = get_pincone(req)
+  pinecone = get_pinecone(req)
   index = pinecone.Index(req.index)
 
   index.delete(ids=[req.nodeId], namespace=TANA_NAMESPACE)
@@ -45,7 +45,7 @@ def get_tana_nodes_for_query(req: PineconeRequest, send_text: Optional[bool] = F
       'supertag': { "$in": supertags }    
     }
 
-  pinecone = get_pincone(req)
+  pinecone = get_pinecone(req)
   index = pinecone.Index(req.index)
 
   query_response = index.query(
