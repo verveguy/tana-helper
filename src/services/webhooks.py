@@ -9,10 +9,12 @@ import openai
 from openai.error import AuthenticationError
 import json
 import re
+import os
 
 router = APIRouter()
 
-environment = Environment(loader=FileSystemLoader("templates/"))
+path = '/tmp'
+environment = Environment(loader=FileSystemLoader(path))
 # pattern to strip URLs out of incoming 
 pattern = re.compile(r'\(?"?http[^\t ")]*"?\)?')
 
@@ -24,7 +26,9 @@ pattern = re.compile(r'\(?"?http[^\t ")]*"?\)?')
 async def add_template(schema:str, body:str=Body(...)):
   # create file from body
   try:
-    with open(f'templates/{schema}.jn2', 'w') as template_file:
+    if not os.path.exists(path):
+      os.mkdir(path)
+    with open(f'{path}/{schema}.jn2', 'w') as template_file:
       print(body, file=template_file)
   except IOError as e:
     raise HTTPException(detail = e.strerror, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -35,7 +39,7 @@ async def add_template(schema:str, body:str=Body(...)):
 @router.get("/template/{schema}", response_class=HTMLResponse)
 async def get_template(schema:str):
   try:
-      with open(f'templates/{schema}.jn2', 'r') as template_file:
+      with open(f'{path}/{schema}.jn2', 'r') as template_file:
         body = template_file.read()
       return body
   except IOError as e:

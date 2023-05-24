@@ -6,6 +6,13 @@ micros:
     engine: python3.9
     primary: true
     run: uvicorn src.main:app
+    dev: uvicorn src.main:app
     presets:
       api_keys: true
-    
+      env:
+        - name: OPENAI_API_KEY
+          description: Your OpenAI key, only available to this service endpoint
+          default: "OPENAI API KEY NEEDS TO BE SET"
+        - name: TANA_API_TOKEN
+          description: Your Tana API Token, only available to this service endpoint
+          default: "TANA API TOKEN NEEDS TO BE SET"
