@@ -8,6 +8,9 @@ import pytz
 class Settings(BaseSettings):
     openai_api_key: str = "OPENAI API KEY NOT SET"
     tana_api_token: str = "TANA API TOKEN NOT SET"
+    production: bool = False
+    logger_file: str = 'tana-handler.log'
+    template_path: str = '/tmp'
 
     class Config:
         env_file = ".env"

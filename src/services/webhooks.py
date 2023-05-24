@@ -4,6 +4,7 @@ from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from typing import Union, Annotated
 from ..dependencies import OpenAICompletion, get_chatcompletion, settings
 from starlette.requests import Request
+from logging import getLogger
 import httpx
 import openai
 from openai.error import AuthenticationError
@@ -13,7 +14,10 @@ import os
 
 router = APIRouter()
 
-path = '/tmp'
+logger = getLogger()
+
+path = settings.template_path
+
 environment = Environment(loader=FileSystemLoader(path))
 # pattern to strip URLs out of incoming 
 pattern = re.compile(r'\(?"?http[^\t ")]*"?\)?')
@@ -30,6 +34,7 @@ async def add_template(schema:str, body:str=Body(...)):
       os.mkdir(path)
     with open(f'{path}/{schema}.jn2', 'w') as template_file:
       print(body, file=template_file)
+      logger.debug(f'Saved template {path}/{schema}.jn2')
   except IOError as e:
     raise HTTPException(detail = e.strerror, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -43,6 +48,7 @@ async def get_template(schema:str):
         body = template_file.read()
       return body
   except IOError as e:
+    logger.warning(f'Failed to read file {path}/{schema}.jn2')
     raise HTTPException(detail = e.strerror, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -76,15 +82,13 @@ async def do_webhook(schema: str, body: str):
       temp = environment.get_template(schema+".jn2")
       prompt = temp.render({"context": body})
     except TemplateNotFound:
-      # missing template
-      # try schema file?
-
+      logger.warning(f'Failed to find template {path}/{schema}.jn2')
       raise HTTPException(detail=f'Schema {schema} not found. Upload first', status_code=status.HTTP_400_BAD_REQUEST)
     
     # ask OpenAI to turn trash into gold
     completion_request = OpenAICompletion(prompt=prompt, max_tokens=1000, temperature=0)
     completion = get_chatcompletion(completion_request)
-    print(completion)
+    logger.debug(f'Result from OpenAI: {completion}')
 
     jsonstring = '{' + completion['choices'][0].message.content
     tana_payload = json.loads(jsonstring)

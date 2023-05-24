@@ -1,10 +1,23 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
+from logging import getLogger
 from .services import pinecone, inlinerefs, exec_code, webhooks
 from .dependencies import settings
+from .logging import setup_rich_logger
+from snowflake import SnowflakeGenerator
+import time
 
-app = FastAPI()
+def get_app() -> FastAPI:
+
+    app = FastAPI()
+    setup_rich_logger()
+
+    return app
+
+app = get_app()
+
+logger = getLogger()
 
 origins = [
     "http://localhost",
@@ -40,6 +53,23 @@ async def add_get_authorization_headers(request: Request, call_next):
     response = await call_next(request)
     return response
 
+snowflakes = SnowflakeGenerator(42)
+
+@app.middleware("http")
+async def log_entry_exit(request: Request, call_next):
+  x_request_id = request.headers.get('x-request-id')
+  idem = next(snowflakes) if not x_request_id else x_request_id
+  logger.info(f"txid={idem} start request path={request.url.path}")
+  start_time = time.time()
+    
+  response = await call_next(request)
+
+  process_time = (time.time() - start_time) * 1000
+  formatted_process_time = '{0:.2f}'.format(process_time)
+  logger.info(f"txid={idem} completed_in={formatted_process_time}ms status_code={response.status_code}")
+  if not x_request_id:
+     response.headers['x-request-id'] = str(idem)
+  return response
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/usage", response_class=HTMLResponse)

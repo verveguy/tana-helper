@@ -120,33 +120,3 @@ This service is intended to be run as a local server. It also has some experimen
 
 ## JSON payload format
 
-### Pinecone API stuff
-
-`/pinecone/upsert` and `/pinecone/query` both accept
-``` 
-{ 
-  "nodeId": "${sys:nodeId}",  
-  "tags": "${sys:tags}", 
-  "context": "${sys:context}" 
-}
-```
-
-`/pinecone/query` also accepts
-```
-  "top": "10",  // how many results to return, maximum. 10 is default
-  "threshold": "0.80", // threashold for results. .80 is default
-```
-
-`/pinecone/delete` accepts
-``` 
-{ 
-  "nodeId": "${sys:nodeId}",  
-}
-```
-
-And all Pinecone related API calls optionally accept
-```
-  "pinecone": "${secret:Pinecone}", // required if not configured in .env
-  "openai": "${secret:OpenAI}", // required if not configured in .env
-  "index": "${secret:PineconeIndex}",  // defaults to tana-helper
-```
