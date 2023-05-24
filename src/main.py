@@ -1,7 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
-from .services import pinecone, inlinerefs, exec_code
+from .services import pinecone, inlinerefs, exec_code, webhooks
+from .dependencies import settings
 
 app = FastAPI()
 
@@ -26,6 +27,19 @@ app.add_middleware(
 app.include_router(pinecone.router)
 app.include_router(inlinerefs.router)
 app.include_router(exec_code.router)
+app.include_router(webhooks.router)
+
+@app.middleware("http")
+async def add_get_authorization_headers(request: Request, call_next):
+    # find headers in request
+    x_tana_api_token = request.headers.get('x-tana-api-token')
+    x_openai_api_key = request.headers.get('x-openai-api-key')
+    # use passed in header tokens if present, otherwise look for env vars
+    settings.openai_api_key = settings.openai_api_key if not x_openai_api_key else x_openai_api_key
+    settings.tana_api_token = settings.tana_api_token if not x_tana_api_token else x_tana_api_token
+    response = await call_next(request)
+    return response
+
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/usage", response_class=HTMLResponse)

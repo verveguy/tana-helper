@@ -1,11 +1,22 @@
 import pinecone
 import openai
-from pydantic import BaseModel
+from pydantic import BaseModel, BaseSettings
 from typing import Union, Optional
 from datetime import datetime
 import pytz
 
+class Settings(BaseSettings):
+    openai_api_key: str = "OPENAI API KEY NOT SET"
+    tana_api_token: str = "TANA API TOKEN NOT SET"
+
+    class Config:
+        env_file = ".env"
+
+# create global settings 
+settings = Settings()
+
 # Pinecone keys that are not configured
+# put them in .env?
 TANA_NAMESPACE = "tana-namespace"
 TANA_TYPE = "tana_node"
 
@@ -22,8 +33,13 @@ class ExecRequest(BaseModel):
   payload: dict
 
 class OpenAIRequest(BaseModel):
-  openai: str
+  openai: Optional[str] = None
   model: Optional[str] = 'gpt-3.5-turbo'
+
+class OpenAICompletion(OpenAIRequest):
+  prompt: str
+  max_tokens: Optional[int]
+  temperature: Optional[int] = 0
 
 class PineconeRequest(HelperRequest, OpenAIRequest):
   pinecone: str
@@ -41,14 +57,24 @@ class ChainsRequest(HelperRequest, OpenAIRequest):
   iterations: Optional[int] = 6
 
 
-def get_pincone(req:PineconeRequest):
+def get_pinecone(req:PineconeRequest):
   pinecone.init(api_key=req.pinecone, environment=req.environment)
   return pinecone
 
 def get_embedding(req:PineconeRequest):
-  openai.api_key = req.openai
+  openai.api_key = settings.openai_api_key if not req.openai else req.openai
   embedding = openai.Embedding.create(input=req.context, model=req.embedding_model)
-  return embedding.data
+  return embedding.data # type: ignore
+
+def get_chatcompletion(req:OpenAICompletion) -> dict:
+  openai.api_key = settings.openai_api_key if not req.openai else req.openai
+  completion = openai.ChatCompletion.create(
+            messages=[{ 'role': 'user', 'content': req.prompt }],
+            model=req.model, 
+            max_tokens=req.max_tokens, 
+            temperature=req.temperature)
+  
+  return completion # type: ignore
 
 def get_date():
 

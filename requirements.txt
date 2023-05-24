@@ -3,3 +3,6 @@ FastAPI
 pinecone-client
 openai
 pytz
+jinja2
+python-dotenv
+httpx

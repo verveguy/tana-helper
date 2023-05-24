@@ -111,3 +111,5 @@ __pycache__
 .vercel
 
 .space
+templates
+test
