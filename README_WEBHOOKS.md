@@ -26,6 +26,10 @@ The webhook also has to call OpenAI. So you can configure that as OPENAI_API_KEY
 
 If you forget to configure or pass these tokens, you'll get a helpful 500 response with an error message suggesting you set the keys.
 
+## Running this locally 
+
+Yes, you can run this locally and still have the webhook endpoint be visible on the internet. The best way I know to do this is with the `ngrok` tool. Basically, sign up at [ngrok.com](https:ngrok.com) and then follow the install instructions. It's pretty easy. You can then forward your local service port number (using, say, `ngrok http 8000`) and you'll get an internet visible https:// URL to use. (e.g. https://XXX-YY-ZZ.ngrok-free.app). Use this in your webhook caller configuration. You'll also need to add another header so that ngrok doesn't spit back a warning on every API call. `ngrok-skip-browser-warning: anything` will work.
+
 ## Running this on a hosted server
 Since this webhook needs to be accessible from the public internet, you will either have to open a tunnel using something like `ngrok` so that the world can reach your laptop OR you will need to run this on a hosted server somewhere.
 
