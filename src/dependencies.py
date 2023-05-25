@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     tana_api_token: str = "TANA API TOKEN NOT SET"
     production: bool = False
     logger_file: str = 'tana-handler.log'
-    template_path: str = '/tmp'
+    template_path: str = '/tmp/tana-helper'
 
     class Config:
         env_file = ".env"
