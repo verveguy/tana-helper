@@ -2,17 +2,19 @@
 
 Based on the inspiring example from [@houshuang](https://github.com/houshuang) (see [recording](https://share.cleanshot.com/PNDJjGp4)), `tana-helper` now provides a powerful form of webhook processing.
 
-Basically, you can shovel any text, email, etc at the `/webhook/<tana_type>` endpoint and it will process it into JSON using OpenAI and push the resulting JSON into Tana via the [Tana Input API](https://help.tana.inc/tana-input-api.html).
+Basically, you can use this API to create your own custom webhooks by POSTing the Typescript schema for a Tana supertag to the `/schema/<tana_type>` endpoint. Once you've done this, you can POST any text, email, etc at a `/webhook/<tana_type>` endpoint as `text/plain` and it will process it into JSON using OpenAI and push the resulting JSON into Tana via the [Tana Input API](https://help.tana.inc/tana-input-api.html).
 
-So you can call this webhook from pretty much any integration platform such as Zapier or for email, use the [cloudmailin.com](https://cloudmailin.com) service as [@houshuang](https://github.com/houshuang) did.
+So you can call then call this new webhook from pretty much any integration platform such as Zapier or for email, use the [cloudmailin.com](https://cloudmailin.com) service as [@houshuang](https://github.com/houshuang) did.
 
 ## How to create a webhook endpoint without code!
+
+NOTE: All of the APIs in this section accept `text/plain` rather than JSON.
 
 To create a new webhook endpoint, all you need to do is upload the Tana supertag schema to `tana-helper` via the `/schema/<tana_type>` endpoint. You get the supertag schema by opening the supertag configuration panel in Tana and then using cmd-K to `Show API Schema`. 
 
 ![Getting schema](./assets/getting_schema.jpeg)
 
-Click the `Copy type definition` button and then upload it as the BODY of a POST request to `/schema/<type_name>` (Talend API tester is a handy Chrome extension for doing these kind of things)
+Click the `Copy type definition` button and then upload it as the BODY of a POST request to `/schema/<type_name>` Again, this endpoint accepts `text/plain` since the Typescript schema from Tana is just text. (Talend API tester is a handy Chrome extension for doing these kind of things)
 
 Or you can paste it into the web configuration UI exposed by `tana-helper` which I have not built yet. :-)
 
