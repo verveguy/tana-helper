@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from logging import getLogger
 from .services import pinecone, inlinerefs, exec_code, webhooks
 from .dependencies import settings
@@ -80,3 +81,25 @@ async def usage():
   See the Tana Template at <a href="https://app.tana.inc/?bundle=cVYW2gX8nY.G3v4049e-A">https://app.tana.inc/?bundle=cVYW2gX8nY.G3v4049e-A</a>
   </html>
   """
+
+
+# expose our configuration Webapp on /configure
+@app.get("/configure", response_class=HTMLResponse)
+async def configure():
+  return """<!doctype html>
+<html lang="en">
+
+<head>
+  <title>Tana Helper Configuration</title>
+  <script defer="defer" src="./static/webapp.js"></script>
+</head>
+
+<img src="./static/assets/clip2tana-512.png">
+<body><noscript>You need to enable JavaScript to run this app.</noscript>
+  <div id="root" style="width: 550px;" ></div>
+</body>
+
+</html>
+  """
+
+app.mount("/static", StaticFiles(directory="dist"), name="static")

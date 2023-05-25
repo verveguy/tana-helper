@@ -38,8 +38,17 @@ module.exports = {
     // copy extension manifest and icons
     new CopyPlugin({
       patterns: [
-        { from: './webapp/index.html' },
-        { context: './webapp/assets/', from: '*.png', to: 'assets/' }
+        // {
+        //   from: './src/',
+        //   globOptions: {
+        //     ignore: ['**/__pycache__']
+        //   }
+        // },
+        {
+          context: './webapp/assets/',
+          from: '*.png',
+          to: 'assets/'
+        }
       ]
     }),
   ],

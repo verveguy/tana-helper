@@ -8,3 +8,4 @@ python-dotenv
 httpx
 rich
 snowflake-id
+aiofiles

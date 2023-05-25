@@ -4,23 +4,29 @@ Simple API service that provides a form of "Semantic search" for Tana along with
 All payloads are in JSON (with the exception of one, documented below)
 All results are in Tana paste format.
 
-# Running
+# Installation
+`tana-helper` includes a python base API service and a React Typescript web app.
+
+You will need to install a number of python tools to run the service. You only need to install Typescript tools if you want to develop and change the configuration webapp, since this project includes a pre-built webapp in the git repo.
+
+First, using a terminal app, clone this git repo:
+
+`git clone https://github.com/verveguy/tana-helper.git`
+
+And change into the source directory before proceeding.
+
+`cd tana-helper`
+
+## Python setup
 You will need `python3` already installed as well as `virtualenv`
 
-NOTE: Your version of python3 should be at least 3.9
-Check it with `python3 --version`
+NOTE: Your version of python3 should be at least 3.9. Check it with `python3 --version`
 
-Upgrade python3 in whatever fashion you choose ([homebrew](https://brew.sh) is good)
+Upgrade python3 in whatever fashion you choose ([homebrew](https://brew.sh) is good on Mac)
 
 You can install `virtualenv` via:
 
 `pip install virtualenv`
-
-Using a terminal app, clone this git repo:
-
-`git clone https://github.com/verveguy/tana-helper.git`
-
-`cd tana-helper`
 
 Create a virtualenv called `env` and activate it
 
@@ -35,6 +41,18 @@ For Windows 11:
  `.\\env\\Scripts\\Activate.ps1`
  
  If you have problems doing this due to "Execution Policy", open PowerShell as Administrator and do `set-executionpolicy remotesigned`. This should let you run the virtualenv `Activate.ps1` script)
+
+## Typescript setup
+You can skip this step unless you intend to make changes to the configuration webapp yourself.
+
+<document steps to install yarn, etc.>
+
+# Update & Build
+First, make sure you have the latest version of the code.
+
+`git pull`
+
+## Building the service
 
 You will then need to install the various python packages required by the service.
 
@@ -117,6 +135,4 @@ You will also need a Pinecone account and will need to create a Pinecone index w
 
 ## Configuration
 This service is intended to be run as a local server. It also has some experimental support for hosting on Deta Space. See [Webhooks README](./README_WEBHOOKS.md) for details.
-
-## JSON payload format
 
