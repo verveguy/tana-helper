@@ -1,5 +1,10 @@
+import fastapi
+import asyncio
+import starlette
+import h11
 import logging
 import sys
+import uvicorn
 from functools import lru_cache
 from pathlib import Path
 from pydantic import BaseModel
@@ -39,7 +44,8 @@ def get_logger_config():
                 RichHandler(
                     rich_tracebacks=True,
                     tracebacks_show_locals=True,
-                    show_time=False
+                    show_time=False,
+                    tracebacks_suppress=[fastapi, uvicorn, asyncio, starlette, h11]
                 ),
                 output_file_handler
             ],
