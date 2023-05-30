@@ -10,10 +10,8 @@ from snowflake import SnowflakeGenerator
 import time
 
 def get_app() -> FastAPI:
-
     app = FastAPI()
     setup_rich_logger()
-
     return app
 
 app = get_app()

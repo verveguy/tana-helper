@@ -6,6 +6,8 @@ Basically, you can use this API to create your own custom webhooks by POSTing th
 
 So you can call then call this new webhook from pretty much any integration platform such as Zapier or for email, use the [cloudmailin.com](https://cloudmailin.com) service as [@houshuang](https://github.com/houshuang) did.
 
+NOTE: Based on my experiments so far, this really only works properly with ChatGPT 4. The 3.5 model too often misses the prompt and simply produces a single node.
+
 ## How to create a webhook endpoint without code!
 
 NOTE: All of the APIs in this section accept `text/plain` rather than JSON.

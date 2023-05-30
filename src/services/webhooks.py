@@ -1,12 +1,11 @@
-from fastapi import APIRouter, status, Response, Body, Header, HTTPException
 from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, status, Response, Body, Header, HTTPException
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from typing import Union, Annotated
-from ..dependencies import OpenAICompletion, get_chatcompletion, settings
+from ..dependencies import OpenAICompletion, get_chatcompletion, settings, LineTimer, tana_to_json
 from starlette.requests import Request
 from logging import getLogger
 import httpx
-import openai
 from openai.error import AuthenticationError
 import json
 import re
@@ -26,8 +25,10 @@ pattern = re.compile(r'\(?"?http[^\t ")]*"?\)?')
 
 # Add a new OpenAI Prompt template by POST to /template/<typename>
 # Allows for customized prompts
-@router.post("/template/{schema}", status_code=status.HTTP_204_NO_CONTENT)
-async def add_template(schema:str, body:str=Body(...)):
+@router.post("/template/{schema}", response_class=HTMLResponse)
+async def add_template(req:Request,
+                       schema:str,
+                       body:str=Body(...)):
   # create file from body
   try:
     if not os.path.exists(path):
@@ -38,7 +39,19 @@ async def add_template(schema:str, body:str=Body(...)):
   except IOError as e:
     raise HTTPException(detail = e.strerror, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-  return None
+  return f'{req.base_url}webhook/{schema}'
+
+# GET a list of all schemas (for configuration)
+@router.get("/schema")
+async def get_schemas():
+  try:
+      directory = os.listdir(path)
+      files = [f for f in directory if os.path.isfile(path+'/'+f)] #Filtering only the files.
+      schemas = [s.split('.jn2')[0] for s in files if '.jn2' in s]
+      return schemas
+  except IOError as e:
+    logger.warning(f'Failed to read directory {path}')
+    raise HTTPException(detail = e.strerror, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # GET the template for a schema_name
 @router.get("/template/{schema}", response_class=HTMLResponse)
@@ -54,8 +67,10 @@ async def get_template(schema:str):
 
 # Add a new Tana schema by POST of Tana schema to /schema/<typename>
 # generates a standard OpenAI prompt from the schema
-@router.post("/schema/{schema}", status_code=status.HTTP_204_NO_CONTENT)
-async def add_schema(schema:str, body:str=Body(...)):
+@router.post("/schema/{schema}", response_class=HTMLResponse)
+async def add_schema(req:Request, 
+                     schema:str, 
+                     body:str=Body(...)):
   # create template from standard prompt + body (schema def)
   template = '''TASK: Extract information from CONTEXT 
 
@@ -67,8 +82,21 @@ CONTEXT: {{ context }}
 
 OUTPUT: 
 {'''
-  return await add_template(schema, template)
+  return await add_template(req, schema, template)
 
+# Add a new Tana schema by POST of Tana schema to /schema/<typename>
+# generates a standard OpenAI prompt from the schema
+@router.delete("/schema/{schema}")
+async def delete(schema:str):
+  try:
+    if not os.path.exists(path):
+      os.mkdir(path)
+    os.remove(f'{path}/{schema}.jn2')
+    logger.debug(f'Removed template file {path}/{schema}.jn2')
+  except IOError as e:
+    raise HTTPException(detail = e.strerror, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+  return None
 
 # workhorse function for processing webhooks
 async def do_webhook(schema: str, body: str):
@@ -86,8 +114,13 @@ async def do_webhook(schema: str, body: str):
       raise HTTPException(detail=f'Schema {schema} not found. Upload first', status_code=status.HTTP_400_BAD_REQUEST)
     
     # ask OpenAI to turn trash into gold
-    completion_request = OpenAICompletion(prompt=prompt, max_tokens=1000, temperature=0)
-    completion = get_chatcompletion(completion_request)
+    completion_request = OpenAICompletion(prompt=prompt,
+                                          max_tokens=1000, 
+                                          temperature=0, 
+                                          # model='gpt-4'
+                                          )
+    with LineTimer('openai'):
+      completion = get_chatcompletion(completion_request)
     logger.debug(f'Result from OpenAI: {completion}')
 
     jsonstring = '{' + completion['choices'][0].message.content
@@ -119,3 +152,17 @@ async def webhook(schema:str, body:str=Body(...)):
 @router.post("/webhook/{schema}")
 async def webhook_alt(schema:str, body:str=Body(...)):
   return await do_webhook(schema, body)
+
+
+
+@router.post("/jsonify")
+async def jsonify(req:Request, 
+                     body:str=Body(...)):
+  tana_format = bytes(body, "utf-8").decode("unicode_escape")
+  print(tana_format)
+  
+  json_format = tana_to_json(tana_format)
+  print(json_format)
+  return json_format
+
+  
