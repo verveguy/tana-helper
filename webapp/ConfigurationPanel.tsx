@@ -8,15 +8,28 @@
 
 import React, { useEffect, useState } from "react";
 import { FormControlLabel, FormGroup, Switch, TextField } from "@mui/material";
+import axios from 'axios';
 
 const ConfigurationPanel = () => {
 
-  // super simple React UI at this point
-  let count = 0;
+  const [schemas, setSchemas] = useState([]);
+
+  useEffect(() => {
+    axios.get('/schema')
+      .then(response => {
+        setSchemas(response.data);
+      })
+      .catch(error => {
+        console.error(error);
+      });
+  }, []);
+
   return (
-    <div id="tana-helper">
-      Nothing to see here yet
-    </div>
+    <ul>
+      {schemas.map(schema => (
+        <li key={schema}>{schema}</li>
+      ))}
+    </ul>
   );
 }
 export default ConfigurationPanel;
