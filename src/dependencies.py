@@ -112,9 +112,11 @@ class LineTimer:
         logger.info('Code block' + self.name + ' took: ' + str(self.took) + ' ms')
 
 
+# tana to JSON conversion. Takes Tana API payload in "native" format
+# and turns into logically equivalent JSON object tree.
+# Child nodes are represented as 'children': [child, child, child]
 
-# RETHINK THIS
-
+# Strategy: 
 # Build an initial tree of nodes using 'children' arrays, marking those that are fields vs. those that are plain
 # then, walk the tree again, hoisting up any children of field nodes to be the value of the node 
 # instead of being 'children'
@@ -131,6 +133,7 @@ def tana_to_json(tana_format):
   current = top
   stack.append(top)
   current_level = 1
+  
   for line in tana_format.split('\n'):
     
     line = line.rstrip()
