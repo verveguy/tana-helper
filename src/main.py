@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from logging import getLogger
-from .services import pinecone, inlinerefs, exec_code, webhooks
+from .services import pinecone, inlinerefs, exec_code, webhooks, jsonify
 from .dependencies import settings
 from .logging import setup_rich_logger
 from snowflake import SnowflakeGenerator
@@ -39,6 +39,7 @@ app.include_router(pinecone.router)
 app.include_router(inlinerefs.router)
 app.include_router(exec_code.router)
 app.include_router(webhooks.router)
+app.include_router(jsonify.router)
 
 @app.middleware("http")
 async def add_get_authorization_headers(request: Request, call_next):

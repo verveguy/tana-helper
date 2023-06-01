@@ -153,15 +153,3 @@ async def webhook(schema:str, body:str=Body(...)):
 async def webhook_alt(schema:str, body:str=Body(...)):
   return await do_webhook(schema, body)
 
-
-
-@router.post("/jsonify")
-async def jsonify(req:Request, 
-                     body:str=Body(...)):
-  tana_format = bytes(body, "utf-8").decode("unicode_escape")  
-  logger.debug(tana_format)
-  json_format = tana_to_json(tana_format)
-  logger.debug(json_format)
-  return json_format
-
-  
