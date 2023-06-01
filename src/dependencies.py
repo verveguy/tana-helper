@@ -133,17 +133,34 @@ def tana_to_json(tana_format):
   current = top
   stack.append(top)
   current_level = 1
-  
+  in_code_block = False
+  code_block = ""
+
   for line in tana_format.split('\n'):
     
     line = line.rstrip()
     if line == '' or line == '-':
       continue
 
+    # for now, we skip code blocks. Sorry!
+    if in_code_block:
+      code_block += line +'\n'
+      if '```' in line:
+        if line[0:3] == '```':
+          in_code_block = False
+          current['value'] = code_block
+      continue
+
+    if '-' not in line:
+      # this could be a code block or other multi-line value
+      if '```' in line:
+        code_block = line + '\n'
+        in_code_block = True
+        continue
+
     # count leading spaces
     leader = line.split('-')[0]
     level = int(len(leader) / 2) + 1
-    print(f'level: {level} line: {line}')
 
     line = line.lstrip(' -')
 
