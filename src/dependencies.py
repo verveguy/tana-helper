@@ -15,8 +15,8 @@ class Settings(BaseSettings):
     tana_api_token: str = "TANA API TOKEN NOT SET"
     production: bool = False
     logger_file: str = 'tana-handler.log'
-    template_path: str = '/tmp'
-
+    template_path: str = '/tmp/tana_helper/webhooks'
+    temp_files: str = '/tmp/tana_helper/tmp'
     class Config:
         env_file = ".env"
 
@@ -145,10 +145,9 @@ def tana_to_json(tana_format):
     # for now, we skip code blocks. Sorry!
     if in_code_block:
       code_block += line +'\n'
-      if '```' in line:
-        if line[0:3] == '```':
-          in_code_block = False
-          current['value'] = code_block
+      if '```' in line and line[0:3] == '```':
+        in_code_block = False
+        current['value'] = code_block
       continue
 
     if '-' not in line:

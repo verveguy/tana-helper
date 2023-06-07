@@ -76,6 +76,7 @@ async def add_schema(req:Request,
 
 OUTPUT FORMAT: as a JSON structure following the TYPESCRIPT DEFINITION. Output only a valid JSON structure.
 
+TYPESCRIPT DEFINITION:
 ''' + body + '''
 
 CONTEXT: {{ context }}
@@ -100,45 +101,49 @@ async def delete(schema:str):
 
 # workhorse function for processing webhooks
 async def do_webhook(schema: str, body: str):
+  # strip all URLs and take first 6000 chars
+  body = re.sub(pattern, '', body)
+  body = body[0:6000]
+  
+  # stuff the body into the OpenAI prompt template
   try:
-    # strip all URLs and take first 6000 chars
-    body = re.sub(pattern, '', body)
-    body = body[0:6000]
-    
-    # stuff the body into the OpenAI prompt template
-    try:
-      temp = environment.get_template(schema+".jn2")
-      prompt = temp.render({"context": body})
-    except TemplateNotFound:
-      logger.warning(f'Failed to find template {path}/{schema}.jn2')
-      raise HTTPException(detail=f'Schema {schema} not found. Upload first', status_code=status.HTTP_400_BAD_REQUEST)
-    
+    temp = environment.get_template(schema+".jn2")
+    prompt = temp.render({"context": body})
+  except TemplateNotFound:
+    logger.warning(f'Failed to find template {path}/{schema}.jn2')
+    raise HTTPException(detail=f'Schema {schema} not found. Upload first', status_code=status.HTTP_400_BAD_REQUEST)
+  
+  try:
     # ask OpenAI to turn trash into gold
     completion_request = OpenAICompletion(prompt=prompt,
                                           max_tokens=1000, 
                                           temperature=0, 
-                                          # model='gpt-4'
+                                          model='gpt-4'
                                           )
     with LineTimer('openai'):
       completion = get_chatcompletion(completion_request)
     logger.debug(f'Result from OpenAI: {completion}')
 
-    jsonstring = '{' + completion['choices'][0].message.content
-    tana_payload = json.loads(jsonstring)
-
-    callback_url = "https://europe-west1-tagr-prod.cloudfunctions.net/addToNodeV2"
-    headers = {'Authorization': 'Bearer ' + settings.tana_api_token}
-    tana_result = httpx.post(callback_url, json={ 'nodes': [tana_payload]}, headers=headers)
-    
-    if tana_result.is_error:
-      raise HTTPException(status_code=tana_result.status_code, detail=tana_result.content)
-
-    return tana_result.content
-  
   except AuthenticationError as e:
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="OpenAI Authentication Error. Did you pass your OpenAI API Key in X-OpenAI-API-Key header or set your service env variable?")
+
+  jsonstring = '{' + completion['choices'][0].message.content
+  tana_payload = { 'nodes': [json.loads(jsonstring)] }
+
+  callback_url = "https://europe-west1-tagr-prod.cloudfunctions.net/addToNodeV2"
+  headers = {'Authorization': 'Bearer ' + settings.tana_api_token}
+
+  try:
+    with LineTimer('tana-input'):
+      tana_result = httpx.post(callback_url, json=tana_payload, headers=headers)
   except Exception as e:
-    raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=''.join(e.args))
+    raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=e)
+
+  if tana_result.is_error:
+    logger.warning(f'Tana input API failed. {tana_result.status_code}. Detail: {tana_result.text}')
+    raise HTTPException(status_code=tana_result.status_code, detail=tana_result.text)
+
+  return tana_result.content
 
 
 # Webhook request handlers
