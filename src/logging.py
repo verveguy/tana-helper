@@ -1,5 +1,6 @@
 import fastapi
 import asyncio
+import anyio
 import starlette
 import h11
 import logging
@@ -45,7 +46,7 @@ def get_logger_config():
                     rich_tracebacks=True,
                     tracebacks_show_locals=True,
                     show_time=False,
-                    tracebacks_suppress=[fastapi, uvicorn, asyncio, starlette, h11]
+                    tracebacks_suppress=[fastapi, uvicorn, asyncio, anyio, starlette, h11]
                 ),
                 output_file_handler
             ],
