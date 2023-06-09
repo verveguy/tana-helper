@@ -48,7 +48,18 @@ class Node(BaseModel):
   underConstruction: Optional[bool]
   inbound_refs: List[str] = []
   outbound_refs: List[str] = []
+  color: Optional[str] = None
   
+
+class Visualizer(BaseModel):
+  include_tag_nodes: bool = False
+  include_inline_refs: bool = False
+  include_inline_ref_nodes: bool = False
+  
+  # make this hashable
+  class Config:
+          frozen = True
+
 
 class TanaDump(BaseModel):
   formatVersion: int
@@ -59,4 +70,6 @@ class TanaDump(BaseModel):
   lastFbKey: str
   optimisticTransIds: List[Any]
   currentWorkspaceId: str
+
+  visualize: Optional[Visualizer] = None
 

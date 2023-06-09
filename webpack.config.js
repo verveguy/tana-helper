@@ -5,6 +5,7 @@ module.exports = {
   // Entry files for our webapp
   entry: {
     webapp: "./webapp/Configure.tsx",
+    graphapp: "./webapp/Graph.tsx",
   },
   output: {
     filename: '[name].js',

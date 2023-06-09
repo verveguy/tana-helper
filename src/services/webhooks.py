@@ -32,7 +32,7 @@ async def add_template(req:Request,
   # create file from body
   try:
     if not os.path.exists(path):
-      os.mkdir(path)
+      os.makedirs(path, exist_ok=True)
     with open(f'{path}/{schema}.jn2', 'w') as template_file:
       print(body, file=template_file)
       logger.debug(f'Saved template {path}/{schema}.jn2')

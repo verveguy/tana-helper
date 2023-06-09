@@ -5,6 +5,8 @@ from ..tana_types import *
 from starlette.requests import Request
 from logging import getLogger
 from itertools import combinations
+from functools import lru_cache
+
 
 router = APIRouter()
 
@@ -14,10 +16,15 @@ class Link(BaseModel):
   source: str
   target: str
 
+class RenderNode(BaseModel):
+  id: str
+  name: Optional[str]
+  color: Optional[str] = None
+
 class DirectedGraph(BaseModel):
   directed: bool = False
   multigraph: bool = False
-  nodes: List[Node] = []
+  nodes: List[RenderNode] = []
   links: List[Link] = []
 
 def add_inline_ref(index, links, source_id:str, target_id:str):
@@ -26,7 +33,26 @@ def add_inline_ref(index, links, source_id:str, target_id:str):
     link = Link(source=source_id, target=target_id)
     links.append(link)
 
-  
+def check_config(tana_dump, config:str):
+  if config in tana_dump.visualizer:
+    return tana_dump.visualizer[config]
+
+def set_global_settings(config):
+    if config is None:
+      config = Visualizer()
+
+    global global_config
+    global_config = config
+    return global_config
+
+def get_global_settings():
+    global global_config
+    return global_config
+
+@router.post("/graph/config")
+async def graph_config(config:Visualizer):
+  return set_global_settings(config) # type: ignore
+
 @router.post("/graph")
 async def graph(tana_dump:TanaDump):
 
@@ -35,6 +61,10 @@ async def graph(tana_dump:TanaDump):
   index = {}
   graph = DirectedGraph()
   tags = {}
+  tag_colors = {}
+  config = tana_dump.visualize
+  if config is None:
+    config = get_global_settings()
 
   # first, build an index by node.id to make it possible to navigate the graph
   trash = None
@@ -59,23 +89,47 @@ async def graph(tana_dump:TanaDump):
   # TODO: extract this as a function so we can use it in other tana dump 
   # parsing projects ...
   for node in tana_dump.docs:
+    if node.id not in index:
+      continue
+
     # do we have a tag?
-    if node.children and 'SYS' not in node.id and 'SYS_A13' in node.children:
-      if 'SYS_T01' in node.children:
-        # found supertag tuple
-        # make sure it's not been trashed
+    if node.children and 'SYS' not in node.id:
+      if 'SYS_A13' in node.children:
+        if 'SYS_T01' in node.children:
+          # found supertag tuple
+          # make sure it's not been trashed
+          if node.props.ownerId in index:
+            tuple_node:Node = index[node.props.ownerId]
+            if tuple_node:
+              tag_id = tuple_node.props.ownerId
+              if tag_id in index:
+                tag_node = index[tag_id]
+                if tag_node.props:
+                  tags[tag_node.props.name] = tag_node.id
+
+        elif 'SYS_T02' in node.children:
+          # found field tuple
+          # TODO handle fields similiarly to tags
+          continue
+        
+      elif 'SYS_A11' in node.children:
+        # this is a tag color specifier
+        color = None
+        for color_id in node.children:
+          if 'SYS' in color_id:
+            continue
+          else:
+            if color_id in index:
+              color = index[color_id].props.name
+        
+        # now find the tag it applies to
         if node.props.ownerId in index:
           tuple_node:Node = index[node.props.ownerId]
           if tuple_node:
             tag_id = tuple_node.props.ownerId
             if tag_id in index:
-              tag_node = index[tag_id]
-              if tag_node.props:
-                tags[tag_node.props.name] = tag_node.id
-      elif 'SYS_T02' in node.children:
-        # found field tuple
-        # TODO handle fields similiarly to tags
-        continue
+              tag_colors[tag_id] = color
+              index[tag_id].color = color
 
   # OK, now that we have the basic dump indexed...
 
@@ -83,11 +137,15 @@ async def graph(tana_dump:TanaDump):
   master_pairs = []
   # find all the inline refs first
   for node in tana_dump.docs:
+    if node.id not in index:
+      continue
+
     name = node.props.name
 
     # also look for field refs. Those are interesting as well
 
     # do we have a tag tuple that is NOT the tag definition tuple?
+    # this will be the tag of a node.
     if node.children and 'SYS' not in node.id and 'SYS_A13' in node.children:
       if 'SYS_T01' not in node.children and 'SYS_T02' not in node.children:
         tag_ids = node.children
@@ -102,17 +160,24 @@ async def graph(tana_dump:TanaDump):
               if 'SYS' in tag_id:
                 continue
               if tag_id in index:
-                master_pairs.append((data_node_id, tag_id))
+                if config.include_tag_nodes:
+                  master_pairs.append((data_node_id, tag_id))
+                # apply the color of the tag...
+                index[data_node_id].color = tag_colors[tag_id]
 
     # look for inline refs. That's a relationship
-    # DISABLED for testing with tags
-    if False and name and '<span data-inlineref-node=\"' in name:
+    if name and '<span data-inlineref-node=\"' in name:
       frags = name.split('<span data-inlineref-node=\"')
       # build a link between the nodes that are referenced
       # # (i.e. treat the node with the inline refs as the 
       # # "join node" but don't include it in the output)
-      if len(frags) > 2:
-        ids = []
+      if len(frags) > 1:
+        if config.include_inline_ref_nodes:
+          ids = [node.id]
+        else:
+          # do NOT include join node in the pairs
+          ids = []
+          
         for frag in frags[1:]:
           ids.append(frag.split('"')[0])
         
@@ -125,32 +190,62 @@ async def graph(tana_dump:TanaDump):
     # to be included as a link from the child tagged node to the parent tagged node
 
   # strip the links down to the unique set
+  master_pairs = set(master_pairs)
   final_pairs = set()
-  # also remove redundat bidirectional links
+  # also remove redundant bidirectional links
   [final_pairs.add((a, b)) for (a, b) in master_pairs
     if (a, b) not in final_pairs and (b, a) not in final_pairs]
 
   # build links
+  links = []
   for pair in final_pairs:
-    add_inline_ref(index, graph.links, pair[0], pair[1])
+    add_inline_ref(index, links, pair[0], pair[1])
 
   count = 0
-  new_graph = DirectedGraph()
   node_ids = []
 
   # only include nodes that are linked
-  for link in graph.links:
-    new_graph.links.append(link)
+  for link in links:
+
+    # only include colored nodes (tagged)
+    # source_node = index[link.source]
+    # if source_node.color is None:
+    #   continue
+  
+    # target_node = index[link.target]
+    # if target_node.color is None:
+    #   continue
+
+    graph.links.append(link)
     node_ids.append(link.source)
     node_ids.append(link.target)
     count = count + 1
-    if count > 500:
-      break
   
   node_ids = list(set(node_ids))
   for node_id in node_ids:
-    new_graph.nodes.append(index[node_id])
+    node = index[node_id]
+    render_node = RenderNode(id=node.id, name=node.props.name, color=node.color)
+    graph.nodes.append(render_node)
 
 
-  return new_graph
+  return graph
 
+
+# expose our configuration Webapp on /configure
+@router.get("/ui/graph", response_class=HTMLResponse)
+async def graph_ui():
+  return """<!doctype html>
+<html lang="en">
+
+<head>
+  <title>Tana Graph Viewer</title>
+  <script defer="defer" src="/static/graphapp.js"></script>
+</head>
+
+<body>
+  <noscript>You need to enable JavaScript to run this app.</noscript>
+  <div id="root" style="width: 550px;" ></div>
+</body>
+
+</html>
+  """

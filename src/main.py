@@ -2,8 +2,9 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from logging import getLogger
-from .services import pinecone, inlinerefs, exec_code, webhooks, jsonify, graph_view
+from .services import pinecone, inlinerefs, exec_code, webhooks, jsonify, graph_view, configure
 from .dependencies import settings
 from .logging import setup_rich_logger
 from snowflake import SnowflakeGenerator
@@ -42,6 +43,7 @@ app.include_router(exec_code.router)
 app.include_router(webhooks.router)
 app.include_router(jsonify.router)
 app.include_router(graph_view.router)
+app.include_router(configure.router)
 
 @app.middleware("http")
 async def add_get_authorization_headers(request: Request, call_next):
@@ -82,24 +84,10 @@ async def usage():
   </html>
   """
 
-
-# expose our configuration Webapp on /configure
-@app.get("/configure", response_class=HTMLResponse)
-async def configure():
-  return """<!doctype html>
-<html lang="en">
-
-<head>
-  <title>Tana Helper Configuration</title>
-  <script defer="defer" src="./static/webapp.js"></script>
-</head>
-
-<img src="./static/assets/clip2tana-512.png">
-<body><noscript>You need to enable JavaScript to run this app.</noscript>
-  <div id="root" style="width: 550px;" ></div>
-</body>
-
-</html>
-  """
-
 app.mount("/static", StaticFiles(directory="dist"), name="static")
+
+favicon_path = 'dist/assets/favicon.png'
+
+@app.get('/favicon.ico', include_in_schema=False)
+async def favicon():
+    return FileResponse(favicon_path)
