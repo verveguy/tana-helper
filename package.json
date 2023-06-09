@@ -20,6 +20,7 @@
     "openai-fetch": "^1.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-force-graph-2d": "^1.25.0",
     "react-force-graph-3d": "^1.23.0",
     "react-scripts": "5.0.1",
     "styled-components": "^5.3.9",
@@ -52,16 +53,16 @@
   },
   "devDependencies": {
     "@mui/icons-material": "^5.11.16",
+    "@testing-library/jest-dom": "^5.16.5",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^13.5.0",
     "@types/chrome": "^0.0.224",
+    "@types/jest": "^27.5.2",
     "babel-plugin-styled-components": "^2.0.7",
     "copy-webpack-plugin": "^11.0.0",
     "nodemon": "^2.0.22",
     "ts-loader": "^9.4.2",
     "webpack": "^5.76.2",
-    "webpack-cli": "^5.0.1",
-    "@testing-library/jest-dom": "^5.16.5",
-    "@testing-library/react": "^13.4.0",
-    "@testing-library/user-event": "^13.5.0",
-    "@types/jest": "^27.5.2"
+    "webpack-cli": "^5.0.1"
   }
 }

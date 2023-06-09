@@ -19,6 +19,7 @@ import ListItemText from '@mui/material/ListItemText';
 import InboxIcon from '@mui/icons-material/MoveToInbox';
 import MailIcon from '@mui/icons-material/Mail';
 import ForceGraph3D, { GraphData } from 'react-force-graph-3d';
+// import ForceGraph2D, { GraphData } from 'react-force-graph-2d';
 import { Button, Checkbox, CircularProgress, FormControlLabel, FormGroup } from '@mui/material';
 import axios from 'axios';
 
@@ -229,6 +230,10 @@ export default function GraphWorkspace() {
             node.fx = node.x;
             node.fy = node.y;
             node.fz = node.z;
+        // : <ForceGraph2D graphData={graphData}
+        //   onNodeDragEnd={node => {
+        //     node.fx = node.x;
+        //     node.fy = node.y;
           }}
         />
         }
