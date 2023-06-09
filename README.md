@@ -1,13 +1,12 @@
 # tana-helper
-Simple API service that provides a form of "Semantic search" for Tana along with potentially other useful API services.
+Simple API service that provides a variety useful API services to complement your daily use of [Tana](https://tana.inc)
 
-All payloads are in JSON (with the exception of one, documented below)
-All results are in Tana paste format.
+All payloads are in JSON (with the exception of one, documented below). All results are in Tana paste format unless otherwise stated.
 
 # Installation
 `tana-helper` includes a python base API service and a React Typescript web app.
 
-You will need to install a number of python tools to run the service. You only need to install Typescript tools if you want to develop and change the configuration webapp, since this project includes a pre-built webapp in the git repo.
+You will need to install a number of python tools to run the service. You only need to install TypeScript tools if you want to develop and change the configuration webapp, since this project includes a pre-built webapp in the git repo.
 
 First, using a terminal app, clone this git repo:
 
@@ -42,27 +41,36 @@ For Windows 11:
  
  If you have problems doing this due to "Execution Policy", open PowerShell as Administrator and do `set-executionpolicy remotesigned`. This should let you run the virtualenv `Activate.ps1` script)
 
-## Typescript setup
-You can skip this step unless you intend to make changes to the configuration webapp yourself.
+## TypeScript setup
+This is needed for the web UI components:
 
-<document steps to install yarn, etc.>
+Install `node` and `yarn` for your operating system.
 
-# Update & Build
-First, make sure you have the latest version of the code.
+Then while in the `tana-helper` directory:
+
+`yarn install`
+
+`yarn build`
+
+# Build & Run
+
+If you want to update an existing installation of `tana-helper` or you are developing enhancements, first, make sure you have the latest version of the code.
 
 `git pull`
 
 ## Building the service
 
-You will then need to install the various python packages required by the service.
+You will then need to install the various python packages required by the service. This list changes from time to time.
 
 `pip install -r requirements.txt`
+
+## Run the service
 
 Then you can start the service:
 
 `uvicorn src.main:app`
 
-(If you want to hack on tana-helper, run it with `--reload` to ease development iterations)
+(If you want to hack on `tana-helper`, run it with `--reload` to ease development iterations)
 
 ## Experimental deployment to Deta Space
 If you want to host this service somewhere, there's experimental support for Deta Space in the main branch. Learn more about Deta Space [here](https://deta.space/).
@@ -75,6 +83,14 @@ There's a few different services provided by tana-helper: you may not want all o
 You can remove services by modifying the file `src/main/py`. Comment out the line for the service you don't want.
 
 Each has a Tana template associated with it (links below)
+
+## Graph Visualizer!
+
+Inspired by the marketing visualization on the Tana.inc website, `tana-helper` provides a 3D visualization of your Tana workspace.
+
+Check out this [video demo](https://share.cleanshot.com/7J6d6F6l)
+
+For details, see [Visualizer README](./README_VISUALIZER.md)
 
 ## Webhooks support!
 
