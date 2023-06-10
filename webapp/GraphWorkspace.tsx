@@ -169,7 +169,7 @@ export default function GraphWorkspace() {
     setUpload(true);
   }
 
-  function handleNodeClick(node: any, event: MouseEvent): void {
+  function handleNodeClick(node: any, event: PointerEvent): void {
     console.log("Got node click");
   }
 

@@ -1,6 +1,8 @@
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
 import GraphWorkspace from './GraphWorkspace';
+
+// use emotion for CSS when ready
+// https://emotion.sh/docs/introduction
 
 const darkTheme = createTheme({
   palette: {
@@ -11,7 +13,6 @@ const darkTheme = createTheme({
 function GraphApp() {
   return (
     <ThemeProvider theme={darkTheme}>
-      <CssBaseline />
       <GraphWorkspace />
     </ThemeProvider>
   );
