@@ -1,13 +1,19 @@
 {
   "configurations": [
-
     {
-      "name": "Launch Chrome",
+      "name": "Launch Graph",
       "request": "launch",
       "type": "chrome",
-      "url": "http://localhost:8000",
-      "webRoot": "${workspaceFolder}/webapp"
+      "url": "http://localhost:8000/ui/graph",
+      "webRoot": "${workspaceFolder}"
     },
+    // {
+    //   "name": "Attach Chrome",
+    //   "request": "attach",
+    //   "type": "chrome",
+    //   "urlFilter": "http://localhost:8000/*",
+    //   "webRoot": "${workspaceFolder}"
+    // },
     {
       "name": "Python: FastAPI",
       "type": "python",
