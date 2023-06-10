@@ -18,7 +18,7 @@ if (!rootElement) throw new Error('Failed to find the root element');
 const root = createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <CssBaseline /> 
+    <CssBaseline />
     <GlobalStyles styles={{ body: { backgroundColor: 'black' } }} />
     <GraphApp />
   </React.StrictMode>

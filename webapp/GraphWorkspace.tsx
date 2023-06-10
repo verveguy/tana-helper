@@ -20,8 +20,11 @@ import InboxIcon from '@mui/icons-material/MoveToInbox';
 import MailIcon from '@mui/icons-material/Mail';
 import ForceGraph3D, { GraphData } from 'react-force-graph-3d';
 // import ForceGraph2D, { GraphData } from 'react-force-graph-2d';
-import { Button, Checkbox, CircularProgress, FormControlLabel, FormGroup } from '@mui/material';
+import { Button, Checkbox, CircularProgress, FormControlLabel, FormGroup, Grid } from '@mui/material';
 import axios from 'axios';
+import { Container } from "@mui/system";
+import Grid2 from "@mui/material/Unstable_Grid2/Grid2";
+import { useWindowSize } from "@react-hook/window-size";
 
 const drawerWidth = 240;
 
@@ -88,6 +91,7 @@ export default function GraphWorkspace() {
   const [file, setFile] = useState<File>();
   const [upload, setUpload] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [width, height] = useWindowSize();
 
   const handleDrawerOpen = () => {
     setOpen(true);
@@ -107,9 +111,9 @@ export default function GraphWorkspace() {
   };
 
   useEffect(() => {
-    let new_config: GraphConfig = {include_tag_nodes: false, include_inline_ref_nodes: false, include_inline_refs: false };
+    let new_config: GraphConfig = { include_tag_nodes: false, include_inline_ref_nodes: false, include_inline_refs: false };
     setConfig(new_config)
-  },[]);
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -175,6 +179,7 @@ export default function GraphWorkspace() {
 
   return (
     <Box sx={{ display: 'flex' }}>
+      <CssBaseline />
       <AppBar position="fixed" open={open}>
         <Toolbar>
           <IconButton
@@ -233,8 +238,13 @@ export default function GraphWorkspace() {
       </Drawer>
       <Main open={open}>
         <DrawerHeader />
-        {loading ? <CircularProgress />
+        <Container sx={{ display: 'flex', width: '100%', height: '100%', justifyContent: 'center' }}>
+        {loading
+          ?
+            <CircularProgress />
           : <ForceGraph3D graphData={graphData}
+            width={width - 50 - (open ? drawerWidth : 0)}
+            height={height-115}
             onNodeClick={handleNodeClick}
             onNodeDragEnd={node => {
               node.fx = node.x;
@@ -248,6 +258,7 @@ export default function GraphWorkspace() {
           // }}
           />
         }
+        </Container>
       </Main>
     </Box>
   );
