@@ -1,12 +1,18 @@
 {
+  "include": ["webapp"],
   "compilerOptions": {
-    "target": "es5",
+    "outDir": "dist",
+
+    "target": "esnext",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "strict": true,
+    "sourceMap": true,
+    "declaration": true,                              /* Generate .d.ts files from TypeScript and JavaScript files in your project. */
+    "declarationMap": true,                           /* Create sourcemaps for d.ts files. */
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
     "module": "esnext",
@@ -14,9 +20,11 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react-jsx",
-    "outDir": "dist",
-    "sourceMap": true,
-  },
-  "include": ["webapp"]
+    "noImplicitAny": false,                            /* Enable error reporting for expressions and declarations with an implied 'any' type. */
+    "jsx": "react-jsx"
+  }
+  // "ts-node": {                                      /* use for node based services */
+  //   "esm": true,
+  //   "experimentalSpecifierResolution": "node"
+  // },
 }

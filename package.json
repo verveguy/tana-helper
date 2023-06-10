@@ -17,21 +17,18 @@
     "@types/react": "^18.0.28",
     "@types/react-dom": "^18.0.11",
     "axios": "^1.4.0",
-    "openai-fetch": "^1.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-force-graph-2d": "^1.25.0",
     "react-force-graph-3d": "^1.23.0",
     "react-scripts": "5.0.1",
     "styled-components": "^5.3.9",
-    "turndown": "^7.1.2",
     "typescript": "^4.9.5",
     "watch": "^1.0.2",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "build": "webpack",
-    "watch": "nodemon --watch ./webapp -e tsx,css --exec \"yarn run build\""
+    "build": "rimraf dist && node esbuild.config.mjs"
   },
   "eslintConfig": {
     "extends": [
@@ -59,10 +56,10 @@
     "@types/chrome": "^0.0.224",
     "@types/jest": "^27.5.2",
     "babel-plugin-styled-components": "^2.0.7",
-    "copy-webpack-plugin": "^11.0.0",
+    "esbuild": "^0.17.19",
+    "esbuild-plugin-copy": "^2.1.1",
     "nodemon": "^2.0.22",
-    "ts-loader": "^9.4.2",
-    "webpack": "^5.76.2",
-    "webpack-cli": "^5.0.1"
+    "rimraf": "^5.0.1",
+    "ts-loader": "^9.4.2"
   }
 }

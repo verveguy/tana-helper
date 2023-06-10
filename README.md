@@ -46,12 +46,6 @@ This is needed for the web UI components:
 
 Install `node` and `yarn` for your operating system.
 
-Then while in the `tana-helper` directory:
-
-`yarn install`
-
-`yarn build`
-
 # Build & Run
 
 If you want to update an existing installation of `tana-helper` or you are developing enhancements, first, make sure you have the latest version of the code.
@@ -63,6 +57,14 @@ If you want to update an existing installation of `tana-helper` or you are devel
 You will then need to install the various python packages required by the service. This list changes from time to time.
 
 `pip install -r requirements.txt`
+
+You will also want to build the webapp UI:
+
+Then while in the `tana-helper` directory:
+
+`yarn install`
+
+`yarn build`
 
 ## Run the service
 

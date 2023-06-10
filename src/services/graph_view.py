@@ -239,7 +239,7 @@ async def graph_ui():
 
 <head>
   <title>Tana Graph Viewer</title>
-  <script defer="defer" src="/static/graphapp.js"></script>
+  <script defer="defer" src="/static/Graph.js" ></script>
 </head>
 
 <body>

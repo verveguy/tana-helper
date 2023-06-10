@@ -74,7 +74,7 @@ const DrawerHeader = styled('div')(({ theme }) => ({
   justifyContent: 'flex-end',
 }));
 
-type GraphConfig = {
+interface GraphConfig {
   include_tag_nodes: boolean;
   include_inline_refs: boolean;
   include_inline_ref_nodes: boolean;
@@ -105,6 +105,11 @@ export default function GraphWorkspace() {
     setUpload(true);
     event.currentTarget.files = null;
   };
+
+  useEffect(() => {
+    let new_config: GraphConfig = {include_tag_nodes: false, include_inline_ref_nodes: false, include_inline_refs: false };
+    setConfig(new_config)
+  },[]);
 
   useEffect(() => {
     setLoading(true);
@@ -164,6 +169,10 @@ export default function GraphWorkspace() {
     setUpload(true);
   }
 
+  function handleNodeClick(node: any, event: MouseEvent): void {
+    console.log("Got node click");
+  }
+
   return (
     <Box sx={{ display: 'flex' }}>
       <AppBar position="fixed" open={open}>
@@ -201,7 +210,7 @@ export default function GraphWorkspace() {
           </IconButton>
         </DrawerHeader>
         <Divider />
-        <Box style={{ padding:10, marginLeft: 'auto', marginRight: 'auto'}}>
+        <Box style={{ padding: 10, marginLeft: 'auto', marginRight: 'auto' }}>
           <input hidden
             accept="application/json"
             style={{ display: 'none' }}
@@ -216,26 +225,28 @@ export default function GraphWorkspace() {
           </label>
         </Box>
         <Divider />
-        <FormGroup style={{ padding:10}}>
+        <FormGroup style={{ padding: 10 }}>
           <FormControlLabel control={<Checkbox checked={config?.include_tag_nodes} />} label="Include Tags as Nodes" onChange={handleIncludeTags} />
-          <FormControlLabel control={<Checkbox checked={config?.include_inline_refs}/>} label="Include inline refs as joins" onChange={handleIncludeRefs} />
-          <FormControlLabel control={<Checkbox checked={config?.include_inline_ref_nodes}/>} disabled={!config?.include_inline_refs} label="Include inline refs joins as nodes" onChange={handleIncludeRefNodes} />
+          <FormControlLabel control={<Checkbox checked={config?.include_inline_refs} />} label="Include inline refs as joins" onChange={handleIncludeRefs} />
+          <FormControlLabel control={<Checkbox checked={config?.include_inline_ref_nodes} />} disabled={!config?.include_inline_refs} label="Include inline refs joins as nodes" onChange={handleIncludeRefNodes} />
         </FormGroup>
       </Drawer>
       <Main open={open}>
         <DrawerHeader />
-        { loading ? <CircularProgress />
-        : <ForceGraph3D graphData={graphData}
-          onNodeDragEnd={node => {
-            node.fx = node.x;
-            node.fy = node.y;
-            node.fz = node.z;
-        // : <ForceGraph2D graphData={graphData}
-        //   onNodeDragEnd={node => {
-        //     node.fx = node.x;
-        //     node.fy = node.y;
-          }}
-        />
+        {loading ? <CircularProgress />
+          : <ForceGraph3D graphData={graphData}
+            onNodeClick={handleNodeClick}
+            onNodeDragEnd={node => {
+              node.fx = node.x;
+              node.fy = node.y;
+              node.fz = node.z;
+            }}
+          // : <ForceGraph2D graphData={graphData}
+          //   onNodeDragEnd={node => {
+          //     node.fx = node.x;
+          //     node.fy = node.y;
+          // }}
+          />
         }
       </Main>
     </Box>
