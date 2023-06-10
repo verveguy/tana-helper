@@ -91,3 +91,25 @@ favicon_path = 'dist/assets/favicon.png'
 @app.get('/favicon.ico', include_in_schema=False)
 async def favicon():
     return FileResponse(favicon_path)
+
+
+# expose our various Webapps on /ui/{app_name}
+@app.get("/ui/{app_file}", response_class=HTMLResponse)
+async def app_ui(app_file:str):
+  # return a completely generic index.html that assumes the app is
+  # available on App_file.js (note initial cap)
+  return f"""<!doctype html>
+<html lang="en">
+
+<head>
+  <title>Tana Graph Viewer</title>
+  <script defer="defer" src="/static/{app_file.capitalize()}.js" ></script>
+</head>
+
+<body>
+  <noscript>You need to enable JavaScript to run this app.</noscript>
+  <div id="root"></div>
+</body>
+
+</html>
+  """

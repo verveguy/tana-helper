@@ -230,22 +230,3 @@ async def graph(tana_dump:TanaDump):
 
   return graph
 
-
-# expose our configuration Webapp on /configure
-@router.get("/ui/graph", response_class=HTMLResponse)
-async def graph_ui():
-  return """<!doctype html>
-<html lang="en">
-
-<head>
-  <title>Tana Graph Viewer</title>
-  <script defer="defer" src="/static/Graph.js" ></script>
-</head>
-
-<body>
-  <noscript>You need to enable JavaScript to run this app.</noscript>
-  <div id="root" ></div>
-</body>
-
-</html>
-  """
