@@ -89,6 +89,7 @@ async def graph(tana_dump:TanaDump):
   # TODO: extract this as a function so we can use it in other tana dump 
   # parsing projects ...
   for node in tana_dump.docs:
+    # skip trashed nodes
     if node.id not in index:
       continue
 
@@ -137,6 +138,7 @@ async def graph(tana_dump:TanaDump):
   master_pairs = []
   # find all the inline refs first
   for node in tana_dump.docs:
+    # skip trashed nodes
     if node.id not in index:
       continue
 
@@ -166,11 +168,11 @@ async def graph(tana_dump:TanaDump):
                 index[data_node_id].color = tag_colors[tag_id]
 
     # look for inline refs. That's a relationship
-    if name and '<span data-inlineref-node=\"' in name:
+    if config.include_inline_refs and name and '<span data-inlineref-node=\"' in name:
       frags = name.split('<span data-inlineref-node=\"')
       # build a link between the nodes that are referenced
-      # # (i.e. treat the node with the inline refs as the 
-      # # "join node" but don't include it in the output)
+      # (i.e. treat the node with the inline refs as the 
+      # "join node" but don't include it in the output unless asked)
       if len(frags) > 1:
         if config.include_inline_ref_nodes:
           ids = [node.id]

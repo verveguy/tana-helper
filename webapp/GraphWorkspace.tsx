@@ -130,7 +130,7 @@ export default function GraphWorkspace() {
       })
       .finally(() => {
         setLoading(false);
-        setUpload(false)
+        setUpload(false);
       })
   }, [upload]);
 
