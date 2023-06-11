@@ -53,6 +53,7 @@ class Node(BaseModel):
 
 class Visualizer(BaseModel):
   include_tag_nodes: bool = False
+  include_tag_links: bool = False
   include_inline_refs: bool = False
   include_inline_ref_nodes: bool = False
   

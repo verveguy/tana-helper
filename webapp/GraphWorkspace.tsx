@@ -79,6 +79,7 @@ const DrawerHeader = styled('div')(({ theme }) => ({
 
 interface GraphConfig {
   include_tag_nodes: boolean;
+  include_tag_links: boolean;
   include_inline_refs: boolean;
   include_inline_ref_nodes: boolean;
 }
@@ -111,7 +112,7 @@ export default function GraphWorkspace() {
   };
 
   useEffect(() => {
-    let new_config: GraphConfig = { include_tag_nodes: false, include_inline_ref_nodes: false, include_inline_refs: false };
+    let new_config: GraphConfig = { include_tag_nodes: false, include_tag_links: false, include_inline_ref_nodes: false, include_inline_refs: false };
     setConfig(new_config)
   }, []);
 
@@ -148,9 +149,21 @@ export default function GraphWorkspace() {
       });
   }, [config]);
 
-  function handleIncludeTags(event: SyntheticEvent<Element, Event>, checked: boolean): void {
+
+  function handleIncludeTagNodes(event: SyntheticEvent<Element, Event>, checked: boolean): void {
     let new_config = { ...config } as GraphConfig;
     new_config.include_tag_nodes = checked;
+    if (!checked) {
+      new_config.include_tag_links = false;
+    }
+    setConfig(new_config);
+    setUpload(true);
+  }
+
+
+  function handleIncludeTagLinks(event: SyntheticEvent<Element, Event>, checked: boolean): void {
+    let new_config = { ...config } as GraphConfig;
+    new_config.include_tag_links = checked;
     setConfig(new_config);
     setUpload(true);
   }
@@ -222,18 +235,26 @@ export default function GraphWorkspace() {
             id="raised-button-file"
             type="file"
             onChange={handleFileUpload}
+            disabled = {!(config?.include_tag_nodes || config?.include_inline_ref_nodes ||
+              config?.include_tag_links || config?.include_inline_ref_nodes)}
           />
           <label htmlFor="raised-button-file">
-            <Button component="span">
+            <Button component="span" disabled = {!(config?.include_tag_nodes || config?.include_inline_ref_nodes ||
+              config?.include_tag_links || config?.include_inline_ref_nodes)}>
               Upload
             </Button>
           </label>
         </Box>
         <Divider />
         <FormGroup style={{ padding: 10 }}>
-          <FormControlLabel control={<Checkbox checked={config?.include_tag_nodes} />} label="Include Tags as Nodes" onChange={handleIncludeTags} />
-          <FormControlLabel control={<Checkbox checked={config?.include_inline_refs} />} label="Include inline refs as joins" onChange={handleIncludeRefs} />
-          <FormControlLabel control={<Checkbox checked={config?.include_inline_ref_nodes} />} disabled={!config?.include_inline_refs} label="Include inline refs joins as nodes" onChange={handleIncludeRefNodes} />
+          <FormControlLabel control={<Checkbox checked={config?.include_tag_nodes} />} label="Show supertags as nodes" onChange={handleIncludeTagNodes} />
+          <Divider />
+          <FormControlLabel control={<Checkbox checked={config?.include_tag_links} />} disabled={!config?.include_tag_nodes} label="Show supertag relationships as links" onChange={handleIncludeTagLinks} />
+          <Divider />
+          <FormControlLabel control={<Checkbox checked={config?.include_inline_refs} />} label="Nodes with inline refs are joins" onChange={handleIncludeRefs} />
+          <Divider />
+          <FormControlLabel control={<Checkbox checked={config?.include_inline_ref_nodes} />} disabled={!config?.include_inline_refs} label="Include inline ref joins as nodes" onChange={handleIncludeRefNodes} />
+          <Divider />
         </FormGroup>
       </Drawer>
       <Main open={open}>

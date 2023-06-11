@@ -27,11 +27,6 @@ class DirectedGraph(BaseModel):
   nodes: List[RenderNode] = []
   links: List[Link] = []
 
-def add_inline_ref(index, links, source_id:str, target_id:str):
-  # add a link if nodes are in index
-  if source_id in index and target_id in index:
-    link = Link(source=source_id, target=target_id)
-    links.append(link)
 
 def check_config(tana_dump, config:str):
   if config in tana_dump.visualizer:
@@ -58,37 +53,52 @@ async def graph(tana_dump:TanaDump):
 
   # walk the data and build a hash of node ids
   node: Node
-  index = {}
-  graph = DirectedGraph()
-  tags = {}
-  tag_colors = {}
+  index = {} # fast access to all nodes by id
+  trash = {} # nodes we should treat as "trashed"
+  tags = {} # tag nodes we discover
+  tag_colors = {} # colors for tags we discover  
+  master_pairs = [] # working set of pairs along the way
+  links = []  # final results we build into
+
   config = tana_dump.visualize
   if config is None:
     config = get_global_settings()
 
+  def add_linkage(source_id:str, target_id:str):
+    # add a link if nodes are in index
+    # TODO: what if they're trashed?
+    # we seem to have errors in trash...
+    if source_id in index and target_id in index:
+      link = Link(source=source_id, target=target_id)
+      links.append(link)
+
   # first, build an index by node.id to make it possible to navigate the graph
-  trash = None
+  trash_node = None
   for node in tana_dump.docs:
     if 'TRASH' in node.id:
       # ignore the trash
-      trash = node
+      trash_node = node
+      # But make sure to put the trash in the trash
+      trash[trash_node.id] = trash_node
       continue
     index[node.id] = node
 
   # strip all the nodes that are in the trash from the index
   # TODO: figure better way to check node trashed status in code below
   # (wouldn't it be nice if trash could be emptied first?)
-  if trash is not None:
-    trash_children = trash.children
+  if trash_node is not None:
+    trash_children = trash_node.children
     if trash_children:
       for node_id in trash_children:
         if node_id in index:
-          del index[node_id]
+          trash[node_id] = index[node_id]
+          #del index[node_id]
 
   # look for tags and build a tag index
   # TODO: extract this as a function so we can use it in other tana dump 
   # parsing projects ...
   for node in tana_dump.docs:
+
     # skip trashed nodes
     if node.id not in index:
       continue
@@ -99,14 +109,32 @@ async def graph(tana_dump:TanaDump):
         if 'SYS_T01' in node.children:
           # found supertag tuple
           # make sure it's not been trashed
-          if node.props.ownerId in index:
-            tuple_node:Node = index[node.props.ownerId]
-            if tuple_node:
-              tag_id = tuple_node.props.ownerId
-              if tag_id in index:
+          if node.props.ownerId not in trash:
+            meta_node:Node = index[node.props.ownerId]
+            if meta_node:
+              tag_id = meta_node.props.ownerId
+              if tag_id not in trash:
                 tag_node = index[tag_id]
                 if tag_node.props:
-                  tags[tag_node.props.name] = tag_node.id
+                  tag_name = tag_node.props.name
+                  tags[tag_name] = tag_node.id
+                  if len(node.children) > 2:
+                    # we have a superclass as well
+                    for child_id in node.children:
+                      if 'SYS' in child_id:
+                        continue
+                      if child_id not in trash:
+                        supertag = index[child_id]
+                        print (f'{tag_name} -> {supertag.props.name}')
+                        if config.include_tag_nodes:
+                          master_pairs.append((tag_id, child_id))
+                  else:
+                    print(f'{tag_name} ->')
+              else:
+                trashed_node = trash[tag_id]
+                print(f'Found tag_id {tag_id}, name {trashed_node.props.name} in the TRASH')
+
+
 
         elif 'SYS_T02' in node.children:
           # found field tuple
@@ -120,26 +148,25 @@ async def graph(tana_dump:TanaDump):
           if 'SYS' in color_id:
             continue
           else:
-            if color_id in index:
+            if color_id not in trash:
               color = index[color_id].props.name
         
         # now find the tag it applies to
         if node.props.ownerId in index:
-          tuple_node:Node = index[node.props.ownerId]
-          if tuple_node:
-            tag_id = tuple_node.props.ownerId
-            if tag_id in index:
+          meta_node:Node = index[node.props.ownerId]
+          if meta_node:
+            tag_id = meta_node.props.ownerId
+            if tag_id not in trash:
               tag_colors[tag_id] = color
               index[tag_id].color = color
 
   # OK, now that we have the basic dump indexed...
 
   # Find all the pairs we care about to build our graph viz
-  master_pairs = []
   # find all the inline refs first
   for node in tana_dump.docs:
     # skip trashed nodes
-    if node.id not in index:
+    if node.id in trash:
       continue
 
     name = node.props.name
@@ -152,20 +179,24 @@ async def graph(tana_dump:TanaDump):
       if 'SYS_T01' not in node.children and 'SYS_T02' not in node.children:
         tag_ids = node.children
         # find the actual data node that owns this tag tuple
-        if node.props.ownerId in index:
+        if node.props.ownerId not in trash:
           meta_node:Node = index[node.props.ownerId]
           data_node_id = meta_node.props.ownerId
-          if data_node_id in index:
+          if data_node_id not in trash:
             # now create a link from the tag node to the data node
             # for every child that isn't SYS_A13
             for tag_id in tag_ids:
               if 'SYS' in tag_id:
                 continue
-              if tag_id in index:
-                if config.include_tag_nodes:
+              if tag_id not in trash:
+                if config.include_tag_links:
                   master_pairs.append((data_node_id, tag_id))
-                # apply the color of the tag...
-                index[data_node_id].color = tag_colors[tag_id]
+                # also apply the color of the tag...
+                if tag_id in tag_colors:
+                  index[data_node_id].color = tag_colors[tag_id]
+                else:
+                  # tag from another workspace...must be?
+                  pass
 
     # look for inline refs. That's a relationship
     if config.include_inline_refs and name and '<span data-inlineref-node=\"' in name:
@@ -181,7 +212,10 @@ async def graph(tana_dump:TanaDump):
           ids = []
           
         for frag in frags[1:]:
-          ids.append(frag.split('"')[0])
+          ref_id = frag.split('"')[0]
+          if ref_id in trash:
+            continue
+          ids.append(ref_id)
         
         # for all refs through this node, created paired relationships
         pairs = list(combinations(ids, 2))
@@ -199,25 +233,17 @@ async def graph(tana_dump:TanaDump):
     if (a, b) not in final_pairs and (b, a) not in final_pairs]
 
   # build links
-  links = []
   for pair in final_pairs:
-    add_inline_ref(index, links, pair[0], pair[1])
+    add_linkage(pair[0], pair[1])
+
+  # build the retrun structure...
+  graph = DirectedGraph()
 
   count = 0
   node_ids = []
 
   # only include nodes that are linked
   for link in links:
-
-    # only include colored nodes (tagged)
-    # source_node = index[link.source]
-    # if source_node.color is None:
-    #   continue
-  
-    # target_node = index[link.target]
-    # if target_node.color is None:
-    #   continue
-
     graph.links.append(link)
     node_ids.append(link.source)
     node_ids.append(link.target)
