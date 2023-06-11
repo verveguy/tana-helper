@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     logger_file: str = 'tana-handler.log'
     template_path: str = '/tmp/tana_helper/webhooks'
     temp_files: str = '/tmp/tana_helper/tmp'
+    export_path: str = '/tmp/tana_helper/export'
     class Config:
         env_file = ".env"
 
