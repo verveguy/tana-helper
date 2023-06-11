@@ -6,6 +6,7 @@ from logging import getLogger
 from ..dependencies import settings
 import json
 import os
+import csv
 
 router = APIRouter()
 
@@ -22,25 +23,37 @@ async def jsonify(req:Request,
   return object_graph
 
 @router.post("/export/{filename}", response_class=HTMLResponse)
-async def export_to_file(req:Request, filename:str,
+async def export_to_file(req:Request, filename:str, format='json',
                      body:str=Body(...)):
 
+  # first build an object graph from input Tana data
   object_graph = await jsonify(req, body)
-  # sanitize filename first
+
+  # sanitize filename
   if '..' in filename:
     raise HTTPException(detail = 'Invalid filename', status_code=status.HTTP_403_FORBIDDEN)
   
   path = settings.export_path
-  filepath = f'{path}/{filename}.json'
+  filepath = f'{path}/{filename}.{format}'
 
   # write to file name
   try:
     if not os.path.exists(path):
       os.makedirs(path, exist_ok=True)
-    
-    json_format = json.dumps(object_graph)
+   
     with open(filepath, 'w') as output_file:
-      print(json_format, file=output_file)
+       
+      if format == 'json':
+        json_format = json.dumps(object_graph)
+        print(json_format, file=output_file)
+      elif format == 'csv':
+        # assume root is a single object, given the way Tana works
+        rows = object_graph[0]['children']
+        writer = csv.DictWriter(output_file, fieldnames=rows[0].keys())
+        writer.writeheader()
+        for row in rows:
+          writer.writerow(row)
+
       logger.debug(f'Saved output to {filepath}')
   except IOError as e:
     raise HTTPException(detail = e.strerror, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
