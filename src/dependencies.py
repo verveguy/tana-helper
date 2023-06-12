@@ -143,12 +143,17 @@ def tana_to_json(tana_format):
     if line == '' or line == '-':
       continue
 
-    # for now, we skip code blocks. Sorry!
     if in_code_block:
       code_block += line +'\n'
       if '```' in line and line[0:3] == '```':
         in_code_block = False
-        current['value'] = code_block
+        if current['is_field']:
+          current['value'] = code_block
+        else:
+          # code block is sibling
+          newobj = { 'name': code_block, 'is_field': False, 'field': None, 'value': None  }
+          add_child(stack[-1], newobj)
+          current = newobj
       continue
 
     if '-' not in line:
@@ -220,5 +225,78 @@ def tana_to_json(tana_format):
     return newnode
 
   # now, reprocess tree, 'hoisting' children of fields and dropping is_field flags
+  print(top)
   result = process_node(top)
+  print(result)
   return result['children']
+
+
+def code_to_tana(value, indent):
+  line = ''
+  splits = value.split('<br>')
+  for split in splits:
+    if len(split) == 0:
+      # skip the blank entry on the end...
+      continue
+    # count spaces
+    strip = split.lstrip(' ')
+    spaces = len(split) - len(strip)
+    line += ' '*(indent + spaces) + '- ' + strip + '\n'
+  indent -= 2
+  return line
+
+def children_to_tana(objects, initial_indent):
+  tana_format = ''
+  
+  for obj in objects:
+    indent = initial_indent
+    children = [] # assume no children initially
+    # do name first
+    name = obj['name']
+    if '```' in name:
+      # name is in fact code block
+      tana_format += code_to_tana(name, indent)
+    else:
+      tana_format += ' '*indent + '- ' + name +'\n'
+    
+    indent += 2
+
+    for key in obj.keys():
+      line = ''
+      value = obj[key]
+      if key == 'name':
+        continue
+      elif key == 'children':
+        children = value
+        # skip for now
+      else:
+        # do all the fields first
+        if '```' in value:
+          # code block needs special handling
+          line = ' '*indent + '- ' + key + '::\n'
+          line += code_to_tana(value, indent+2)
+          tana_format += line
+        elif type(value) is list:
+          # multi-valued fields need special handling
+          tana_format += ' '*indent + '- ' + key + '::\n'
+          chunk = children_to_tana(value, indent+2)
+          tana_format += chunk
+        else:
+          # just a plain valued field
+          tana_format += ' '*indent + '- ' + key + ':: ' + value + '\n'
+
+    # now do children recursively
+    if len(children) > 0:
+      chunk = children_to_tana(children, indent)
+      if chunk != '':
+        tana_format += chunk
+
+  return tana_format
+
+def json_to_tana(json_format):
+  tana_format = ''
+  indent = 0
+  chunk = children_to_tana(json_format, indent) 
+  tana_format += chunk
+
+  return tana_format
