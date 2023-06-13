@@ -87,9 +87,10 @@ interface GraphConfig {
 export default function GraphWorkspace() {
   const theme = useTheme();
   const [open, setOpen] = useState(true);
+  const [rawGraphData, setRawGraphData] = useState<GraphData>();
   const [graphData, setGraphData] = useState<GraphData>();
   const [config, setConfig] = useState<GraphConfig>();
-  const [file, setFile] = useState<File>();
+  const [dumpFile, setDumpFile] = useState<File>();
   const [upload, setUpload] = useState(false);
   const [loading, setLoading] = useState(false);
   const [width, height] = useWindowSize();
@@ -106,7 +107,7 @@ export default function GraphWorkspace() {
     const target = event.currentTarget;
     const file = target.files?.[0];
     console.log(file);
-    setFile(file);
+    setDumpFile(file);
     setUpload(true);
     event.currentTarget.files = null;
   };
@@ -117,47 +118,47 @@ export default function GraphWorkspace() {
   }, []);
 
   useEffect(() => {
-    setLoading(true);
-    axios.post('/graph', file, {
-      headers: {
-        "Content-Type": "application/json",
-      }
-    })
-      .then(response => {
-        setGraphData(response.data);
+    if (upload) {
+      setLoading(true);
+      axios.post('/graph', dumpFile, {
+        headers: {
+          "Content-Type": "application/json",
+        }
       })
-      .catch(error => {
-        console.error(error);
-      })
-      .finally(() => {
-        setLoading(false);
-        setUpload(false);
-      })
+        .then(response => {
+          setRawGraphData(response.data);
+        })
+        .catch(error => {
+          console.error(error);
+        })
+        .finally(() => {
+          setLoading(false);
+          setUpload(false);
+        })
+    }
   }, [upload]);
 
+
   useEffect(() => {
-    axios.post('/graph/config', config, {
-      headers: {
-        "Content-Type": "application/json",
-      }
-    })
-      .then(response => {
-        console.log(response);
-      })
-      .catch(error => {
-        console.error(error);
+    // filter the response based on flag settings
+    if (rawGraphData) {
+      let new_graph = { ...rawGraphData};
+  
+      const new_links = rawGraphData.links.filter((link) => {
+        return (link.reason == 'iin' && config?.include_inline_ref_nodes)
+          || (link.reason == 'iir' && config?.include_inline_refs)
+          || (link.reason == 'itl' && config?.include_tag_links)
+          || (link.reason == 'itn' && config?.include_tag_nodes)
       });
-  }, [config]);
+      new_graph.links = new_links;
+      setGraphData(new_graph);
+    }
+  }, [config, rawGraphData]);
 
-
-  function handleIncludeTagNodes(event: SyntheticEvent<Element, Event>, checked: boolean): void {
+  function handleShowTagTagLinks(event: SyntheticEvent<Element, Event>, checked: boolean): void {
     let new_config = { ...config } as GraphConfig;
     new_config.include_tag_nodes = checked;
-    if (!checked) {
-      new_config.include_tag_links = false;
-    }
     setConfig(new_config);
-    setUpload(true);
   }
 
 
@@ -165,28 +166,21 @@ export default function GraphWorkspace() {
     let new_config = { ...config } as GraphConfig;
     new_config.include_tag_links = checked;
     setConfig(new_config);
-    setUpload(true);
   }
 
-  function handleIncludeRefs(event: SyntheticEvent<Element, Event>, checked: boolean): void {
+  function handleShowInlineRefs(event: SyntheticEvent<Element, Event>, checked: boolean): void {
     let new_config = { ...config } as GraphConfig;
     new_config.include_inline_refs = checked;
-    // turn off inline ref nodes since we can't have it on if we are off
-    if (!checked) {
-      new_config.include_inline_ref_nodes = false;
-    }
     setConfig(new_config);
-    setUpload(true);
   }
 
-  function handleIncludeRefNodes(event: SyntheticEvent<Element, Event>, checked: boolean): void {
+  function handleIncludeInlineNodes(event: SyntheticEvent<Element, Event>, checked: boolean): void {
     let new_config = { ...config } as GraphConfig;
     new_config.include_inline_ref_nodes = checked;
     setConfig(new_config);
-    setUpload(true);
   }
 
-  function handleNodeClick(node: any, event: PointerEvent): void {
+  function handleNodeClick(node: Node, event: PointerEvent): void {
     console.log("Got node click");
   }
 
@@ -235,50 +229,55 @@ export default function GraphWorkspace() {
             id="raised-button-file"
             type="file"
             onChange={handleFileUpload}
-            disabled = {!(config?.include_tag_nodes || config?.include_inline_ref_nodes ||
-              config?.include_tag_links || config?.include_inline_ref_nodes)}
           />
           <label htmlFor="raised-button-file">
-            <Button component="span" disabled = {!(config?.include_tag_nodes || config?.include_inline_ref_nodes ||
-              config?.include_tag_links || config?.include_inline_ref_nodes)}>
+            <Button component="span">
               Upload
             </Button>
           </label>
         </Box>
         <Divider />
         <FormGroup style={{ padding: 10 }}>
-          <FormControlLabel control={<Checkbox checked={config?.include_tag_nodes} />} label="Show supertags as nodes" onChange={handleIncludeTagNodes} />
+          <FormControlLabel control={<Checkbox checked={config?.include_tag_nodes} />} 
+          label="Show supertag 'extends' as links" onChange={handleShowTagTagLinks} />
           <Divider />
-          <FormControlLabel control={<Checkbox checked={config?.include_tag_links} />} disabled={!config?.include_tag_nodes} label="Show supertag relationships as links" onChange={handleIncludeTagLinks} />
+          <FormControlLabel control={<Checkbox checked={config?.include_tag_links} />} 
+           label="Show node tags as links" onChange={handleIncludeTagLinks} />
           <Divider />
-          <FormControlLabel control={<Checkbox checked={config?.include_inline_refs} />} label="Nodes with inline refs are joins" onChange={handleIncludeRefs} />
+          <FormControlLabel control={<Checkbox checked={config?.include_inline_refs} />} 
+          label="Show inline refs as links" onChange={handleShowInlineRefs} />
           <Divider />
-          <FormControlLabel control={<Checkbox checked={config?.include_inline_ref_nodes} />} disabled={!config?.include_inline_refs} label="Include inline ref joins as nodes" onChange={handleIncludeRefNodes} />
-          <Divider />
+          <FormControlLabel control={<Checkbox checked={config?.include_inline_ref_nodes} />} 
+          label="Show inline ref node links" onChange={handleIncludeInlineNodes} />
+           <FormControlLabel control={<Checkbox disabled={true} />} 
+          label="Show fields as links" />
+           <FormControlLabel control={<Checkbox disabled={true} />} 
+          label="Show child links" />
+         <Divider />
         </FormGroup>
       </Drawer>
       <Main open={open}>
         <DrawerHeader />
         <Container sx={{ display: 'flex', width: '100%', height: '100%', justifyContent: 'center' }}>
-        {loading
-          ?
+          {loading
+            ?
             <CircularProgress />
-          : <ForceGraph3D graphData={graphData}
-            width={width - 50 - (open ? drawerWidth : 0)}
-            height={height-115}
-            onNodeClick={handleNodeClick}
-            onNodeDragEnd={node => {
-              node.fx = node.x;
-              node.fy = node.y;
-              node.fz = node.z;
-            }}
-          // : <ForceGraph2D graphData={graphData}
-          //   onNodeDragEnd={node => {
-          //     node.fx = node.x;
-          //     node.fy = node.y;
-          // }}
-          />
-        }
+            : <ForceGraph3D graphData={graphData}
+              width={width - 50 - (open ? drawerWidth : 0)}
+              height={height - 115}
+              onNodeClick={handleNodeClick}
+              onNodeDragEnd={node => {
+                node.fx = node.x;
+                node.fy = node.y;
+                node.fz = node.z;
+              }}
+            // : <ForceGraph2D graphData={graphData}
+            //   onNodeDragEnd={node => {
+            //     node.fx = node.x;
+            //     node.fy = node.y;
+            // }}
+            />
+          }
         </Container>
       </Main>
     </Box>

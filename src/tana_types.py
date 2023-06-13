@@ -51,11 +51,13 @@ class Node(BaseModel):
   color: Optional[str] = None
   
 
+# config for graph visualization.
+# By default, we inlucde all linkages
 class Visualizer(BaseModel):
-  include_tag_nodes: bool = False
-  include_tag_links: bool = False
-  include_inline_refs: bool = False
-  include_inline_ref_nodes: bool = False
+  include_tag_tag_links: bool = True
+  include_node_tag_links: bool = True
+  include_inline_refs: bool = True
+  include_inline_ref_nodes: bool = True
   
   # make this hashable
   class Config:

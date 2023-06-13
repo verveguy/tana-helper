@@ -15,6 +15,7 @@ logger = getLogger()
 class Link(BaseModel):
   source: str
   target: str
+  reason: str
 
 class RenderNode(BaseModel):
   id: str
@@ -28,25 +29,12 @@ class DirectedGraph(BaseModel):
   links: List[Link] = []
 
 
-def check_config(tana_dump, config:str):
-  if config in tana_dump.visualizer:
-    return tana_dump.visualizer[config]
-
-def set_global_settings(config):
-    if config is None:
-      config = Visualizer()
-
-    global global_config
-    global_config = config
-    return global_config
-
-def get_global_settings():
-    global global_config
-    return global_config
-
-@router.post("/graph/config")
-async def graph_config(config:Visualizer):
-  return set_global_settings(config) # type: ignore
+# Workhorse method
+# Pass in a Tana JSON dump, get back a DirectedGraph
+# If you include an optional 'visualizer' config element
+# in your dump, that will control what gets included
+# in the output graph. Otherwise, all links get included
+# and it is assumed the client will filter as required.
 
 @router.post("/graph")
 async def graph(tana_dump:TanaDump):
@@ -62,14 +50,14 @@ async def graph(tana_dump:TanaDump):
 
   config = tana_dump.visualize
   if config is None:
-    config = get_global_settings()
+    config = Visualizer()
 
-  def add_linkage(source_id:str, target_id:str):
+  def add_linkage(source_id:str, target_id:str, reason="unknown"):
     # add a link if nodes are in index
     # TODO: what if they're trashed?
     # we seem to have errors in trash...
     if source_id in index and target_id in index:
-      link = Link(source=source_id, target=target_id)
+      link = Link(source=source_id, target=target_id, reason=reason)
       links.append(link)
 
   # first, build an index by node.id to make it possible to navigate the graph
@@ -126,8 +114,8 @@ async def graph(tana_dump:TanaDump):
                       if child_id not in trash:
                         supertag = index[child_id]
                         print (f'{tag_name} -> {supertag.props.name}')
-                        if config.include_tag_nodes:
-                          master_pairs.append((tag_id, child_id))
+                        if config.include_tag_tag_links:
+                          master_pairs.append((tag_id, child_id, 'itn'))
                   else:
                     print(f'{tag_name} ->')
               else:
@@ -189,8 +177,8 @@ async def graph(tana_dump:TanaDump):
               if 'SYS' in tag_id:
                 continue
               if tag_id not in trash:
-                if config.include_tag_links:
-                  master_pairs.append((data_node_id, tag_id))
+                if config.include_node_tag_links:
+                  master_pairs.append((data_node_id, tag_id, 'itl'))
                 # also apply the color of the tag...
                 if tag_id in tag_colors:
                   index[data_node_id].color = tag_colors[tag_id]
@@ -205,11 +193,8 @@ async def graph(tana_dump:TanaDump):
       # (i.e. treat the node with the inline refs as the 
       # "join node" but don't include it in the output unless asked)
       if len(frags) > 1:
-        if config.include_inline_ref_nodes:
-          ids = [node.id]
-        else:
-          # do NOT include join node in the pairs
-          ids = []
+        # first compute the indirect linkages
+        ids = []
           
         for frag in frags[1:]:
           ref_id = frag.split('"')[0]
@@ -218,8 +203,16 @@ async def graph(tana_dump:TanaDump):
           ids.append(ref_id)
         
         # for all refs through this node, created paired relationships
-        pairs = list(combinations(ids, 2))
-        master_pairs.extend(pairs)
+        indirect_pairs = list(combinations(ids, 2))
+        for pair in indirect_pairs:
+          linkage = (pair[0], pair[1], 'iir')
+          master_pairs.append(linkage)
+        
+        # now do all direct to ref node links
+        if config.include_inline_ref_nodes:
+          for id in ids:
+            linkage = (node.id, id, 'iin')
+            master_pairs.append(linkage)
 
     # what to do with children of regular nodes? Too much graph structure, not enough meaning
     # BUT, we probably want nodes that are tagged and are subnodes of other tagged nodes
@@ -229,12 +222,12 @@ async def graph(tana_dump:TanaDump):
   master_pairs = set(master_pairs)
   final_pairs = set()
   # also remove redundant bidirectional links
-  [final_pairs.add((a, b)) for (a, b) in master_pairs
-    if (a, b) not in final_pairs and (b, a) not in final_pairs]
+  [final_pairs.add((a, b, r)) for (a, b, r) in master_pairs
+    if (a, b, r) not in final_pairs and (b, a, r) not in final_pairs]
 
   # build links
   for pair in final_pairs:
-    add_linkage(pair[0], pair[1])
+    add_linkage(pair[0], pair[1], pair[2])
 
   # build the retrun structure...
   graph = DirectedGraph()
