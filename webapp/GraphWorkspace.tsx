@@ -1,4 +1,13 @@
-import React, { SyntheticEvent, useEffect, useState } from "react";
+/*
+
+  Visualize a Tana Workspace in #d
+
+  Thanks to the amazing https://github.com/vasturiano/react-force-graph
+
+*/
+
+
+import React, { SyntheticEvent, useCallback, useEffect, useRef, useState } from "react";
 import { styled, useTheme } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
@@ -20,11 +29,13 @@ import InboxIcon from '@mui/icons-material/MoveToInbox';
 import MailIcon from '@mui/icons-material/Mail';
 import ForceGraph3D, { GraphData } from 'react-force-graph-3d';
 // import ForceGraph2D, { GraphData } from 'react-force-graph-2d';
-import { Button, Checkbox, CircularProgress, FormControlLabel, FormGroup, Grid } from '@mui/material';
+import { Button, Checkbox, CircularProgress, FormControlLabel, FormGroup, Grid, TextField } from '@mui/material';
 import axios from 'axios';
 import { Container } from "@mui/system";
 import Grid2 from "@mui/material/Unstable_Grid2/Grid2";
 import { useWindowSize } from "@react-hook/window-size";
+import { Id, Index } from "flexsearch-ts";
+import FlexSearch from "flexsearch";
 
 const drawerWidth = 240;
 
@@ -92,8 +103,11 @@ export default function GraphWorkspace() {
   const [config, setConfig] = useState<GraphConfig>();
   const [dumpFile, setDumpFile] = useState<File>();
   const [upload, setUpload] = useState(false);
+  const [searchString, setSearchString] = useState('');
   const [loading, setLoading] = useState(false);
+  const [index, setIndex] = useState(new Index({}));
   const [width, height] = useWindowSize();
+  const fgRef = useRef();
 
   const handleDrawerOpen = () => {
     setOpen(true);
@@ -106,7 +120,6 @@ export default function GraphWorkspace() {
   const handleFileUpload = (event: React.FormEvent<HTMLInputElement>) => {
     const target = event.currentTarget;
     const file = target.files?.[0];
-    console.log(file);
     setDumpFile(file);
     setUpload(true);
     event.currentTarget.files = null;
@@ -126,7 +139,18 @@ export default function GraphWorkspace() {
         }
       })
         .then(response => {
-          setRawGraphData(response.data);
+          let new_graph = response.data as GraphData;
+          setRawGraphData(new_graph);
+          // buld new search index
+          if (new_graph) {
+
+            const index = new Index({preset: "match"})
+            new_graph.nodes.forEach((node) => {
+              index.add(node.id as Id, node.name)
+            })
+
+            setIndex(index);
+          }
         })
         .catch(error => {
           console.error(error);
@@ -138,22 +162,95 @@ export default function GraphWorkspace() {
     }
   }, [upload]);
 
+  function get_id_from(obj: any): string {
+    let id: string = obj as string;
+    if (id && typeof id != 'string') {
+      id = obj['id'];
+    }
+    return id;
+  }
 
   useEffect(() => {
     // filter the response based on flag settings
     if (rawGraphData) {
-      let new_graph = { ...rawGraphData};
-  
+      // first copy the raw data so we start with full set
+      let new_graph = { ...rawGraphData };
+
+      // build a search result set based on searchString
+      let search_dict;
+      let new_search_dict;
+      if (searchString && searchString != '') {
+        const search = index.search(searchString);
+        // convert search to hash
+        search_dict = search.reduce((search_dict, id_str) => {
+          search_dict[id_str] = {};
+          return search_dict;
+        }, {});
+        // and prepare a copy of the search results
+        new_search_dict = { ...search_dict };
+      }
+
+      // filter links based on config and search index
       const new_links = rawGraphData.links.filter((link) => {
-        return (link.reason == 'iin' && config?.include_inline_ref_nodes)
+        // config is easy, check link types
+        let found = (link.reason == 'iin' && config?.include_inline_ref_nodes)
           || (link.reason == 'iir' && config?.include_inline_refs)
           || (link.reason == 'itl' && config?.include_tag_links)
-          || (link.reason == 'itn' && config?.include_tag_nodes)
+          || (link.reason == 'itn' && config?.include_tag_nodes);
+
+        // search index is harder
+        if (found && search_dict != undefined) {
+          found = false;
+          try {
+            // complex polymorphic stuff here since the graph engine seems to mutate
+            // the link structure _sometimes_
+            let source_id = get_id_from(link.source);
+            let target_id = get_id_from(link.target);
+
+            // if the node at either end is included, include the whole link
+            if (source_id in search_dict || target_id in search_dict) {
+              found = true;
+              // ensure nodes at both end of links are included
+              // by updating search index to include them
+              if (!(source_id in new_search_dict)) {
+                new_search_dict[source_id] = {}
+              };
+              if (!(target_id in new_search_dict)) {
+                new_search_dict[target_id] = {}
+              };
+            }
+          }
+          catch (err) {
+            console.log(err);
+          }
+        }
+        return found;
       });
+
       new_graph.links = new_links;
+
+      // now filter nodes as well based on search index
+      const new_nodes = new_graph.nodes.filter((node) => {
+        let found = true
+        if (new_search_dict != undefined) {
+          found = false;
+          try {
+            if (node.id && node.id in new_search_dict) {
+              found = true;
+            }
+          }
+          catch (err) {
+            console.log(err);
+          }
+        }
+        return found;
+      });
+
+      new_graph.nodes = new_nodes;
       setGraphData(new_graph);
     }
-  }, [config, rawGraphData]);
+  }, [config, rawGraphData, searchString]);
+
 
   function handleShowTagTagLinks(event: SyntheticEvent<Element, Event>, checked: boolean): void {
     let new_config = { ...config } as GraphConfig;
@@ -180,9 +277,22 @@ export default function GraphWorkspace() {
     setConfig(new_config);
   }
 
-  function handleNodeClick(node: Node, event: PointerEvent): void {
-    console.log("Got node click");
-  }
+  // TODO: rework this to be cleaner React.
+  // See example:
+  // https://github.com/vasturiano/react-force-graph/blob/master/example/click-to-focus/index.html
+  const handleNodeClick = useCallback(node => {
+    // Aim at node from outside it
+    const distance = 150;
+    const distRatio = 1 + distance / Math.hypot(node.x, node.y, node.z);
+    if (fgRef) {
+      // @ts-ignore tricky type deref here
+      fgRef.current?.cameraPosition(
+        { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio }, // new position
+        node, // lookAt ({ x, y, z })
+        3000  // ms transition duration
+      );
+    }
+  }, [fgRef]);
 
   return (
     <Box sx={{ display: 'flex' }}>
@@ -238,23 +348,24 @@ export default function GraphWorkspace() {
         </Box>
         <Divider />
         <FormGroup style={{ padding: 10 }}>
-          <FormControlLabel control={<Checkbox checked={config?.include_tag_nodes} />} 
-          label="Show supertag 'extends' as links" onChange={handleShowTagTagLinks} />
+          <FormControlLabel control={<Checkbox checked={config?.include_tag_nodes} />}
+            label="Show supertag 'extends' as links" onChange={handleShowTagTagLinks} />
           <Divider />
-          <FormControlLabel control={<Checkbox checked={config?.include_tag_links} />} 
-           label="Show node tags as links" onChange={handleIncludeTagLinks} />
+          <FormControlLabel control={<Checkbox checked={config?.include_tag_links} />}
+            label="Show node tags as links" onChange={handleIncludeTagLinks} />
           <Divider />
-          <FormControlLabel control={<Checkbox checked={config?.include_inline_refs} />} 
-          label="Show inline refs as links" onChange={handleShowInlineRefs} />
+          <FormControlLabel control={<Checkbox checked={config?.include_inline_refs} />}
+            label="Show inline refs as links" onChange={handleShowInlineRefs} />
           <Divider />
-          <FormControlLabel control={<Checkbox checked={config?.include_inline_ref_nodes} />} 
-          label="Show inline ref node links" onChange={handleIncludeInlineNodes} />
-           <FormControlLabel control={<Checkbox disabled={true} />} 
-          label="Show fields as links" />
-           <FormControlLabel control={<Checkbox disabled={true} />} 
-          label="Show child links" />
-         <Divider />
+          <FormControlLabel control={<Checkbox checked={config?.include_inline_ref_nodes} />}
+            label="Show inline ref node links" onChange={handleIncludeInlineNodes} />
+          <FormControlLabel control={<Checkbox disabled={true} />}
+            label="Show fields as links" />
+          <FormControlLabel control={<Checkbox disabled={true} />}
+            label="Show child links" />
+          <Divider />
         </FormGroup>
+        <TextField label="Search" onChange={e => setSearchString(e.target.value)} />
       </Drawer>
       <Main open={open}>
         <DrawerHeader />
@@ -262,7 +373,8 @@ export default function GraphWorkspace() {
           {loading
             ?
             <CircularProgress />
-            : <ForceGraph3D graphData={graphData}
+            : <ForceGraph3D ref={fgRef}
+              graphData={graphData}
               width={width - 50 - (open ? drawerWidth : 0)}
               height={height - 115}
               onNodeClick={handleNodeClick}

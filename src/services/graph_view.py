@@ -6,7 +6,7 @@ from starlette.requests import Request
 from logging import getLogger
 from itertools import combinations
 from functools import lru_cache
-
+import re
 
 router = APIRouter()
 
@@ -59,6 +59,21 @@ async def graph(tana_dump:TanaDump):
     if source_id in index and target_id in index:
       link = Link(source=source_id, target=target_id, reason=reason)
       links.append(link)
+ 
+  def patch_node_name(node:Node):
+    # replace <span .. inline refs with actual node names
+    # this is to facilitate full text search of the graph
+    def subfunc(matchobj):
+      ref_id = matchobj.group(1)
+      if ref_id in index:
+        frag = index[ref_id].props.name
+        return f'[[{frag}]]'
+      return ref_id
+
+    name = node.props.name
+    if name and '<span' in name:
+        name = re.sub('<span data-inlineref-node="([^"]*)"></span>', subfunc, name)
+    return name
 
   # first, build an index by node.id to make it possible to navigate the graph
   trash_node = None
@@ -245,7 +260,9 @@ async def graph(tana_dump:TanaDump):
   node_ids = list(set(node_ids))
   for node_id in node_ids:
     node = index[node_id]
-    render_node = RenderNode(id=node.id, name=node.props.name, color=node.color)
+    # patch up node name
+    new_name = patch_node_name(node)
+    render_node = RenderNode(id=node.id, name=new_name, color=node.color)
     graph.nodes.append(render_node)
 
 
