@@ -9,31 +9,15 @@ from pydantic import BaseModel, Field
 from typing import Optional, Union, List, Dict, Any
 
 
-class PropType(Enum):
-  ASSOCIATED_DATA = "associatedData"
-  COMMAND = "command"
-  SEARCH = "search"
-  TUPLE = "tuple"
-  URL = "url"
-  VIEW_DEF = "viewDef"
-  WORKSPACE = "workspace"
-
-
-class View(Enum):
-  CALENDAR = "calendar"
-  LIST = "list"
-  TABLE = "table"
-
-
 class Props(BaseModel):
   created: int
   name: Optional[str]
   description: Optional[str]
   ownerId: Optional[str] = Field(alias='_ownerId')
   metaNodeId: Optional[str] = Field(alias='_metaNodeId')
-  docType: Optional[PropType] = Field(alias='_docType')
+  docType: Optional[str] = Field(alias='_docType')
   sourceId: Optional[str] = Field(alias='_sourceId')
-  view: Optional[View]
+  view: Optional[str]
   editMode: Optional[bool]
   done: Union[bool, int, None]
 

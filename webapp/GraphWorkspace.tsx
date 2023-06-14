@@ -89,6 +89,7 @@ const DrawerHeader = styled('div')(({ theme }) => ({
 }));
 
 interface GraphConfig {
+  include_all_nodes: boolean;
   include_tag_nodes: boolean;
   include_tag_links: boolean;
   include_inline_refs: boolean;
@@ -126,7 +127,7 @@ export default function GraphWorkspace() {
   };
 
   useEffect(() => {
-    let new_config: GraphConfig = { include_tag_nodes: false, include_tag_links: false, include_inline_ref_nodes: false, include_inline_refs: false };
+    let new_config: GraphConfig = { include_all_nodes: true, include_tag_nodes: false, include_tag_links: false, include_inline_ref_nodes: false, include_inline_refs: false };
     setConfig(new_config)
   }, []);
 
@@ -178,7 +179,7 @@ export default function GraphWorkspace() {
 
       // build a search result set based on searchString
       let search_dict;
-      let new_search_dict;
+      let new_search_dict = {};
       if (searchString && searchString != '') {
         const search = index.search(searchString);
         // convert search to hash
@@ -198,31 +199,32 @@ export default function GraphWorkspace() {
           || (link.reason == 'itl' && config?.include_tag_links)
           || (link.reason == 'itn' && config?.include_tag_nodes);
 
-        // search index is harder
-        if (found && search_dict != undefined) {
-          found = false;
-          try {
-            // complex polymorphic stuff here since the graph engine seems to mutate
-            // the link structure _sometimes_
-            let source_id = get_id_from(link.source);
-            let target_id = get_id_from(link.target);
+        // complex polymorphic stuff here since the graph engine seems to mutate
+        // the link structure _sometimes_
+        let source_id = get_id_from(link.source);
+        let target_id = get_id_from(link.target);
 
+        // search index is harder
+        if (found) {
+          // should we search?
+          if (search_dict != undefined) {
+            found = false;
             // if the node at either end is included, include the whole link
             if (source_id in search_dict || target_id in search_dict) {
               found = true;
-              // ensure nodes at both end of links are included
-              // by updating search index to include them
-              if (!(source_id in new_search_dict)) {
-                new_search_dict[source_id] = {}
-              };
-              if (!(target_id in new_search_dict)) {
-                new_search_dict[target_id] = {}
-              };
             }
           }
-          catch (err) {
-            console.log(err);
-          }
+        }
+        // whether we searched or not, is this link found?
+        if (found) {
+          // ensure nodes at both end of links are included
+          // by updating search index to include them
+          if (!(source_id in new_search_dict)) {
+            new_search_dict[source_id] = {}
+          };
+          if (!(target_id in new_search_dict)) {
+            new_search_dict[target_id] = {}
+          };
         }
         return found;
       });
@@ -231,17 +233,9 @@ export default function GraphWorkspace() {
 
       // now filter nodes as well based on search index
       const new_nodes = new_graph.nodes.filter((node) => {
-        let found = true
-        if (new_search_dict != undefined) {
-          found = false;
-          try {
-            if (node.id && node.id in new_search_dict) {
-              found = true;
-            }
-          }
-          catch (err) {
-            console.log(err);
-          }
+        let found = (config?.include_all_nodes == true);
+        if (node.id && node.id in new_search_dict) {
+          found = true;
         }
         return found;
       });
@@ -251,6 +245,12 @@ export default function GraphWorkspace() {
     }
   }, [config, rawGraphData, searchString]);
 
+
+  function handleShowAllNodes(event: SyntheticEvent<Element, Event>, checked: boolean): void {
+    let new_config = { ...config } as GraphConfig;
+    new_config.include_all_nodes = checked;
+    setConfig(new_config);
+  }
 
   function handleShowTagTagLinks(event: SyntheticEvent<Element, Event>, checked: boolean): void {
     let new_config = { ...config } as GraphConfig;
@@ -348,6 +348,9 @@ export default function GraphWorkspace() {
         </Box>
         <Divider />
         <FormGroup style={{ padding: 10 }}>
+          <FormControlLabel control={<Checkbox checked={config?.include_all_nodes} />}
+            label="Show all nodes" onChange={handleShowAllNodes} />
+          <Divider />
           <FormControlLabel control={<Checkbox checked={config?.include_tag_nodes} />}
             label="Show supertag 'extends' as links" onChange={handleShowTagTagLinks} />
           <Divider />
