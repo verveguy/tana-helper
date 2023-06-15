@@ -44,6 +44,7 @@ async def graph(tana_dump:TanaDump):
   index = {} # fast access to all nodes by id
   trash = {} # nodes we should treat as "trashed"
   tags = {} # tag nodes we discover
+  fields = {} # field nodes we discover
   tag_colors = {} # colors for tags we discover  
   master_pairs = [] # working set of pairs along the way
   links = []  # final results we build into
@@ -128,11 +129,8 @@ async def graph(tana_dump:TanaDump):
                         continue
                       if child_id not in trash:
                         supertag = index[child_id]
-                        print (f'{tag_name} -> {supertag.props.name}')
                         if config.include_tag_tag_links:
                           master_pairs.append((tag_id, child_id, 'itn'))
-                  else:
-                    print(f'{tag_name} ->')
               else:
                 trashed_node = trash[tag_id]
                 print(f'Found tag_id {tag_id}, name {trashed_node.props.name} in the TRASH')
@@ -142,6 +140,18 @@ async def graph(tana_dump:TanaDump):
         elif 'SYS_T02' in node.children:
           # found field tuple
           # TODO handle fields similiarly to tags
+          # fields will need links to be named so that we can show field name 
+          # on the links themselves. Fields are basically "named relationships"
+          if node.props.ownerId not in trash:
+            meta_node:Node = index[node.props.ownerId]
+            if meta_node:
+              field_id = meta_node.props.ownerId
+              if field_id not in trash:
+                field_node = index[field_id]
+                if field_node.props:
+                  field_name = field_node.props.name
+                  fields[field_name] = field_node.id
+
           continue
         
       elif 'SYS_A11' in node.children:
