@@ -12,17 +12,24 @@ router = APIRouter()
 
 logger = getLogger()
 
+def extract_json_from_code_node(payload):
+   # this is a code node full of json
+    left = payload.find('```json\n')+8
+    right = payload.rfind('```\n')
+    return payload[left:right]
+
 @router.post("/jsonify")
 async def jsonify(req:Request, body:str=Body(...)):
   tana_format = bytes(body, "utf-8").decode("unicode_escape")  
-  logger.debug(tana_format)
   object_graph = tana_to_json(tana_format)
-  logger.debug(object_graph)
   return object_graph
 
 @router.post("/tanify", response_class=HTMLResponse)
 async def tanify(body:str=Body(...)):
   raw_body = bytes(body, "utf-8").decode("unicode_escape")
+  if '```json' == raw_body[:7]:
+    # this is a code node full of json
+    raw_body = extract_json_from_code_node(raw_body)
   json_format = json.loads(raw_body)
   tana_format = json_to_tana(json_format)
   return tana_format
@@ -35,6 +42,12 @@ async def tana_to_code(body:str=Body(...)):
   result_format = '```json\n'+json_format+'\n```\n'
   return result_format
 
+@router.post("/code-to-json")
+async def code_to_json(body:str=Body(...)):
+  tana_format = bytes(body, "utf-8").decode("unicode_escape").rstrip()
+  code_content = extract_json_from_code_node(tana_format)
+  object_graph = json.loads(code_content)
+  return object_graph
 
 @router.post("/export/{filename}", response_class=HTMLResponse)
 async def export_to_file(req:Request, filename:str, format='json',

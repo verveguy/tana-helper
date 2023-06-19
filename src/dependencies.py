@@ -22,6 +22,7 @@ class Settings(BaseSettings):
         env_file = ".env"
 
 # create global settings 
+# TODO: make settings per-request context, not gobal
 settings = Settings()
 
 # Pinecone keys that are not configured
@@ -211,15 +212,26 @@ def tana_to_json(tana_format):
     parent[node['field']] = value
 
   def process_node(node):
+    is_field = False
     if 'is_field' in node and node['is_field']:
+      is_field = True
       newnode = {'field': node['field'], 'value': node['value']}
     else:
       newnode = { 'name': node['name']}
+    
     if 'children' in node:
+      value_node = newnode
+      # fields with fields are special...
+      if is_field:
+        if node['value'] is None:
+          node['value'] = {}
+        value_node = node['value']
+        newnode['value'] = value_node
+      
       for child in node['children']:
         newchild = process_node(child)
         if child['is_field']:
-          hoist_field(newchild, newnode)
+          hoist_field(newchild, value_node)
         else: 
           add_child(newnode, newchild)
     return newnode
@@ -251,15 +263,17 @@ def children_to_tana(objects, initial_indent):
   for obj in objects:
     indent = initial_indent
     children = [] # assume no children initially
-    # do name first
-    name = obj['name']
-    if '```' in name:
-      # name is in fact code block
-      tana_format += code_to_tana(name, indent)
-    else:
-      tana_format += ' '*indent + '- ' + name +'\n'
-    
-    indent += 2
+    # do name first. If empty, we're a field with fields...
+    if 'name' in obj and obj['name'] is not None:
+      name = obj['name']
+
+      if '```' in name:
+        # name is in fact code block
+        tana_format += code_to_tana(name, indent)
+      else:
+        tana_format += ' '*indent + '- ' + name +'\n'
+      
+      indent += 2
 
     for key in obj.keys():
       line = ''
@@ -281,10 +295,15 @@ def children_to_tana(objects, initial_indent):
           tana_format += ' '*indent + '- ' + key + '::\n'
           chunk = children_to_tana(value, indent+2)
           tana_format += chunk
-        else:
+        elif type(value) is str:
           # just a plain valued field
           tana_format += ' '*indent + '- ' + key + ':: ' + value + '\n'
-
+        else:
+          # must be an object type, recurse
+          tana_format += ' '*indent + '- ' + key + '::\n'
+          chunk = children_to_tana([value], indent+2)
+          tana_format += chunk
+ 
     # now do children recursively
     if len(children) > 0:
       chunk = children_to_tana(children, indent)
@@ -296,6 +315,9 @@ def children_to_tana(objects, initial_indent):
 def json_to_tana(json_format):
   tana_format = ''
   indent = 0
+  if type(json_format) is not list:
+    json_format = [json_format]
+  
   chunk = children_to_tana(json_format, indent) 
   tana_format += chunk
 

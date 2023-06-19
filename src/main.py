@@ -4,7 +4,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from logging import getLogger
-from .services import pinecone, inlinerefs, exec_code, webhooks, jsonify, graph_view, configure
+from .services import pinecone, inlinerefs, exec_code, webhooks, jsonify, graph_view, configure, proxy
 from .dependencies import settings
 from .logging import setup_rich_logger
 from snowflake import SnowflakeGenerator
@@ -44,12 +44,14 @@ app.include_router(webhooks.router)
 app.include_router(jsonify.router)
 app.include_router(graph_view.router)
 app.include_router(configure.router)
+app.include_router(proxy.router)
 
 @app.middleware("http")
 async def add_get_authorization_headers(request: Request, call_next):
     # find headers in request
     x_tana_api_token = request.headers.get('x-tana-api-token')
     x_openai_api_key = request.headers.get('x-openai-api-key')
+    # TODO: make settings per-request context, not gobal
     # use passed in header tokens if present, otherwise look for env vars
     settings.openai_api_key = settings.openai_api_key if not x_openai_api_key else x_openai_api_key
     settings.tana_api_token = settings.tana_api_token if not x_tana_api_token else x_tana_api_token
