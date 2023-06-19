@@ -132,6 +132,9 @@ Ever want to run some chunk of code inside Tana? Well, now you can (kinda).
 
 See the [Tana template](https://app.tana.inc/?bundle=cVYW2gX8nY.l7dQ2eDwJK) for more information.
 
+### JSON Proxy helper
+
+Makes it easier to call external services that expect JSON. Let's you proxy requests to the external service via `tana-helper`, converting Tana nodes on the way in to JSON and converting JSON responses back to Tana nodes on the way back.
 
 ### Calendar API stuff
 
