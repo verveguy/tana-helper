@@ -13,9 +13,7 @@ router = APIRouter()
 logger = getLogger()
 
 @router.post("/jsonify")
-async def jsonify(req:Request, 
-                     body:str=Body(...)):
-  
+async def jsonify(req:Request, body:str=Body(...)):
   tana_format = bytes(body, "utf-8").decode("unicode_escape")  
   logger.debug(tana_format)
   object_graph = tana_to_json(tana_format)
@@ -29,17 +27,26 @@ async def tanify(body:str=Body(...)):
   tana_format = json_to_tana(json_format)
   return tana_format
 
+@router.post("/tana-to-code", response_class=HTMLResponse)
+async def tana_to_code(body:str=Body(...)):
+  tana_format = bytes(body, "utf-8").decode("unicode_escape")  
+  object_graph = tana_to_json(tana_format)
+  json_format = json.dumps(object_graph, indent=2)
+  result_format = '```json\n'+json_format+'\n```\n'
+  return result_format
+
+
 @router.post("/export/{filename}", response_class=HTMLResponse)
 async def export_to_file(req:Request, filename:str, format='json',
                      body:str=Body(...)):
 
-  # first build an object graph from input Tana data
-  object_graph = await jsonify(req, body)
-
   # sanitize filename
   if '..' in filename:
     raise HTTPException(detail = 'Invalid filename', status_code=status.HTTP_403_FORBIDDEN)
-  
+
+  # first build an object graph from input Tana data
+  object_graph = await jsonify(req, body)
+
   path = settings.export_path
   filepath = f'{path}/{filename}.{format}'
 
@@ -51,7 +58,7 @@ async def export_to_file(req:Request, filename:str, format='json',
     with open(filepath, 'w') as output_file:
        
       if format == 'json':
-        json_format = json.dumps(object_graph)
+        json_format = json.dumps(object_graph, indent=2)
         print(json_format, file=output_file)
       elif format == 'csv':
         # assume root is a single object, given the way Tana works
