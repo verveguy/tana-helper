@@ -135,8 +135,6 @@ async def graph(tana_dump:TanaDump):
                 trashed_node = trash[tag_id]
                 print(f'Found tag_id {tag_id}, name {trashed_node.props.name} in the TRASH')
 
-
-
         elif 'SYS_T02' in node.children:
           # found field tuple
           # TODO handle fields similiarly to tags
@@ -145,14 +143,21 @@ async def graph(tana_dump:TanaDump):
           if node.props.ownerId not in trash:
             meta_node:Node = index[node.props.ownerId]
             if meta_node:
+              if meta_node.underConstruction:
+                # not sure what these are, but their owners do not exist
+                # posed question in slack...answer is basically ignore them
+                continue
               field_id = meta_node.props.ownerId
               if field_id not in trash:
                 field_node = index[field_id]
                 if field_node.props:
                   field_name = field_node.props.name
-                  fields[field_name] = field_node.id
-
-          continue
+                  if field_name is None:
+                    # I think these are all related to trashed nodes
+                    print(f'Found None field id {field_id}')
+                  else:
+                    fields[field_name] = field_id
+                    print(f'Found field {field_name} id {field_id}')
         
       elif 'SYS_A11' in node.children:
         # this is a tag color specifier
@@ -185,10 +190,12 @@ async def graph(tana_dump:TanaDump):
     name = node.props.name
 
     # also look for field refs. Those are interesting as well
-
+    # TODO: figure out what a field usage looks like
+    
     # do we have a tag tuple that is NOT the tag definition tuple?
     # this will be the tag of a node.
     if node.children and 'SYS' not in node.id and 'SYS_A13' in node.children:
+      # make sure it's not a tag or field definition tuple
       if 'SYS_T01' not in node.children and 'SYS_T02' not in node.children:
         tag_ids = node.children
         # find the actual data node that owns this tag tuple

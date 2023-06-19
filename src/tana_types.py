@@ -29,7 +29,7 @@ class Node(BaseModel):
   modifiedTs: Optional[List[int]]
   children: Optional[List[str]]
   associationMap: Optional[Dict[str, str]]
-  underConstruction: Optional[bool]
+  underConstruction: Optional[bool] = Field(alias='_underConstruction')
   inbound_refs: List[str] = []
   outbound_refs: List[str] = []
   color: Optional[str] = None
