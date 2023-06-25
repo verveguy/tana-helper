@@ -126,7 +126,7 @@ async def graph(tana_dump:TanaDump):
                     for child_id in node.children:
                       if 'SYS' in child_id:
                         continue
-                      if child_id not in trash:
+                      if child_id not in trash and child_id in index:
                         supertag = index[child_id]
                         print (f'{tag_name} -> {supertag.props.name}')
                         if config.include_tag_tag_links:
