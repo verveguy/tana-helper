@@ -2,7 +2,7 @@
 
 Inspired by the marketing visualization on the Tana.inc website, `tana-helper` provides a 3D visualization of your Tana workspace.
 
-Check out this [video demo](https://share.cleanshot.com/7J6d6F6l)
+Check out this [video demo](https://share.cleanshot.com/VY0zm55s) and this 
 
 ## Building
 
@@ -20,10 +20,10 @@ After that, you should be able to hit the url `http://localhost:8000/ui/graph` i
 
 ## Notes
 
-The graph visualizer does NOT store your Tana graph on the server when you upload. Instead, every time you change the settings in the visualizer, it re-uploads your graph, the server processes it according to the new settings, and the resulting JSON required for visualization is returned to the browser where it is rendered.
+The graph visualizer does NOT store your Tana graph on the server when you upload. Instead, whenever you upload a new json export file, it re-uploads your graph, the server processes it according to the new settings, and the resulting JSON required for visualization is returned to the browser where it is rendered.
 
-The only state that is kept on the server is your current visualization settings. (This is a temporary workaround)
+The filtering /searching is then done on the browser side for speed.
 
 ## Graph processing API
 
-If you're curious, the app POSTs your Tana JSON dump file to the `/graph` endpoint which returns a JSON response consisting of an array of `nodes[]` and `links[]`. These are then rendered by the amazing [3D Force-Directed Graph library](https://github.com/vasturiano/3d-force-graph). YOu can use this endpoint for other experiments of your own.
+If you're curious, the app POSTs your Tana JSON dump file to the `/graph` endpoint which returns a JSON response consisting of an array of `nodes[]` and `links[]`. These are then rendered by the amazing [3D Force-Directed Graph library](https://github.com/vasturiano/3d-force-graph). You can use this endpoint for other experiments of your own if you want to process the graph yourself.
