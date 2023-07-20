@@ -93,3 +93,8 @@ async def export_to_file(req:Request, filename:str, format='json',
     raise HTTPException(detail = e.strerror, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
   return f'{filepath}'
+
+@router.post("/echo", response_class=HTMLResponse)
+async def echo(body:str=Body(...)):
+  result = bytes(body, "utf-8").decode("unicode_escape")  
+  return result
