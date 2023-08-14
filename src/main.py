@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -64,10 +64,14 @@ snowflakes = SnowflakeGenerator(42)
 async def log_entry_exit(request: Request, call_next):
   x_request_id = request.headers.get('x-request-id')
   idem = next(snowflakes) if not x_request_id else x_request_id
+  if not x_request_id:
+    id_header = (b'x-request-id', bytes(str(idem), 'utf-8'))
+    request.headers.__dict__["_list"].append(id_header)
+     
   logger.info(f"txid={idem} start request path={request.url.path}")
   start_time = time.time()
     
-  response = await call_next(request)
+  response:Response = await call_next(request)
 
   process_time = (time.time() - start_time) * 1000
   formatted_process_time = '{0:.2f}'.format(process_time)
@@ -75,6 +79,14 @@ async def log_entry_exit(request: Request, call_next):
   if not x_request_id:
      response.headers['x-request-id'] = str(idem)
   return response
+
+
+@app.on_event("startup")
+async def startup():
+   # any startup stuff (like, connect to Pinecone if needed)
+   # TODO: can we do this on router.startup?
+   pass
+
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/usage", response_class=HTMLResponse)

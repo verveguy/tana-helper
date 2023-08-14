@@ -9,3 +9,4 @@ httpx
 rich
 snowflake-id
 aiofiles
+ratelimit

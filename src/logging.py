@@ -25,7 +25,7 @@ class LoggerConfig(BaseModel):
 
 LOGGER_FILE = Path(settings.logger_file)  # where log is stored
 DATE_FORMAT = "%d %b %Y | %H:%M:%S"
-LOGGER_FORMAT = "%(asctime)s | %(message)s"
+LOGGER_FORMAT = "%(asctime)s | %(threadName)s | %(message)s"
 
 @lru_cache
 def get_logger_config():
@@ -66,7 +66,7 @@ def get_logger_config():
 
     return LoggerConfig(
         handlers=[output_file_handler, stdout_handler],
-        format="%(levelname)s: %(asctime)s \t%(message)s",
+        format="%(levelname)s: %(asctime)s %(threadName)s \t%(message)s",
         date_format="%d-%b-%y %H:%M:%S",
         logger_file=LOGGER_FILE,
     )

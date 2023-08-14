@@ -1,12 +1,13 @@
 import pinecone
 import openai
 from pydantic import BaseModel, BaseSettings
-from typing import Union, Optional
+from typing import List, Union, Optional
 from datetime import datetime
 from logging import getLogger
 import timeit
 import pytz
 import json
+import os
 
 logger = getLogger()
 
@@ -27,9 +28,10 @@ settings = Settings()
 
 # Pinecone keys that are not configured
 # put them in .env?
-TANA_NAMESPACE = "tana-namespace"
-TANA_TYPE = "tana_node"
-
+TANA_NAMESPACE = os.environ.get("PINECONE_NAMESPACE") or "tana-namespace"
+TANA_ENVIRONMENT = os.environ.get("PINECONE_ENVIRONMENT") or "us-west4-gcp-free"
+TANA_TYPE = os.environ.get("PINECONE_TYPE") or "tana-node"
+TANA_INDEX = os.environ.get("PINECONE_INDEX") or "tana-helper"
 
 class HelperRequest(BaseModel):
   context: Optional[str] = ''
@@ -54,22 +56,22 @@ class OpenAICompletion(OpenAIRequest):
 class PineconeRequest(HelperRequest, OpenAIRequest):
   pinecone: str
   embedding_model: Optional[str] = "text-embedding-ada-002"
-  environment: Optional[str] = "asia-southeast1-gcp"
-  index: Optional[str] = "tana-helper"
+  environment: Optional[str] = TANA_ENVIRONMENT
+  index: Optional[str] = TANA_INDEX
   score: Optional[float] = 0.80
   top: Optional[int] = 10
   tags: Optional[str] = ''
   nodeId: str
 
+class PineconeNode(BaseModel):
+  category: str = TANA_TYPE
+  supertag: Optional[List[str]] = []
+  text: str
+
 class ChainsRequest(HelperRequest, OpenAIRequest):
   serpapi: Optional[str] = None
   wolfram: Optional[str] = None
   iterations: Optional[int] = 6
-
-
-def get_pinecone(req:PineconeRequest):
-  pinecone.init(api_key=req.pinecone, environment=req.environment)
-  return pinecone
 
 def get_embedding(req:PineconeRequest):
   openai.api_key = settings.openai_api_key if not req.openai else req.openai
