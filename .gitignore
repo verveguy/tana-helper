@@ -114,3 +114,4 @@ __pycache__
 templates
 test
 dist
+chroma.db

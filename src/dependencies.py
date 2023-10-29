@@ -47,15 +47,19 @@ class ExecRequest(BaseModel):
 class OpenAIRequest(BaseModel):
   openai: Optional[str] = None
   model: Optional[str] = 'gpt-3.5-turbo'
+  embedding_model: Optional[str] = "text-embedding-ada-002"
 
 class OpenAICompletion(OpenAIRequest):
   prompt: str
   max_tokens: Optional[int]
   temperature: Optional[int] = 0
 
-class PineconeRequest(HelperRequest, OpenAIRequest):
+class EmbeddingRequest(HelperRequest, OpenAIRequest):
+  # nothing to add
+  pass
+
+class PineconeRequest(EmbeddingRequest):
   pinecone: str
-  embedding_model: Optional[str] = "text-embedding-ada-002"
   environment: Optional[str] = TANA_ENVIRONMENT
   index: Optional[str] = TANA_INDEX
   score: Optional[float] = 0.80
@@ -68,12 +72,22 @@ class PineconeNode(BaseModel):
   supertag: Optional[List[str]] = []
   text: str
 
+
+class ChromaRequest(EmbeddingRequest):
+  environment: Optional[str] = TANA_ENVIRONMENT
+  index: Optional[str] = TANA_INDEX
+  score: Optional[float] = 0.80
+  top: Optional[int] = 10
+  tags: Optional[str] = ''
+  nodeId: str
+
+
 class ChainsRequest(HelperRequest, OpenAIRequest):
   serpapi: Optional[str] = None
   wolfram: Optional[str] = None
   iterations: Optional[int] = 6
 
-def get_embedding(req:PineconeRequest):
+def get_embedding(req:OpenAIRequest):
   openai.api_key = settings.openai_api_key if not req.openai else req.openai
   embedding = openai.Embedding.create(input=req.context, model=req.embedding_model)
   return embedding.data # type: ignore
@@ -125,6 +139,7 @@ class LineTimer:
 # then, walk the tree again, hoisting up any children of field nodes to be the value of the node 
 # instead of being 'children'
 
+# TODO: pull this out into sep file
 def tana_to_json(tana_format):
 
   def add_child(obj, child):

@@ -51,6 +51,16 @@ def create_index_if_needed(req:PineconeRequest):
     
   return index
 
+def get_index(req:PineconeRequest):
+  pinecone = get_pinecone(req.pinecone, req.environment)
+
+  # too slow to do this check every time
+  # TODO: Put this in an initialization function
+  # create_index_if_needed(req)
+
+  index = pinecone.Index(req.index) # type: ignore
+  return index
+
 # attempt to paralleize non-async code
 # see https://github.com/tiangolo/fastapi/discussions/6347
 lock = asyncio.Lock()
@@ -69,13 +79,7 @@ async def upsert(request: Request, req: PineconeRequest):
                 })
               ]
     
-    pinecone = get_pinecone(req.pinecone, req.environment)
-
-    # too slow to do this check every time
-    # TODO: Put this in an initialization function
-    # create_index_if_needed(req)
-
-    index = pinecone.Index(req.index)
+    index = get_index(req)
 
     # @sleep_and_retry
     # @limits(calls=5, period=10)
@@ -90,8 +94,7 @@ async def upsert(request: Request, req: PineconeRequest):
 
 @router.post("/pinecone/delete", status_code=status.HTTP_204_NO_CONTENT)
 def delete(req: PineconeRequest):  
-  pinecone = get_pinecone(req.pinecone, req.environment)
-  index = pinecone.Index(req.index)
+  index = get_index(req)
 
   index.delete(ids=[req.nodeId], namespace=TANA_NAMESPACE)
   return None
@@ -102,7 +105,7 @@ def get_tana_nodes_for_query(req: PineconeRequest, send_text: Optional[bool] = F
 
   vector = embedding[0]['embedding']
 
-  supertags = req.tags.split()
+  supertags = str(req.tags).split()
   tag_filter = None
   if len(supertags) > 0:
     tag_filter = {
@@ -110,8 +113,7 @@ def get_tana_nodes_for_query(req: PineconeRequest, send_text: Optional[bool] = F
       'supertag': { "$in": supertags }    
     }
 
-  pinecone = get_pinecone(req.pinecone, req.environment)
-  index = pinecone.Index(req.index)
+  index = get_index(req)
 
   query_response = index.query(
     namespace=TANA_NAMESPACE,
@@ -142,7 +144,7 @@ def query_pinecone(req: PineconeRequest, send_text: Optional[bool] = False):
   if len(ids) == 0:
     tana_result = "No sufficiently well-scored results"
   else:
-    tana_result = ''.join(["- "+id+"\n" for id in ids])
+    tana_result = ''.join(["- "+str(id)+"\n" for id in ids])
   return tana_result
 
 

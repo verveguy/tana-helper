@@ -10,3 +10,4 @@ rich
 snowflake-id
 aiofiles
 ratelimit
+chromadb
