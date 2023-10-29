@@ -1,0 +1,30 @@
+[tool.poetry]
+name = "tana-helper"
+version = "0.1.0"
+description = "Small helper service for Tana to add various extensions via MakeAPI calls"
+authors = ["verveguy <bpjadam@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [{include = "tana_helper"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+uvicorn = "^0.23.2"
+openai = "^0.28.1"
+fastapi = "^0.104.0"
+pytz = "^2023.3.post1"
+Jinja2 = "^3.1.2"
+python-dotenv = "^1.0.0"
+httpx = "^0.25.0"
+rich = "^13.6.0"
+snowflake-id = "^0.0.5"
+aiofiles = "^23.2.1"
+ratelimit = "^2.2.1"
+chromadb = "^0.4.15"
+
+[tool.poetry.group.dev.dependencies]
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
