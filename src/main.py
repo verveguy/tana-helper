@@ -4,7 +4,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from logging import getLogger
-from .services import pinecone, chroma, inlinerefs, exec_code, webhooks, jsonify, graph_view, configure, proxy
+from .services import pinecone, chroma, weaviate, inlinerefs, exec_code, webhooks, jsonify, graph_view, configure, proxy
 from .dependencies import settings
 from .logging import setup_rich_logger
 from snowflake import SnowflakeGenerator
@@ -39,6 +39,7 @@ app.add_middleware(
 # and remove the import from above (line 4)
 app.include_router(pinecone.router)
 app.include_router(chroma.router)
+app.include_router(weaviate.router)
 app.include_router(inlinerefs.router)
 app.include_router(exec_code.router)
 app.include_router(webhooks.router)

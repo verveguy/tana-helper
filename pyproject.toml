@@ -21,6 +21,7 @@ snowflake-id = "^0.0.5"
 aiofiles = "^23.2.1"
 ratelimit = "^2.2.1"
 chromadb = "^0.4.15"
+weaviate-client = "^3.25.1"
 
 [tool.poetry.group.dev.dependencies]
 

@@ -81,6 +81,14 @@ class ChromaRequest(EmbeddingRequest):
   tags: Optional[str] = ''
   nodeId: str
 
+class WeaviateRequest(EmbeddingRequest):
+  environment: Optional[str] = TANA_ENVIRONMENT
+  index: Optional[str] = TANA_INDEX
+  score: Optional[float] = 0.80
+  top: Optional[int] = 10
+  tags: Optional[str] = ''
+  nodeId: Optional[str] = None
+
 
 class ChainsRequest(HelperRequest, OpenAIRequest):
   serpapi: Optional[str] = None

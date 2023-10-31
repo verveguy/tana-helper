@@ -11,3 +11,4 @@ snowflake-id
 aiofiles
 ratelimit
 chromadb
+weaviate-client
