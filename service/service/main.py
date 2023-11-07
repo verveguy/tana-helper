@@ -4,6 +4,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from logging import getLogger
+# note pinecone is not included - problems with PyInstaller and google API depedencies...
 from service.endpoints import chroma, weaviate, inlinerefs, exec_code, webhooks, jsonify, graph_view, configure, proxy
 from service.logconfig import setup_rich_logger
 from snowflake import SnowflakeGenerator
@@ -41,6 +42,7 @@ app.add_middleware(
 # app.include_router(pinecone.router)
 app.include_router(chroma.router)
 app.include_router(weaviate.router)
+#app.include_router(pinecone.router)
 app.include_router(inlinerefs.router)
 app.include_router(exec_code.router)
 app.include_router(webhooks.router)
