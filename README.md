@@ -92,7 +92,7 @@ Inspired by the marketing visualization on the Tana.inc website, `tana-helper` p
 
 Check out this [video demo](https://share.cleanshot.com/7J6d6F6l)
 
-For details, see [Visualizer README](./README_VISUALIZER.md)
+For details, see [Visualizer README](docs/README_VISUALIZER.md)
 
 ## Webhooks support!
 
@@ -102,7 +102,7 @@ Basically, you can shovel any text, email, etc at the `/webhook/<tana_type>` end
 
 So you can call this webhook from pretty much any integration platform such as Zapier or for email, use the [cloudmailin.com](https://cloudmailin.com) service as @houshuang did.
 
-See [Webhooks README](./README_WEBHOOKS.md) for more details.
+See [Webhooks README](docs/README_WEBHOOKS.md) for more details.
 
 ## Pinecone support
 
@@ -112,7 +112,7 @@ This is a very powerful idea. It basically means Tana can have full semantic sim
 
 For details, see the Tana templates located at [https://app.tana.inc/?bundle=cVYW2gX8nY.G3v4049e-A](https://app.tana.inc/?bundle=cVYW2gX8nY.G3v4049e-A)
 
-See [Pinecone README](./README_PINECONE.md) for more details.
+See [Pinecone README](docs/README_PINECONE.md) for more details.
 
 ## Pushing nodes to inline references support
 
@@ -155,5 +155,5 @@ You will need an OpenAI account that can access the `text-embedding-ada-002` mod
 You will also need a Pinecone account and will need to create a Pinecone index within a Pinecone "environment" (Region). The default index name is `tana-helper` although this can also be configured.
 
 ## Configuration
-This service is intended to be run as a local server. It also has some experimental support for hosting on Deta Space. See [Webhooks README](./README_WEBHOOKS.md) for details.
+This service is intended to be run as a local server. It also has some experimental support for hosting on Deta Space. See [Webhooks README](docs/README_WEBHOOKS.md) for details.
 

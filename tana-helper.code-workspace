@@ -1,0 +1,19 @@
+{
+	"folders": [
+		{
+			"path": "service"
+		},
+		{
+			"path": "webapp"
+		},
+		{
+			"path": "test"
+		},
+		{
+			"path": "templates"
+		},
+		{
+			"path": "docs"
+		}
+	]
+}
