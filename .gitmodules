@@ -1,0 +1,3 @@
+[submodule "tana-calendar-helper"]
+	path = tana-calendar-helper
+	url = git@github.com:verveguy/tana-calendar-helper.git
