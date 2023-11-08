@@ -116,3 +116,4 @@ test
 dist
 chroma.db
 service/build
+service/bin

@@ -1,13 +1,14 @@
 from fastapi import APIRouter, status, Request
 from fastapi.responses import HTMLResponse
 from typing import Optional
-import chromadb
 from service.dependencies import ChromaRequest, get_embedding, TANA_NAMESPACE, TANA_TYPE
 from logging import getLogger
 from ratelimit import limits, RateLimitException, sleep_and_retry
 from functools import lru_cache
 import asyncio
 import time
+import chromadb
+import chromadb.api.segment
 
 logger = getLogger()
 

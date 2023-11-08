@@ -2,19 +2,33 @@
 
 from PyInstaller.utils.hooks import collect_data_files
 from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_all
+from PyInstaller.utils.hooks import copy_metadata
 
 title = 'Tana Helper'
 name = 'tanahelper'
 
-hiddenimports = []
-hiddenimports += collect_submodules('service')
+start_datas = []
+start_binaries = []
+start_hiddenimports = []
+start_datas += copy_metadata('opentelemetry-sdk')
+
+tmp_ret = collect_all('chromadb')
+start_datas += tmp_ret[0]
+start_binaries += tmp_ret[1]
+start_hiddenimports += tmp_ret[2]
+
+start_hiddenimports += collect_submodules('service')
+start_hiddenimports += ['hnswlib']
+
+start_datas += [('service/dist', 'service/dist'), ('icons', 'icons'), ('bin/scripts', 'scripts'), ('bin/tana-calendar-helper', '.')]
 
 start_a = Analysis(
     ['start.py'],
     pathex=['service'],
-    binaries=[],
-    datas=[('service/dist', 'service/dist'), ('icons', 'icons')],
-    hiddenimports=hiddenimports,
+    binaries=start_binaries,
+    datas=start_datas,
+    hiddenimports=start_hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -92,6 +106,6 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name=f'{title}.app',
-    icon=f'{title}.icns',
+    icon=f'icons/{title}.icns',
     bundle_identifier=None,
 )
