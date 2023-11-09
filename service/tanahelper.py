@@ -24,12 +24,6 @@ def start_service():
     #subprocess.run(['open', '-W', cmd.name], stdin=None, stdout=None, stderr=None)
     message(f"Service started with pid={pid}")
 
-def start_calendar_service():
-    cmd = os.path.join(basedir, '..', 'Resources', 'tana-calendar-helper')
-    pid = subprocess.Popen(['/usr/bin/open', '-W', cmd]).pid
-    #subprocess.run(['open', '-W', cmd.name], stdin=None, stdout=None, stderr=None)
-    message(f"Service started with pid={pid}")
-
 def quit_app():
     # TODO: terminate service. Will require tracking pid.
     app.quit()
@@ -47,11 +41,6 @@ menu = QMenu()
 action = QAction("Start tana-helper")
 action.triggered.connect(start_service)
 menu.addAction(action)
-
-# Create the menu
-action2 = QAction("Start tana-calendar-helper")
-action2.triggered.connect(start_calendar_service)
-menu.addAction(action2)
 
 # Add a Quit option to the menu.
 quit_action = QAction("Quit")
