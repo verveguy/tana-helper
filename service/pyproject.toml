@@ -26,7 +26,6 @@ pyqt5 = "^5.15.10"
 pydantic-settings = "^2.0.3"
 pyinstaller = "^6.1.0"
 
-
 [tool.poetry.group.dev.dependencies]
 pyinstaller = "^6.1.0"
 

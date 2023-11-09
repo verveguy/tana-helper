@@ -1,11 +1,11 @@
 #!/bin/sh
 
-# first build the start wrapper for the service
-# pyinstaller start.spec --noconfirm
+# activate correct python virtual env
+poetry env use 3.11
+source .venv/bin/activate
+poetry install --no-root
 
-# build the .app bundle containing our menubar convenience app
-# this will contain the start wrapper as well.
-
+# build ther swift script first
 # Compile for macOS
 test -f "service/bin" && rm -r "service/bin"
 mkdir -p service/bin
@@ -23,6 +23,10 @@ lipo -create -output service/bin/getcalendar service/bin/getcalendar.arm64 servi
 
 echo "Removing arch builds..."
 rm service/bin/*.arm64 service/bin/*.amd64
+
+
+# build the python bundle for menubar app and start wrapper
+# build the .app bundle 
 
 test -f "dist" && rm -r "dist"
 pyinstaller tanahelper.spec --noconfirm
