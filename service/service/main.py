@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from logging import getLogger
 # note pinecone is not included - problems with PyInstaller and google API depedencies...
-from service.endpoints import chroma, weaviate, inlinerefs, exec_code, webhooks, jsonify, graph_view, configure, proxy
+from service.endpoints import calendar, chroma, weaviate, inlinerefs, exec_code, webhooks, jsonify, graph_view, configure, proxy
 from service.logconfig import setup_rich_logger
 from snowflake import SnowflakeGenerator
 import time
@@ -40,6 +40,7 @@ app.add_middleware(
 # Comment out any service you don't want here
 # and remove the import from above (line 4)
 # app.include_router(pinecone.router)
+app.include_router(calendar.router)
 app.include_router(chroma.router)
 app.include_router(weaviate.router)
 #app.include_router(pinecone.router)
@@ -105,7 +106,7 @@ print(f"main:cwd={cwd}")
 
 app.mount("/static", StaticFiles(directory="dist"), name="static")
 
-favicon_path = 'dist/assets/favicon.ico'
+favicon_path = os.path.join(basedir,'dist','assets','favicon.ico')
 
 @app.get('/favicon.ico', include_in_schema=False)
 async def favicon():

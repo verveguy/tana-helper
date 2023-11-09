@@ -21,7 +21,10 @@ start_hiddenimports += tmp_ret[2]
 start_hiddenimports += collect_submodules('service')
 start_hiddenimports += ['hnswlib']
 
-start_datas += [('service/dist', 'service/dist'), ('icons', 'icons'), ('bin/scripts', 'scripts'), ('bin/tana-calendar-helper', '.')]
+start_datas += [('service/dist', 'service/dist'), 
+    ('icons', 'icons'), 
+    ('service/bin', 'service/bin'),
+     ('service/scripts', 'service/scripts')]
 
 start_a = Analysis(
     ['start.py'],

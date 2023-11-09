@@ -117,3 +117,4 @@ dist
 chroma.db
 service/build
 service/bin
+service/service/bin/getcalendar

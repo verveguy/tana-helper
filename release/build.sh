@@ -3,11 +3,6 @@
 # first, build the webapp. It will push its artifacts to the service
 (cd ../webapp; ./build.sh)
 
-# now build the calendar helper.  Pull it's artifacts into the service
-( cd ../tana-calendar-helper; ./build.sh)
-mkdir -p ../service/bin
-cp -rp ../tana-calendar-helper/bin/* ../service/bin
-
 # now build the service and the app wrapper
 (cd ../service/; ./build.sh)
 
