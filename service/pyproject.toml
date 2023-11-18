@@ -24,7 +24,7 @@ chromadb = "^0.4.15"
 weaviate-client = "^3.25.1"
 pydantic-settings = "^2.0.3"
 pyinstaller = "^6.1.0"
-pyqt5 = "^5.15.10"
+pyqt6 = "^6.6.0"
 
 [tool.poetry.group.dev.dependencies]
 pyinstaller = "^6.1.0"

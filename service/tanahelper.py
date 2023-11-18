@@ -1,9 +1,8 @@
-from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import QProcess
-from PyQt5.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QAction
+from PyQt6.QtGui import QIcon, QAction
+from PyQt6.QtCore import QProcess
+from PyQt6.QtWidgets import (QApplication, QSystemTrayIcon, QMenu)
 import subprocess
-import sys, os
-import tempfile
+import os
 
 
 app = QApplication([])
@@ -28,8 +27,10 @@ def quit_app():
     # TODO: terminate service. Will require tracking pid.
     app.quit()
 
+
 # Create the icon
 icon = QIcon(os.path.join(basedir,'icons', 'white_16x16.png'))
+
 
 # Create the tray
 tray = QSystemTrayIcon()
@@ -50,4 +51,4 @@ menu.addAction(quit_action)
 # Add the menu to the tray
 tray.setContextMenu(menu)
 
-app.exec_()
+app.exec()
