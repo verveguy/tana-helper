@@ -9,16 +9,20 @@ import asyncio
 import time
 import chromadb
 import chromadb.api.segment
+from pathlib import Path
+import os
 
 logger = getLogger()
 
 router = APIRouter()
 
+db_path = os.path.join(Path.home(), '.chroma.db')
 @lru_cache() # reuse connection to chromadb to avoid connection rate limiting on parallel requests
 def get_chroma(environment:str):
   # pinecone.init(api_key=api_key, environment=environment)
   # TODO: let environment specify file name?
-  chroma_client = chromadb.PersistentClient(path="./chroma.db")
+
+  chroma_client = chromadb.PersistentClient(path=db_path)
 
   logger.info("Connected to chromadb")
   return chroma_client
