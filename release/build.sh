@@ -1,10 +1,10 @@
 #!/bin/sh
 
 # first, build the webapp. It will push its artifacts to the service
-#(cd ../webapp; ./build.sh)
+(cd ../webapp; ./build.sh)
 
 # now build the service and the app wrapper
-#(cd ../service/; ./build.sh)
+(cd ../service/; ./build.sh)
 
 OS_VERSION=$(sw_vers -productVersion | awk -F '.' '{print $1 "." $2}')
 ARCH=$(uname -m)
