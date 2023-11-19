@@ -1,4 +1,7 @@
 #!/bin/sh
+
+yarn install
+
 yarn build
 
 # push build artifacts to service for packaging
