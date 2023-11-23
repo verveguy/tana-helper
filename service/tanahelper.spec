@@ -55,7 +55,7 @@ start_exe = EXE(
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
-    codesign_identity=None,
+    codesign_identity='Developer ID Application: Brett Adam (264JVTH455)',
     entitlements_file=None,
 )
 
@@ -87,7 +87,7 @@ helper_exe = EXE(
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
-    codesign_identity=None,
+    codesign_identity='Developer ID Application: Brett Adam (264JVTH455)',
     entitlements_file=None,
 )
 
@@ -110,5 +110,5 @@ app = BUNDLE(
     coll,
     name=f'{title}.app',
     icon=f'icons/{title}.icns',
-    bundle_identifier=None,
+    bundle_identifier='com.v3rv.app.Tana-Helper',
 )

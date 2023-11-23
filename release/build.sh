@@ -29,3 +29,4 @@ create-dmg \
   --app-drop-link 425 120 \
   "dist/$NAME.dmg" \
   "dist/dmg/"
+
