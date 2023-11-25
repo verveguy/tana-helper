@@ -17,6 +17,7 @@ mkdir -p "dist/dmg/$NAME.app"
 # Copy the app bundle to the dmg folder.
 ditto '../service/dist/Tana Helper.app' "dist/dmg/$NAME.app"
 
+# TODO: remove this step
 # Create the DMG.
 create-dmg \
   --volname "$NAME" \
