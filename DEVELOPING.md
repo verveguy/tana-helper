@@ -2,8 +2,8 @@
 
 ## Mac OSX
 
-Install homebrew
-(will install XCode tools if required)
+Install homebrew (will install XCode tools if required)
+`/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
 
 ### Install base toolset
 `brew install python@3.11`
@@ -13,8 +13,8 @@ Install homebrew
 
 Add python install location to PATH
 
-`(~/.zprofile or whichever shell you use)`
-`PATH=$PATH:/usr/local/opt/python@3.11/libexec/bin/`
+Edit ~/.zprofile or whichever shell you use
+`echo "PATH=$PATH:/usr/local/opt/python@3.11/libexec/bin/" >> ~/.zprofile`
 
 `pip install poetry`
 
