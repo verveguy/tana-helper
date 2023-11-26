@@ -2,9 +2,23 @@
 
 NAME='Tana Helper'
 BASE="dist/dmg/$NAME.app"
-ARM64="builds/$NAME (12.6-arm64).app"
-X86_64="builds/$NAME (12.7-x86_64).app"
+ARM64_NAME="$NAME (12.6-arm64).app"
+ARM64="builds/$ARM64_NAME"
+X86_64_NAME="$NAME (12.7-x86_64).app"
+X86_64="builds/$X86_64_NAME"
 
+rm -rf builds
+mkdir -p builds
+
+# BUILD X86
+echo "Building X86_64 architecture"
+ssh -t administrator@Monterey-x86 "zsh --login -c 'cd ~/dev/tana/tana-helper/release; ./build.sh'"
+rsync -a "administrator@Monterey-x86:~/dev/tana/tana-helper/release/dist/dmg/" builds/
+
+# BUILD ARM64
+echo "Building ARM64 architecture"
+ssh -t admin@Monterey-arm "zsh --login -c 'cd ~/dev/tana/tana-helper/release; ./build.sh'"
+rsync -a "admin@Monterey-arm:~/dev/tana/tana-helper/release/dist/dmg/" builds/
 
 rm -rf "dist"
 mkdir -p "dist/dmg"
