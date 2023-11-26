@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/zsh
 
 # activate correct python virtual env
 poetry env use 3.11

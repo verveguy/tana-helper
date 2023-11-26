@@ -1,5 +1,8 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+# BUILD UNSIGNED .APP BUNDLES FOR CURRENT ARCH
+# We will assemble them into a universal, signed bundle later
+
 from PyInstaller.utils.hooks import collect_data_files
 from PyInstaller.utils.hooks import collect_submodules
 from PyInstaller.utils.hooks import collect_all
@@ -55,7 +58,8 @@ start_exe = EXE(
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
-    codesign_identity='Developer ID Application: Brett Adam (264JVTH455)',
+    #codesign_identity='Developer ID Application: Brett Adam (264JVTH455)',
+    codesign_identity=None,
     entitlements_file=None,
 )
 
@@ -87,7 +91,8 @@ helper_exe = EXE(
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
-    codesign_identity='Developer ID Application: Brett Adam (264JVTH455)',
+    #codesign_identity='Developer ID Application: Brett Adam (264JVTH455)',
+    codesign_identity=None,
     entitlements_file=None,
 )
 
