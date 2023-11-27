@@ -24,3 +24,20 @@ Edit ~/.zprofile or whichever shell you use
 
 ## Windows 11
 (no idea...)
+
+
+# Universal build
+
+You'll need two machines, arm64 and x86_64
+
+Setting up remote machines
+
+mkdir tana/tana-helper.git
+cd tana-helper.git
+git config --bool core.bare true
+
+cd release/universal
+./build.sh
+
+
+

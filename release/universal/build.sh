@@ -20,6 +20,8 @@ echo "Building ARM64 architecture"
 ssh -t admin@Monterey-arm "zsh --login -c 'cd ~/dev/tana/tana-helper/release; ./build.sh'"
 rsync -a "admin@Monterey-arm:~/dev/tana/tana-helper/release/dist/dmg/" builds/
 
+# LIPO the two into one
+echo "Lipo-ing the two architectures into one"
 rm -rf "dist"
 mkdir -p "dist/dmg"
 
@@ -80,10 +82,12 @@ lipo_files () {
 # use arm64 build as our "primary" and recurse that structure
 lipo_files "$ARM64" "Contents" ""
 
+# Codesign the resulting app bundle
+echo "Codesigning the resulting app bundle"
 codesign --sign "Developer ID Application: Brett Adam (264JVTH455)" "$BASE" --force
 
-
 # Create the DMG.
+echo "Creating DMG for distribution"
 create-dmg \
   --volname "$NAME" \
   --volicon "../$NAME.icns" \
@@ -95,3 +99,5 @@ create-dmg \
   --app-drop-link 425 120 \
   "dist/$NAME.dmg" \
   "dist/dmg/"
+
+echo "DONE"

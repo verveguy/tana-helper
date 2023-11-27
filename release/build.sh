@@ -1,9 +1,15 @@
 #!/bin/zsh
 
+# first make sure we are up to date
+echo "Updating from git"
+git pull
+
 # first, build the webapp. It will push its artifacts to the service
+echo "Building webapp"
 (cd ../webapp; ./build.sh)
 
 # now build the service and the app wrapper
+echo "Building service .app package"
 (cd ../service/; ./build.sh)
 
 OS_VERSION=$(sw_vers -productVersion | awk -F '.' '{print $1 "." $2}')
@@ -16,17 +22,3 @@ mkdir -p "dist/dmg/$NAME.app"
 
 # Copy the app bundle to the dmg folder.
 ditto '../service/dist/Tana Helper.app' "dist/dmg/$NAME.app"
-
-# # # # Create the DMG.
-# # create-dmg \
-# #   --volname "$NAME" \
-# #   --volicon "Tana Helper.icns" \
-# #   --window-pos 200 120 \
-# #   --window-size 600 300 \
-# #   --icon-size 100 \
-# #   --icon "$NAME.app" 175 120 \
-# #   --hide-extension "$NAME.app" \
-# #   --app-drop-link 425 120 \
-# #   "dist/$NAME.dmg" \
-# #   "dist/dmg/"
-
