@@ -62,7 +62,7 @@ async def make_proxy_request(method:str, req:Request, body=None):
 
 # take input in Tana format, and return result in Tana format, but call intermediate
 # service in between with JSON format
-@router.post("/proxy/{path:path}", response_class=HTMLResponse)
+@router.post("/proxy/{path:path}", response_class=HTMLResponse, tags=["Proxy"])
 async def proxy_post(req:Request, body:str=Body(...)):
   # convert the body to JSON
   tana_format = bytes(body, "utf-8").decode("unicode_escape")  
@@ -74,7 +74,7 @@ async def proxy_post(req:Request, body:str=Body(...)):
   return tana_format
 
 # Make a GET request to a JSON endpoint and return result in Tana format
-@router.get("/proxy/{path:path}", response_class=HTMLResponse)
+@router.get("/proxy/{path:path}", response_class=HTMLResponse, tags=["Proxy"])
 async def proxy_get(req:Request, body:str=Body(...)):
 
   (tana_format, status) = await make_proxy_request('GET', req)

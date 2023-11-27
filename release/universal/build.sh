@@ -12,11 +12,13 @@ mkdir -p builds
 
 # BUILD X86
 echo "Building X86_64 architecture"
+git push Monterey-x86
 ssh -t administrator@Monterey-x86 "zsh --login -c 'cd ~/dev/tana/tana-helper/release; ./build.sh'"
 rsync -a "administrator@Monterey-x86:~/dev/tana/tana-helper/release/dist/dmg/" builds/
 
 # BUILD ARM64
 echo "Building ARM64 architecture"
+git push Monterey-arm
 ssh -t admin@Monterey-arm "zsh --login -c 'cd ~/dev/tana/tana-helper/release; ./build.sh'"
 rsync -a "admin@Monterey-arm:~/dev/tana/tana-helper/release/dist/dmg/" builds/
 
@@ -76,6 +78,9 @@ lipo_files () {
     fi
   done
   IFS="$OIFS"
+
+
+
   nest=$oldnest
 }
 

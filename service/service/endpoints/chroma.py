@@ -37,7 +37,7 @@ def get_collection(req:ChromaRequest):
 # see https://github.com/tiangolo/fastapi/discussions/6347
 lock = asyncio.Lock()
 
-@router.post("/chroma/upsert", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/chroma/upsert", status_code=status.HTTP_204_NO_CONTENT, tags=["Chroma"])
 async def chroma_upsert(request: Request, req: ChromaRequest):
   async with lock:
     start_time = time.time()
@@ -66,7 +66,7 @@ async def chroma_upsert(request: Request, req: ChromaRequest):
     logger.info(f'DONE txid={request.headers["x-request-id"]} time={formatted_process_time}')
     return None
 
-@router.post("/chroma/delete", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/chroma/delete", status_code=status.HTTP_204_NO_CONTENT, tags=["Chroma"])
 def chroma_delete(req: ChromaRequest):  
   collection = get_collection(req)
   collection.delete(ids=[req.nodeId])
@@ -117,7 +117,7 @@ def get_tana_nodes_for_query(req: ChromaRequest, send_text: Optional[bool] = Fal
   #   docs = [ {'sources': '[[^'+match.id+']]', 'answer': match.metadata['text']} for match in best]
   #   return docs
 
-@router.post("/chroma/query", response_class=HTMLResponse)
+@router.post("/chroma/query", response_class=HTMLResponse, tags=["Chroma"])
 def chroma_query(req: ChromaRequest, send_text: Optional[bool] = False):  
   ids = get_tana_nodes_for_query(req)
   if len(ids) == 0:
@@ -127,7 +127,7 @@ def chroma_query(req: ChromaRequest, send_text: Optional[bool] = False):
   return tana_result
 
 
-@router.post("/chroma/purge", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/chroma/purge", status_code=status.HTTP_204_NO_CONTENT, tags=["Chroma"])
 def chroma_purge(req: ChromaRequest):
   collection = get_collection(req)
   collection.delete()

@@ -10,7 +10,7 @@ logger = getLogger()
 
 
 # expose our configuration Webapp on /configure
-@router.get("/ui/configure", response_class=HTMLResponse)
+@router.get("/ui/configure", response_class=HTMLResponse, tags=["Configuration"])
 async def configure():
   return """<!doctype html>
 <html lang="en">

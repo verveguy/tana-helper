@@ -25,7 +25,7 @@ pattern = re.compile(r'\(?"?http[^\t ")]*"?\)?')
 
 # Add a new OpenAI Prompt template by POST to /template/<typename>
 # Allows for customized prompts
-@router.post("/template/{schema}", response_class=HTMLResponse)
+@router.post("/template/{schema}", response_class=HTMLResponse, tags=["Webhooks"])
 async def add_template(req:Request,
                        schema:str,
                        body:str=Body(...)):
@@ -42,7 +42,7 @@ async def add_template(req:Request,
   return f'{req.base_url}webhook/{schema}'
 
 # GET a list of all schemas (for configuration)
-@router.get("/schema")
+@router.get("/schema", tags=["Webhooks"])
 async def get_schemas():
   try:
       directory = os.listdir(path)
@@ -54,7 +54,7 @@ async def get_schemas():
     raise HTTPException(detail = e.strerror, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # GET the template for a schema_name
-@router.get("/template/{schema}", response_class=HTMLResponse)
+@router.get("/template/{schema}", response_class=HTMLResponse, tags=["Webhooks"])
 async def get_template(schema:str):
   try:
       with open(f'{path}/{schema}.jn2', 'r') as template_file:
@@ -67,7 +67,7 @@ async def get_template(schema:str):
 
 # Add a new Tana schema by POST of Tana schema to /schema/<typename>
 # generates a standard OpenAI prompt from the schema
-@router.post("/schema/{schema}", response_class=HTMLResponse)
+@router.post("/schema/{schema}", response_class=HTMLResponse, tags=["Webhooks"])
 async def add_schema(req:Request, 
                      schema:str, 
                      body:str=Body(...)):
@@ -87,7 +87,7 @@ OUTPUT:
 
 # Add a new Tana schema by POST of Tana schema to /schema/<typename>
 # generates a standard OpenAI prompt from the schema
-@router.delete("/schema/{schema}")
+@router.delete("/schema/{schema}", tags=["Webhooks"])
 async def delete(schema:str):
   try:
     if not os.path.exists(path):
@@ -149,12 +149,12 @@ async def do_webhook(schema: str, body: str):
 # Webhook request handlers
 
 # Accept query params /webhook?schema=<schema_name>
-@router.post("/webhook")
+@router.post("/webhook", tags=["Webhooks"])
 async def webhook(schema:str, body:str=Body(...)):
   return await do_webhook(schema, body)
    
 # Accept path parm /webhook/<schema>
-@router.post("/webhook/{schema}")
+@router.post("/webhook/{schema}", tags=["Webhooks"])
 async def webhook_alt(schema:str, body:str=Body(...)):
   return await do_webhook(schema, body)
 

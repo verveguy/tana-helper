@@ -7,7 +7,7 @@ import json
 router = APIRouter()
 
 
-@router.post("/exec", response_class=HTMLResponse)
+@router.post("/exec", response_class=HTMLResponse, tags=["Exec"])
 def exec_function(req: ExecRequest):
     namespace = {}
     namespace['result'] = None
@@ -22,7 +22,7 @@ def exec_function(req: ExecRequest):
     result = namespace['result']
     return result
 
-@router.post("/exec_loose", response_class=HTMLResponse)
+@router.post("/exec_loose", response_class=HTMLResponse, tags=["Exec"])
 async def exec_loose(req: Request):
     body = await req.body()
     body = body.decode('utf-8')
