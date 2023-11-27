@@ -36,7 +36,7 @@ class DirectedGraph(BaseModel):
 # in the output graph. Otherwise, all links get included
 # and it is assumed the client will filter as required.
 
-@router.post("/graph")
+@router.post("/graph", tags=["Visualizer"])
 async def graph(tana_dump:TanaDump):
 
   # walk the data and build a hash of node ids

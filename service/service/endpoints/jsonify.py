@@ -17,13 +17,13 @@ def extract_json_from_code_node(payload):
     right = payload.rfind('```\n')
     return payload[left:right]
 
-@router.post("/jsonify")
+@router.post("/jsonify", tags=["Conversions"])
 async def jsonify(req:Request, body:str=Body(...)):
   tana_format = bytes(body, "utf-8").decode("unicode_escape")  
   object_graph = tana_to_json(tana_format)
   return object_graph
 
-@router.post("/tanify", response_class=HTMLResponse)
+@router.post("/tanify", response_class=HTMLResponse, tags=["Conversions"])
 async def tanify(body:str=Body(...)):
   raw_body = bytes(body, "utf-8").decode("unicode_escape")
   if '```json' == raw_body[:7]:
@@ -33,7 +33,7 @@ async def tanify(body:str=Body(...)):
   tana_format = json_to_tana(json_format)
   return tana_format
 
-@router.post("/tana-to-code", response_class=HTMLResponse)
+@router.post("/tana-to-code", response_class=HTMLResponse, tags=["Conversions"])
 async def tana_to_code(body:str=Body(...)):
   tana_format = bytes(body, "utf-8").decode("unicode_escape")  
   object_graph = tana_to_json(tana_format)
@@ -41,14 +41,14 @@ async def tana_to_code(body:str=Body(...)):
   result_format = '```json\n'+json_format+'\n```\n'
   return result_format
 
-@router.post("/code-to-json")
+@router.post("/code-to-json", tags=["Conversions"])
 async def code_to_json(body:str=Body(...)):
   tana_format = bytes(body, "utf-8").decode("unicode_escape").rstrip()
   code_content = extract_json_from_code_node(tana_format)
   object_graph = json.loads(code_content)
   return object_graph
 
-@router.post("/export/{filename}", response_class=HTMLResponse)
+@router.post("/export/{filename}", response_class=HTMLResponse, tags=["Export"])
 async def export_to_file(req:Request, filename:str, format='json',
                      body:str=Body(...)):
 
@@ -93,7 +93,7 @@ async def export_to_file(req:Request, filename:str, format='json',
 
   return f'{filepath}'
 
-@router.post("/echo", response_class=HTMLResponse)
+@router.post("/echo", response_class=HTMLResponse, tags=["Echo"])
 async def echo(body:str=Body(...)):
   result = bytes(body, "utf-8").decode("unicode_escape")  
   return result

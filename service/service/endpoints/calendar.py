@@ -24,7 +24,7 @@ class CalendarRequest(BaseModel):
     offset: Optional[str] = None
     range: Optional[str] = None
 
-@router.post("/calendar", response_class=HTMLResponse)
+@router.post("/calendar", response_class=HTMLResponse, tags=["Calendar"])
 async def get_calendar(request: CalendarRequest):
     # Run the calendar_auth.scpt1 script
     output, err = run_command(os.path.abspath(os.path.join(os.sep, 'usr', 'bin', 'osascript')), [os.path.join('scripts', 'calendar_auth.scpt')])

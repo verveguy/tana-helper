@@ -65,7 +65,7 @@ def get_index(req:PineconeRequest):
 # see https://github.com/tiangolo/fastapi/discussions/6347
 lock = asyncio.Lock()
 
-@router.post("/pinecone/upsert", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/pinecone/upsert", status_code=status.HTTP_204_NO_CONTENT, tags=["Pinecone"])
 async def upsert(request: Request, req: PineconeRequest):
   async with lock:
     start_time = time.time()
@@ -92,7 +92,7 @@ async def upsert(request: Request, req: PineconeRequest):
     logger.info(f'DONE txid={request.headers["x-request-id"]} time={formatted_process_time}')
     return None
 
-@router.post("/pinecone/delete", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/pinecone/delete", status_code=status.HTTP_204_NO_CONTENT, tags=["Pinecone"])
 def delete(req: PineconeRequest):  
   index = get_index(req)
 
@@ -138,7 +138,7 @@ def get_tana_nodes_for_query(req: PineconeRequest, send_text: Optional[bool] = F
     docs = [ {'sources': '[[^'+match.id+']]', 'answer': match.metadata['text']} for match in best]
     return docs
 
-@router.post("/pinecone/query", response_class=HTMLResponse)
+@router.post("/pinecone/query", response_class=HTMLResponse, tags=["Pinecone"])
 def query_pinecone(req: PineconeRequest, send_text: Optional[bool] = False):  
   ids = get_tana_nodes_for_query(req)
   if len(ids) == 0:
@@ -148,6 +148,6 @@ def query_pinecone(req: PineconeRequest, send_text: Optional[bool] = False):
   return tana_result
 
 
-@router.post("/pinecone/purge", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/pinecone/purge", status_code=status.HTTP_204_NO_CONTENT, tags=["Pinecone"])
 def purge(req: PineconeRequest):  
   return "Not yet implemented"

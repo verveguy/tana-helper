@@ -13,7 +13,11 @@ import os
 from service.dependencies import settings
 
 def get_app() -> FastAPI:
-    app = FastAPI()
+    app = FastAPI(
+        description="Tana Helper", version="0.0.2",
+        servers=[
+          {"url": "https://verveguy.ngrok.app", "description": "Personal laptop"},
+        ])
     setup_rich_logger()
     return app
 
@@ -87,7 +91,7 @@ async def log_entry_exit(request: Request, call_next):
   return response
 
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/", response_class=HTMLResponse, tags=["Usage"])
 @app.get("/usage", response_class=HTMLResponse)
 async def usage():
   return """<html>
@@ -114,7 +118,7 @@ async def favicon():
 
 
 # expose our various Webapps on /ui/{app_name}
-@app.get("/ui/{app_file}", response_class=HTMLResponse)
+@app.get("/ui/{app_file}", response_class=HTMLResponse, tags=["Visualizer"])
 async def app_ui(app_file:str):
   # return a completely generic index.html that assumes the app is
   # available on App_file.js (note initial cap)

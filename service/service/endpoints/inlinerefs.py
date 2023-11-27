@@ -5,7 +5,7 @@ import re
 
 router = APIRouter()
 
-@router.post("/inlinerefs", response_class=HTMLResponse)
+@router.post("/inlinerefs", response_class=HTMLResponse, tags=["InlineRefs"])
 def inlinerefs(req: NodeRequest, response: Response):
   if not req.context:
     response.status_code=status.HTTP_204_NO_CONTENT
