@@ -3,10 +3,32 @@ Simple API service that provides a variety useful API services to complement you
 
 All payloads are in JSON (with the exception of one, documented below). All results are in Tana paste format unless otherwise stated.
 
+See the [Tana Publish page](https://tana.pub/EufhKV4ZMH/tana-helper) for more usage information and examples
+
+There's also a [Tana template](https://app.tana.inc/?bundle=cVYW2gX8nY.EufhKV4ZMH) that you can load into your Tana workspace with all the Tana commands preconfigured, demo nodes, etc.
+
+## Prerequisites
+
+A number of the capabilities of `tana-helper` need OpenAI and other services. For these, you'll need an OpenAI key.
+
+## Configuration
+This service is intended to be run as a local server. It also has some experimental support for hosting on Deta Space. See [Webhooks README](docs/README_WEBHOOKS.md) for details.
+
 # Installation
 `tana-helper` includes a python base API service and a React Typescript web app.
 
-You will need to install a number of python tools to run the service. You only need to install TypeScript tools if you want to develop and change the configuration webapp, since this project includes a pre-built webapp in the git repo.
+You can either install from source (instructions below), or if you are on a Mac you can try the pre-built .app package. Check the Releases section of this github repository for latest downlodable .dmg disk image.
+
+## Prebuilt Mac OS .app
+
+Mac OS app bundles have been tested on Monterey (12.x) , Ventura (13.x) and Sonoma (14.x) on both Intel and Apple Silicon. If you have any problems with these, please add an issue here or come find me on the Tana slack community.
+
+To launch `tana-helper`, double-click the Mac .app. You'll get a menu bar app with a single `Start tana-helper` menu item. This will launch a Terminal window with showing the log as the helper service starts up.
+
+## Prebuilt Windows .exe
+(Coming sometime!)
+
+# Installation from source
 
 First, using a terminal app, clone this git repo:
 
@@ -16,24 +38,32 @@ And change into the source directory before proceeding.
 
 `cd tana-helper`
 
-## Python setup
-You will need `python3` already installed as well as `virtualenv`
+## Mac OSX
 
-NOTE: Your version of python3 should be at least 3.9. Check it with `python3 --version`
+Install homebrew if you don't already have it (will install XCode tools if required)
 
-Upgrade python3 in whatever fashion you choose ([homebrew](https://brew.sh) is good on Mac)
+`/bin/bash -c “$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)“`
 
-You can install `virtualenv` via:
+### Install base toolset
 
-`pip install virtualenv`
+`brew install python@3.11`
+`brew install node`
+`brew install yarn`
+`brew install create-dmg`
 
-Create a virtualenv called `env` and activate it
+Add python install location to PATH
+Edit ~/.zprofile or whichever shell you use
+`echo “PATH=$PATH:/usr/local/opt/python@3.11/libexec/bin/” >> ~/.zprofile`
+`source ~/.zprofile`
+`pip install poetry`
 
-`python3 -m venv env` 
+### Build everything, including .app and .dmg
 
-For Mac/Linux:
+`cd release`
+`./build.sh`
 
-`source env/bin/activate`
+## Windows
+(instructions coming soon!)
 
 For Windows 11:
 
@@ -41,35 +71,11 @@ For Windows 11:
  
  If you have problems doing this due to "Execution Policy", open PowerShell as Administrator and do `set-executionpolicy remotesigned`. This should let you run the virtualenv `Activate.ps1` script)
 
-## TypeScript setup
-This is needed for the web UI components:
-
-Install `node` and `yarn` for your operating system.
-
-# Build & Run
-
-If you want to update an existing installation of `tana-helper` or you are developing enhancements, first, make sure you have the latest version of the code.
-
-`git pull`
-
-## Building the service
-
-You will then need to install the various python packages required by the service. This list changes from time to time.
-
-`pip install -r requirements.txt`
-
-You will also want to build the webapp UI:
-
-Then while in the `tana-helper` directory:
-
-`yarn install`
-
-`yarn build`
-
 ## Run the service
 
 Then you can start the service:
 
+`cd service`
 `uvicorn src.main:app`
 
 (If you want to hack on `tana-helper`, run it with `--reload` to ease development iterations)
@@ -84,7 +90,9 @@ However, there's something wrong with Tana Proxy fetch right now...
 There's a few different services provided by tana-helper: you may not want all of them.
 You can remove services by modifying the file `src/main/py`. Comment out the line for the service you don't want.
 
-Each has a Tana template associated with it (links below)
+See the [Tana Publish page](https://tana.pub/EufhKV4ZMH/tana-helper) for more usage information and examples
+
+There's also a [Tana template](https://app.tana.inc/?bundle=cVYW2gX8nY.EufhKV4ZMH) that you can load into your Tana workspace with all the Tana commands preconfigured, demo nodes, etc.
 
 ## Graph Visualizer!
 
@@ -104,11 +112,13 @@ So you can call this webhook from pretty much any integration platform such as Z
 
 See [Webhooks README](docs/README_WEBHOOKS.md) for more details.
 
-## Pinecone support
+## Vector database support
 
-Pinecone is a vector database that lets you take arbitrary chunks of text, turn them into "embeddings" (vectors) via OpenAI and then store. Why do this? So that you can take some other chunk of text, turn it into a vector and then use that vecotr to _query your Pinecone database_.
+ChromaDB, Weaviate and Pinecone are all vector databases that let you take arbitrary chunks of text, turn them into "embeddings" (vectors) via OpenAI and then store. Why do this? So that you can take some other chunk of text, turn it into a vector and then use that vector to _query your database_.
 
 This is a very powerful idea. It basically means Tana can have full semantic similarity search today, while we wait for Tana themselves to make this magical as part of the product.
+
+There's three variants offered by `tana-helper`: ChromaDB and Weaviate (both local on your laptop) and Pinecone (hosted service). The latter requires a Pinecone account and you will need to create a Pinecone index within a Pinecone "environment" (Region). The default index name is `tana-helper` although this can also be configured.
 
 For details, see the Tana templates located at [https://app.tana.inc/?bundle=cVYW2gX8nY.G3v4049e-A](https://app.tana.inc/?bundle=cVYW2gX8nY.G3v4049e-A)
 
@@ -143,17 +153,7 @@ Why? These features are only available on a local Mac and so it was confusing to
 
 ## Self bootstrapping into Tana
 
-(NOT YET IMPLEMENTED. SEE `/usage`)
+(NOT YET POSSIBLE. SEE `/usage`)
 
 
-## Prerequisites
-
-A number of the capabilities of `tana-helper` need OpenAI and other services.
-
-You will need an OpenAI account that can access the `text-embedding-ada-002` model. (This is configurable, but is the only model currently tested.)
-
-You will also need a Pinecone account and will need to create a Pinecone index within a Pinecone "environment" (Region). The default index name is `tana-helper` although this can also be configured.
-
-## Configuration
-This service is intended to be run as a local server. It also has some experimental support for hosting on Deta Space. See [Webhooks README](docs/README_WEBHOOKS.md) for details.
 
