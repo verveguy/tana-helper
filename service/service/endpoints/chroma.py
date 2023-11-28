@@ -128,7 +128,7 @@ def get_tana_nodes_for_query(req: ChromaRequest):
   #   return docs
 
 @router.post("/chroma/query", response_class=HTMLResponse, tags=["Chroma"])
-def chroma_query(req: ChromaRequest, send_text: Optional[bool] = True):  
+def chroma_query(req: ChromaRequest, send_text: Optional[bool] = False):  
   ids, texts = get_tana_nodes_for_query(req)
   if len(ids) == 0:
     tana_result = "No sufficiently well-scored results"
@@ -138,6 +138,10 @@ def chroma_query(req: ChromaRequest, send_text: Optional[bool] = True):
     else:
       tana_result = ''.join(["- "+str(id)+"\n" for id in ids])
   return tana_result
+
+@router.post("/chroma/query_text", response_class=HTMLResponse, tags=["Chroma"])
+def chroma_query_text(req: ChromaRequest):  
+  return chroma_query(req, True)
 
 
 @router.post("/chroma/purge", status_code=status.HTTP_204_NO_CONTENT, tags=["Chroma"])
