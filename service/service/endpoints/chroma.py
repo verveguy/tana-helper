@@ -11,10 +11,19 @@ import chromadb
 import chromadb.api.segment
 from pathlib import Path
 import os
+import re
+from snowflake import SnowflakeGenerator
 
 logger = getLogger()
+snowflakes = SnowflakeGenerator(42)
 
 router = APIRouter()
+
+# TODO: Add header support throughout so we can pass Tana API key and OpenAPI Key as headers
+# NOTE: we already have this in the main.py middleware wrapper, but it would be better
+# to do it here for OpenAPI purposes.
+# x_tana_api_token: Annotated[str | None, Header()] = None
+# x_openai_api_key: Annotated[str | None, Header()] = None
 
 db_path = os.path.join(Path.home(), '.chroma.db')
 @lru_cache() # reuse connection to chromadb to avoid connection rate limiting on parallel requests
@@ -73,7 +82,7 @@ def chroma_delete(req: ChromaRequest):
   return None
 
 
-def get_tana_nodes_for_query(req: ChromaRequest, send_text: Optional[bool] = False):  
+def get_tana_nodes_for_query(req: ChromaRequest):  
   embedding = get_embedding(req)
 
   vector = embedding[0]['embedding']
@@ -95,17 +104,18 @@ def get_tana_nodes_for_query(req: ChromaRequest, send_text: Optional[bool] = Fal
   # the result from ChromaDB is kinda strange. Instead of an array of objects
   # # it's four distinct arrays of object properties. Very odd interface.
   best = []
+  texts = []
   index = 0
   for node_id in query_response['ids'][0]:
     logger.info(f"Found node {node_id}")
     if query_response['distances'][0][index] < (1.0 - req.score): # type: ignore
       best.append(node_id)
+      texts.append(query_response['metadatas'][0][index]['text'])
     index += 1
 
 
-  ids = ["[[^"+match+"]]" for match in best]
-  
-  return ids
+  ids = ["[[^"+match+"]]" for match in best]  
+  return ids, texts
 
   # ids = query_response.ids
 
@@ -118,12 +128,15 @@ def get_tana_nodes_for_query(req: ChromaRequest, send_text: Optional[bool] = Fal
   #   return docs
 
 @router.post("/chroma/query", response_class=HTMLResponse, tags=["Chroma"])
-def chroma_query(req: ChromaRequest, send_text: Optional[bool] = False):  
-  ids = get_tana_nodes_for_query(req)
+def chroma_query(req: ChromaRequest, send_text: Optional[bool] = True):  
+  ids, texts = get_tana_nodes_for_query(req)
   if len(ids) == 0:
     tana_result = "No sufficiently well-scored results"
   else:
-    tana_result = ''.join(["- "+str(id)+"\n" for id in ids])
+    if send_text:
+      tana_result = ''.join([str(text)+"\n" for text in texts])
+    else:
+      tana_result = ''.join(["- "+str(id)+"\n" for id in ids])
   return tana_result
 
 
