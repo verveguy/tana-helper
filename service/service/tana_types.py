@@ -5,7 +5,7 @@
 #   "Set quicktype target language"
 
 from enum import Enum
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, Union, List, Dict, Any
 
 
@@ -44,8 +44,7 @@ class Visualizer(BaseModel):
   include_inline_ref_nodes: bool = True
   
   # make this hashable
-  class Config:
-          frozen = True
+  model_config = ConfigDict(frozen = True)
 
 
 class TanaDump(BaseModel):

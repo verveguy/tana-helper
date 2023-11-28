@@ -69,7 +69,8 @@ def run_calendar_swift_script(payload: CalendarRequest):
     if payload.solo:
         args += ["-solo"]
 
-    output, err = run_command(cmd, args)
+    cwd = os.getcwd()
+    output, err = run_command(os.path.join(cwd,cmd), args)
 
     if err:
         return "Error running getcalendar.swift script.\nError {err}", err

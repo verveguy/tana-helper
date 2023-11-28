@@ -15,6 +15,7 @@ from service.dependencies import settings
 def get_app() -> FastAPI:
     app = FastAPI(
         description="Tana Helper", version="0.0.2",
+        # TODO: get servers from passed in cmd line / env var
         servers=[
           {"url": "https://verveguy.ngrok.app", "description": "Personal laptop"},
         ])
@@ -100,13 +101,15 @@ async def usage():
   </html>
   """
 
+# fiddle with the CWD to satsify double-clickable .app
+# context
 basedir = os.path.dirname(__file__)
-print(f"main:basedir={basedir}")
+print(f"Install dir = {basedir}")
 cwd = os.getcwd()
-print(f"main:cwd={cwd}")
+print(f"Current working dir = {cwd}")
 os.chdir(basedir)
 cwd = os.getcwd()
-print(f"main:cwd={cwd}")
+print(f"Setting cwd = {cwd}")
 
 app.mount("/static", StaticFiles(directory="dist"), name="static")
 
