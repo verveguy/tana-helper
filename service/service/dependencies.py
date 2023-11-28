@@ -1,5 +1,5 @@
 import openai
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List, Optional
 from datetime import datetime
@@ -7,6 +7,8 @@ from logging import getLogger
 import timeit
 import pytz
 import os
+import httpx
+import json 
 
 logger = getLogger()
 
@@ -72,12 +74,16 @@ class PineconeNode(BaseModel):
 
 
 class ChromaRequest(EmbeddingRequest):
-  environment: Optional[str] = TANA_ENVIRONMENT
+  environment: Optional[str] = "local"
   index: Optional[str] = TANA_INDEX
   score: Optional[float] = 0.80
   top: Optional[int] = 10
   tags: Optional[str] = ''
   nodeId: str
+
+class QueueRequest(HelperRequest):
+  environment: Optional[str] = "local"
+  tanaApiToken: Optional[str] = None
 
 class WeaviateRequest(EmbeddingRequest):
   environment: Optional[str] = TANA_ENVIRONMENT
@@ -92,6 +98,40 @@ class ChainsRequest(HelperRequest, OpenAIRequest):
   serpapi: Optional[str] = None
   wolfram: Optional[str] = None
   iterations: Optional[int] = 6
+
+
+# Tana Input API 
+
+class SuperTag(BaseModel):
+  id: str
+
+class Node(BaseModel):
+  name: str
+  description: Optional[str] = None
+  supertags: Optional[List[SuperTag]] = None
+  children: Optional[List['Node']] = None
+
+# Pydantic models can be nested, this is how you reference the same model
+Node.update_forward_refs()
+
+class AddToNodeRequest(BaseModel):
+  nodes: List[Node]
+  targetNodeId: Optional[str] = None
+
+class TanaInputAPIClient:
+  def __init__(self, base_url: str = "https://europe-west1-tagr-prod.cloudfunctions.net", auth_token: Optional[str] = None):
+    self.base_url = base_url
+    self.client = httpx.Client(verify=False)
+    self.headers = {'Content-Type': 'application/json'}
+    if auth_token:
+      self.headers['Authorization'] = f'Bearer {auth_token}'
+
+  def add_to_inbox(self, request_data: AddToNodeRequest):
+    url = f"{self.base_url}/addToNodeV2"
+    response = self.client.post(url, json=request_data.model_dump(exclude_unset=True), headers=self.headers)
+    return response
+
+# OpenAI helper functions
 
 def get_embedding(req:OpenAIRequest):
   openai.api_key = settings.openai_api_key if not req.openai else req.openai
@@ -124,6 +164,8 @@ def get_date():
       
   return formatted_date_time
 
+
+# helper function for timing exeuction of various calls
 class LineTimer:
     def __init__(self, name=None):
         self.name = " '"  + name + "'" if name else ''
