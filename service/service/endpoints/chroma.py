@@ -197,9 +197,10 @@ async def chroma_enqueue(request: Request, req: QueueRequest):
     # Replace 'your_auth_token' with your actual auth token
     client = TanaInputAPIClient(auth_token=tana_api_token)
 
+    line_one = req.context.partition('\n')[0]
     # Create nodes, supertags, and children
     supertag = SuperTag(id="qf0MJpvP7liP")  # BRETT HARDCOIDEX FIXME
-    main_node = Node(name=f'{node_id}', description="This is an enqueued Tana Paste", supertags=[supertag])
+    main_node = Node(name=f'{node_id}', description=f'{line_one} ...', supertags=[supertag])
 
     # Prepare request data
     request_data = AddToNodeRequest(nodes=[main_node], targetNodeId="INBOX")
