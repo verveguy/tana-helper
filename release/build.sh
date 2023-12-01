@@ -29,5 +29,5 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     ditto '../service/dist/Tana Helper.app' "dist/dmg/$NAME.app"
 elif [[ "$OSTYPE" == "msys"* ]]; then
     # Windows bundle done?
-
+    echo "Windows bundle done"
 fi
