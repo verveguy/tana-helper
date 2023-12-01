@@ -190,7 +190,8 @@ async def chroma_enqueue(request: Request, req: QueueRequest):
       
     do_upsert()
 
-    tana_api_token = settings.tana_api_token if not req.tanaApiToken else req.tanaApiToken
+    tana_api_token = settings.tana_api_token
+    print(f"Using Tana API token {tana_api_token}")
 
     # now push into Tana Inbox via inbox API call
     # Replace 'your_auth_token' with your actual auth token
