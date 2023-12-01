@@ -10,6 +10,7 @@ from service.logconfig import setup_rich_logger
 from snowflake import SnowflakeGenerator
 import time
 import os
+import platform
 from service.dependencies import settings
 
 def get_app() -> FastAPI:
@@ -44,8 +45,11 @@ app.add_middleware(
 # import our various service endpoints
 # Comment out any service you don't want here
 # and remove the import from above (line 4)
-# app.include_router(pinecone.router)
-app.include_router(calendar.router)
+
+plat = platform.system()
+if plat == 'Darwin':
+    app.include_router(calendar.router)
+
 app.include_router(chroma.router)
 app.include_router(weaviate.router)
 #app.include_router(pinecone.router)
