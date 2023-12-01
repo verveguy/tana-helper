@@ -83,7 +83,6 @@ class ChromaRequest(EmbeddingRequest):
 
 class QueueRequest(HelperRequest):
   environment: Optional[str] = "local"
-  tanaApiToken: Optional[str] = None
 
 class WeaviateRequest(EmbeddingRequest):
   environment: Optional[str] = TANA_ENVIRONMENT
