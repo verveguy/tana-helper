@@ -65,6 +65,7 @@ async def chroma_upsert(request: Request, req: ChromaRequest):
 
     metadata = {'category': TANA_TYPE,
                   'supertag': req.tags,
+                  'title': req.name,
                   'text': req.context}
     
     # @sleep_and_retry
@@ -114,11 +115,15 @@ def get_tana_nodes_for_query(req: ChromaRequest):
   texts = []
   index = 0
   for node_id in query_response['ids'][0]:
-    distance = query_response['distances'][0][index]
+    distance = (1.0 - query_response['distances'][0][index])
     metadata = query_response['metadatas'][0][index]
-    logger.info(f"Found node {node_id} with distance {distance}")
-    if distance < (1.0 - req.score): # type: ignore
-      if node_id != req.nodeId:
+    if 'title' in metadata:
+      first_line = metadata['title']
+    else:
+      first_line = metadata['text'].partition('\n')[0]
+    if node_id != req.nodeId:
+      logger.info(f"Found node {node_id} with score {distance}. Title is {first_line}")
+      if distance > req.score: # type: ignore
         best.append(node_id)
         texts.append(metadata['text'])
     index += 1

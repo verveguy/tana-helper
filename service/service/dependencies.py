@@ -35,6 +35,7 @@ TANA_INDEX = os.environ.get("PINECONE_INDEX") or "tana-helper"
 
 class HelperRequest(BaseModel):
   context: Optional[str] = ''
+  name: Optional[str] = ''
 
 class NodeRequest(HelperRequest):
   nodeId: str
@@ -134,7 +135,7 @@ class TanaInputAPIClient:
 
 def get_embedding(req:OpenAIRequest):
   openai.api_key = settings.openai_api_key if not req.openai else req.openai
-  embedding = openai.Embedding.create(input=req.context, model=req.embedding_model)
+  embedding = openai.Embedding.create(input=req.name+req.context, model=req.embedding_model)
   return embedding.data # type: ignore
 
 def get_chatcompletion(req:OpenAICompletion) -> dict:
