@@ -67,7 +67,7 @@ Edit ~/.zprofile or whichever shell you use
 
 For Windows 11:
 
- `.\\env\\Scripts\\Activate.ps1`
+ `.\\.venv\\Scripts\\Activate.ps1`
  
  If you have problems doing this due to "Execution Policy", open PowerShell as Administrator and do `set-executionpolicy remotesigned`. This should let you run the virtualenv `Activate.ps1` script)
 
