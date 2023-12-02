@@ -114,10 +114,13 @@ def get_tana_nodes_for_query(req: ChromaRequest):
   texts = []
   index = 0
   for node_id in query_response['ids'][0]:
-    logger.info(f"Found node {node_id}")
-    if query_response['distances'][0][index] < (1.0 - req.score): # type: ignore
-      best.append(node_id)
-      texts.append(query_response['metadatas'][0][index]['text'])
+    distance = query_response['distances'][0][index]
+    metadata = query_response['metadatas'][0][index]
+    logger.info(f"Found node {node_id} with distance {distance}")
+    if distance < (1.0 - req.score): # type: ignore
+      if node_id != req.nodeId:
+        best.append(node_id)
+        texts.append(metadata['text'])
     index += 1
 
 
