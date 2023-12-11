@@ -40,7 +40,7 @@ class DirectedGraph(BaseModel):
 async def graph(tana_dump:TanaDump):
 
   # walk the data and build a hash of node ids
-  node: Node
+  node: NodeDump
   index = {} # fast access to all nodes by id
   trash = {} # nodes we should treat as "trashed"
   tags = {} # tag nodes we discover
@@ -60,7 +60,7 @@ async def graph(tana_dump:TanaDump):
       link = Link(source=source_id, target=target_id, reason=reason)
       links.append(link)
  
-  def patch_node_name(node:Node):
+  def patch_node_name(node:NodeDump):
     # replace <span .. inline refs with actual node names
     # this is to facilitate full text search of the graph
     def subfunc(matchobj):
@@ -113,7 +113,7 @@ async def graph(tana_dump:TanaDump):
           # found supertag tuple
           # make sure it's not been trashed
           if node.props.ownerId not in trash:
-            meta_node:Node = index[node.props.ownerId]
+            meta_node:NodeDump = index[node.props.ownerId]
             if meta_node:
               tag_id = meta_node.props.ownerId
               if tag_id not in trash:
@@ -128,14 +128,15 @@ async def graph(tana_dump:TanaDump):
                         continue
                       if child_id not in trash and child_id in index:
                         supertag = index[child_id]
-                        print (f'{tag_name} -> {supertag.props.name}')
+                        # print (f'{tag_name} -> {supertag.props.name}')
                         if config.include_tag_tag_links:
                           master_pairs.append((tag_id, child_id, 'itn'))
                   else:
-                    print(f'{tag_name} ->')
+                    # print(f'{tag_name} ->')
+                    pass
               else:
                 trashed_node = trash[tag_id]
-                print(f'Found tag_id {tag_id}, name {trashed_node.props.name} in the TRASH')
+                # print(f'Found tag_id {tag_id}, name {trashed_node.props.name} in the TRASH')
 
 
 
@@ -156,7 +157,7 @@ async def graph(tana_dump:TanaDump):
         
         # now find the tag it applies to
         if node.props.ownerId in index:
-          meta_node:Node = index[node.props.ownerId]
+          meta_node:NodeDump = index[node.props.ownerId]
           if meta_node:
             tag_id = meta_node.props.ownerId
             if tag_id not in trash:
@@ -183,9 +184,11 @@ async def graph(tana_dump:TanaDump):
         tag_ids = node.children
         # find the actual data node that owns this tag tuple
         if node.props.ownerId not in trash:
-          meta_node:Node = index[node.props.ownerId]
+          meta_node:NodeDump = index[node.props.ownerId]
           data_node_id = meta_node.props.ownerId
-          if data_node_id not in trash:
+          if data_node_id not in index:
+            logger.warning(f'Found tag tuple {node.id} with missing data node {data_node_id}')
+          elif data_node_id not in trash:
             # now create a link from the tag node to the data node
             # for every child that isn't SYS_A13
             for tag_id in tag_ids:

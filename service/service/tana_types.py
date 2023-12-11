@@ -11,27 +11,27 @@ from typing import Optional, Union, List, Dict, Any
 
 class Props(BaseModel):
   created: int
-  name: Optional[str]
-  description: Optional[str]
-  ownerId: Optional[str] = Field(alias='_ownerId')
-  metaNodeId: Optional[str] = Field(alias='_metaNodeId')
-  docType: Optional[str] = Field(alias='_docType')
-  sourceId: Optional[str] = Field(alias='_sourceId')
-  view: Optional[str]
-  editMode: Optional[bool]
-  done: Union[bool, int, None]
+  name: Optional[str] = None
+  description: Optional[str] = None
+  ownerId: Optional[str] = Field(default=None, alias='_ownerId')
+  metaNodeId: Optional[str] = Field(default=None, alias='_metaNodeId')
+  docType: Optional[str] = Field(default=None, alias='_docType')
+  sourceId: Optional[str] = Field(default=None, alias='_sourceId')
+  view: Optional[str] = None
+  editMode: Optional[bool] = False
+  done: Optional[Union[bool, int, None]] = None
 
 
-class Node(BaseModel):
+class NodeDump(BaseModel):
   id: str
   props: Props
-  touchCounts: Optional[List[int]]
-  modifiedTs: Optional[List[int]]
-  children: Optional[List[str]]
-  associationMap: Optional[Dict[str, str]]
-  underConstruction: Optional[bool]
-  inbound_refs: List[str] = []
-  outbound_refs: List[str] = []
+  touchCounts: Optional[List[int]] = None
+  modifiedTs: Optional[List[int]] = None
+  children: Optional[List[str]] = None
+  associationMap: Optional[Dict[str, str]] = None
+  underConstruction: Optional[bool] = None
+  inbound_refs: Optional[List[str]] = []
+  outbound_refs: Optional[List[str]] = []
   color: Optional[str] = None
   
 
@@ -49,7 +49,7 @@ class Visualizer(BaseModel):
 
 class TanaDump(BaseModel):
   formatVersion: int
-  docs: List[Node]
+  docs: List[NodeDump]
   editors: List[List[Union[int, str]]]
   workspaces: Dict[str, str]
   lastTxid: int

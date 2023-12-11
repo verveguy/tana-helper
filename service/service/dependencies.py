@@ -1,7 +1,7 @@
 import openai
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List, Optional
+from typing import ForwardRef, List, Optional
 from datetime import datetime
 from logging import getLogger
 import timeit
@@ -105,14 +105,17 @@ class ChainsRequest(HelperRequest, OpenAIRequest):
 class SuperTag(BaseModel):
   id: str
 
+Node = ForwardRef('Node') # type: ignore
+
 class Node(BaseModel):
   name: str
   description: Optional[str] = None
   supertags: Optional[List[SuperTag]] = None
-  children: Optional[List['Node']] = None
+  children: Optional[List[Node]] = None
 
 # Pydantic models can be nested, this is how you reference the same model
-Node.update_forward_refs()
+#Node.update_forward_refs()
+#Node.model_rebuild()
 
 class AddToNodeRequest(BaseModel):
   nodes: List[Node]
