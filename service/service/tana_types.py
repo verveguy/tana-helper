@@ -52,10 +52,10 @@ class TanaDump(BaseModel):
   docs: List[NodeDump]
   editors: List[List[Union[int, str]]]
   workspaces: Dict[str, str]
-  lastTxid: int
-  lastFbKey: str
-  optimisticTransIds: List[Any]
-  currentWorkspaceId: str
+  lastTxid: Optional[int] = None
+  lastFbKey: Optional[str] = None
+  optimisticTransIds: Optional[List[Any]] = None
+  currentWorkspaceId: Optional[str] = None
 
   visualize: Optional[Visualizer] = None
 
