@@ -44,7 +44,7 @@ def get_logger_config():
             handlers=[
                 RichHandler(
                     rich_tracebacks=True,
-                    tracebacks_show_locals=True,
+                    tracebacks_show_locals=False,
                     show_time=False,
                     tracebacks_suppress=[fastapi, uvicorn, asyncio, anyio, starlette, h11]
                 ),

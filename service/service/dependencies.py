@@ -1,7 +1,7 @@
 import openai
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List, Optional
+from typing import ForwardRef, List, Optional
 from datetime import datetime
 from logging import getLogger
 import timeit
@@ -35,6 +35,7 @@ TANA_INDEX = os.environ.get("PINECONE_INDEX") or "tana-helper"
 
 class HelperRequest(BaseModel):
   context: Optional[str] = ''
+  name: Optional[str] = ''
 
 class NodeRequest(HelperRequest):
   nodeId: str
@@ -104,14 +105,17 @@ class ChainsRequest(HelperRequest, OpenAIRequest):
 class SuperTag(BaseModel):
   id: str
 
+Node = ForwardRef('Node') # type: ignore
+
 class Node(BaseModel):
   name: str
   description: Optional[str] = None
   supertags: Optional[List[SuperTag]] = None
-  children: Optional[List['Node']] = None
+  children: Optional[List[Node]] = None
 
 # Pydantic models can be nested, this is how you reference the same model
-Node.update_forward_refs()
+#Node.update_forward_refs()
+#Node.model_rebuild()
 
 class AddToNodeRequest(BaseModel):
   nodes: List[Node]
@@ -134,7 +138,7 @@ class TanaInputAPIClient:
 
 def get_embedding(req:OpenAIRequest):
   openai.api_key = settings.openai_api_key if not req.openai else req.openai
-  embedding = openai.Embedding.create(input=req.context, model=req.embedding_model)
+  embedding = openai.Embedding.create(input=req.name+req.context, model=req.embedding_model)
   return embedding.data # type: ignore
 
 def get_chatcompletion(req:OpenAICompletion) -> dict:
