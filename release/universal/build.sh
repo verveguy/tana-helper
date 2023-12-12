@@ -10,16 +10,21 @@ X86_64="builds/$X86_64_NAME"
 rm -rf builds
 mkdir -p builds
 
+# Parallelize this
 # BUILD X86
 echo "Building X86_64 architecture"
 git push Monterey-x86
 ssh -t administrator@Monterey-x86 "zsh --login -c 'cd ~/dev/tana/tana-helper/release; ./build.sh'"
-rsync -a "administrator@Monterey-x86:~/dev/tana/tana-helper/release/dist/dmg/" builds/
 
 # BUILD ARM64
 echo "Building ARM64 architecture"
 git push Monterey-arm
 ssh -t admin@Monterey-arm "zsh --login -c 'cd ~/dev/tana/tana-helper/release; ./build.sh'"
+
+# Wait for both background processes to finish
+#wait
+
+rsync -a "administrator@Monterey-x86:~/dev/tana/tana-helper/release/dist/dmg/" builds/
 rsync -a "admin@Monterey-arm:~/dev/tana/tana-helper/release/dist/dmg/" builds/
 
 # LIPO the two into one
@@ -106,3 +111,7 @@ create-dmg \
   "dist/dmg/"
 
 echo "DONE"
+
+# BUILD Windows ARM
+echo "Building Windoze ARM architecture"
+./build_win.sh
