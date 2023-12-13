@@ -10,12 +10,12 @@ esac
 
 poetry install --no-root
 
+test -f "service/bin" && rm -r "service/bin"
+mkdir -p service/bin
+
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # build the Calendar helper swift script first
     # Compile for macOS
-
-    test -f "service/bin" && rm -r "service/bin"
-    mkdir -p service/bin
 
     echo "Building for macOS arm64..."
     ARCH=arm64
@@ -30,6 +30,10 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 
     echo "Removing arch builds..."
     rm service/bin/*.arm64 service/bin/*.amd64
+elif [[ "$OSTYPE" == "msys"* ]]; then
+    # Windows builds anything?
+    # not here
+    echo "Windows does not support Calendar helper"
 fi
 
 # build the python bundle for menubar app and start wrapper
