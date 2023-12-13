@@ -3,6 +3,9 @@
 # BUILD UNSIGNED .APP BUNDLES FOR CURRENT ARCH
 # We will assemble them into a universal, signed bundle later
 
+import platform
+plat = platform.system()
+
 from PyInstaller.utils.hooks import collect_data_files
 from PyInstaller.utils.hooks import collect_submodules
 from PyInstaller.utils.hooks import collect_all
@@ -22,7 +25,7 @@ start_binaries += tmp_ret[1]
 start_hiddenimports += tmp_ret[2]
 
 start_hiddenimports += collect_submodules('service')
-start_hiddenimports += ['hnswlib']
+start_hiddenimports += ['hnswlib', 'torch']
 
 start_datas += [('service/dist', 'service/dist'), 
     ('icons', 'icons'), 
@@ -58,7 +61,6 @@ start_exe = EXE(
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
-    #codesign_identity='Developer ID Application: Brett Adam (264JVTH455)',
     codesign_identity=None,
     entitlements_file=None,
 )
@@ -77,6 +79,10 @@ helper_a = Analysis(
 )
 helper_pyz = PYZ(helper_a.pure)
 
+icon=None
+if plat == 'Windows':
+    icon=['icons/TanaHelper.ico']
+
 helper_exe = EXE(
     helper_pyz,
     helper_a.scripts,
@@ -91,9 +97,9 @@ helper_exe = EXE(
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
-    #codesign_identity='Developer ID Application: Brett Adam (264JVTH455)',
     codesign_identity=None,
     entitlements_file=None,
+    icon=icon,
 )
 
 coll = COLLECT( 
@@ -111,9 +117,11 @@ coll = COLLECT(
     name=name,
 )
 
-app = BUNDLE(
-    coll,
-    name=f'{title}.app',
-    icon=f'icons/{title}.icns',
-    bundle_identifier='com.v3rv.app.Tana-Helper',
-)
+# BUILD .app on MAC ONLY
+if plat == 'Darwin':
+    app = BUNDLE(
+        coll,
+        name=f'{title}.app',
+        icon=f'icons/{title}.icns',
+        bundle_identifier='com.v3rv.app.Tana-Helper',
+    )

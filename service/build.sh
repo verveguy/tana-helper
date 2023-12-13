@@ -33,7 +33,8 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 elif [[ "$OSTYPE" == "msys"* ]]; then
     # Windows builds anything?
     # not here
-fifi
+    echo "Windows does not support Calendar helper"
+fi
 
 # build the python bundle for menubar app and start wrapper
 # build the .app / .exe bundle 
