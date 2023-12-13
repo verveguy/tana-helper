@@ -10,15 +10,14 @@
 
 
 NAME='Tana Helper'
-BASE="dist/dmg/$NAME.app"
-ARM64_NAME="$NAME (12.6-arm64).app"
-ARM64="builds/$ARM64_NAME"
-X86_64_NAME="$NAME (12.7-x86_64).app"
-X86_64="builds/$X86_64_NAME"
 
 # BUILD Windows ARM
 echo "Building Windoze ARM architecture"
 git push Windows-arm
-#ssh -t Windows-arm "cd ~/dev/tana/tana-helper/release; ./build.sh"
 ssh Windows-arm "cd ~/dev/tana/tana-helper/release; ./build.sh"
+
+# TODO: consider tarring this stuff up on the remote end
+# then pulling back to the Mac before repackaging in a way
+# that windows users can easily unpack.
+scp -r "Windows-arm:~/dev/tana/tana-helper/release/dist/win/" builds/
 

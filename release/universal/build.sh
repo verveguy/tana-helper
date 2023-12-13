@@ -110,8 +110,11 @@ create-dmg \
   "dist/$NAME.dmg" \
   "dist/dmg/"
 
-echo "DONE"
+echo "Mac build DONE!"
+echo ""
 
 # BUILD Windows ARM
 echo "Building Windoze ARM architecture"
 ./build_win.sh
+
+echo "DONE!"
