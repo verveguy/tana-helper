@@ -25,6 +25,7 @@ weaviate-client = "^3.25.1"
 pydantic-settings = "^2.0.3"
 pyinstaller = "^6.1.0"
 pyqt6 = "^6.6.0"
+torch = "^2.1.1"
 
 [tool.poetry.group.dev.dependencies]
 pyinstaller = "^6.1.0"
