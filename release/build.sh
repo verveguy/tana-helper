@@ -30,7 +30,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 elif [[ "$OSTYPE" == "msys"* ]]; then
     # Windows bundle done?
     mkdir -p "dist/win"
-    # copy files from service/dist to dist/win/
-
+    # move files from service/dist to dist/win/
+    mv ../service/dist/tanahelper dist/win/
     echo "Windows bundle done"
 fi
