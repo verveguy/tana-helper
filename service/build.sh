@@ -16,6 +16,7 @@ mkdir -p service/bin
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # build the Calendar helper swift script first
     # Compile for macOS
+    echo "Building MacOS specific calendar helper..."
 
     echo "Building for macOS arm64..."
     ARCH=arm64
@@ -39,5 +40,6 @@ fi
 # build the python bundle for menubar app and start wrapper
 # build the .app / .exe bundle 
 
+echo "Building tanahelper executable using pyinstaller..."
 test -f "dist" && rm -r "dist"
 pyinstaller tanahelper.spec --noconfirm
