@@ -1,5 +1,9 @@
 #!/bin/sh
 
+# ensure we clean up background processes when we are killed
+trap "exit" INT TERM ERR
+trap "kill 0" EXIT
+
 NAME='Tana Helper'
 BASE="dist/dmg/$NAME.app"
 ARM64_NAME="$NAME (12.6-arm64).app"
@@ -40,6 +44,7 @@ wait_for_process_completion() {
 # BUILD Mac ARM64 and Mac x86_64
 echo_blue "Cleaning up from previous builds"
 rm -rf builds
+rm -rf dist
 mkdir -p builds
 
 echo_blue "Updating remote git repos"
@@ -62,8 +67,7 @@ remote_build() {
     echo_blue "\rFetching $arch build"
     scp -r "${host}:~/dev/tana/tana-helper/release/dist/*" builds/
   else
-    #ssh "$host" "zsh --login -c 'cd ~/dev/tana/tana-helper/release; ./build.sh'" > "$log" 2>&1
-    ssh "$host" "cd ~/dev/tana/tana-helper/release; ./build.sh" > "$log" 2>&1
+    ssh "$host" "zsh --login -c 'cd ~/dev/tana/tana-helper/release; ./build.sh'" > "$log" 2>&1
     echo_blue "\rFetching $arch build"
     rsync -a "${host}:~/dev/tana/tana-helper/release/dist/*" builds/
   fi
@@ -74,21 +78,20 @@ remote_build() {
 
 # Parallelize building the two architectures and wait
 
-remote_build "Monterey-x86" "x86_64" & 
+remote_build "Monterey-x86" "x86_64" &
 pid1=$!
 remote_build "Monterey-arm" "arm64" &
 pid2=$!
 remote_build "Windows-arm" "win" &
 pid3=$!
 
-wait_for_process_completion $pid1 $pid2 $pid3
+wait_for_process_completion $pid1 $pid2 #$pid3
 
 # Mac specific build of Universal bindary
 
 # LIPO the two into one
 echo_blue "Preparing Universal Map .app"
 echo_blue "Lipo-ing the two architectures into one"
-rm -rf "dist"
 mkdir -p "dist/dmg"
 
 nest=""
