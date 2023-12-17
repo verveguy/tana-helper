@@ -7,6 +7,12 @@ ARM64="builds/$ARM64_NAME"
 X86_64_NAME="$NAME (12.7-x86_64).app"
 X86_64="builds/$X86_64_NAME"
 
+
+# BUILD Windows ARM
+./build_win.sh
+
+
+# BUILD Mac ARM64 and Mac x86_64
 rm -rf builds
 mkdir -p builds
 
@@ -113,8 +119,5 @@ create-dmg \
 echo "Mac build DONE!"
 echo ""
 
-# BUILD Windows ARM
-echo "Building Windoze ARM architecture"
-./build_win.sh
-
 echo "DONE!"
+

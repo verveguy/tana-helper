@@ -1,5 +1,11 @@
 #!/bin/sh
 
+# check that we have a single paameter
+if [ "$#" -ne 1 ]; then
+  echo "Usage: switch_branch.sh <branch>"
+  exit 1
+fi
+
 # List of hosts
 hosts=("Monterey-x86" "Monterey-arm" "Windows-arm")
 

@@ -12,12 +12,12 @@
 NAME='Tana Helper'
 
 # BUILD Windows ARM
-echo "Building Windoze ARM architecture"
+echo "Building Windoze architecture"
 git push Windows-arm
 ssh Windows-arm "cd ~/dev/tana/tana-helper/release; ./build.sh"
 
 # TODO: consider tarring this stuff up on the remote end
 # then pulling back to the Mac before repackaging in a way
 # that windows users can easily unpack.
-scp -r "Windows-arm:~/dev/tana/tana-helper/release/dist/win/tanahelper.tar.gz" builds/
+scp -r "Windows-arm:~/dev/tana/tana-helper/release/dist/win/tanahelper*.tar.gz" builds/
 

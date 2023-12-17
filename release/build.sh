@@ -32,6 +32,6 @@ elif [[ "$OSTYPE" == "msys"* ]]; then
     mkdir -p "dist/win"
     # move files from service/dist to dist/win/
     # mv ../service/dist/tanahelper dist/win/
-    tar -cvzf dist/win/tanahelper.tar.gz ../service/dist/tanahelper
+    tar -cvzf dist/win/tanahelper.tar.gz ../service/dist/tanahelper > /dev/null
     echo "Windows bundle done"
 fi
