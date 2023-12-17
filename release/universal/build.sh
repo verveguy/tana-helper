@@ -64,27 +64,28 @@ remote_build() {
   # if window arch, slightly different
   if [ "$arch" = "win" ]; then
     ssh "$host" "cd ~/dev/tana/tana-helper/release; ./build.sh" > "$log" 2>&1
-    echo_blue "\rFetching $arch build"
-    scp -r "${host}:~/dev/tana/tana-helper/release/dist/*" builds/
+    echo_blue "\rFetching $arch build"    
+    scp -r "${host}:~/dev/tana/tana-helper/release/dist/*" builds/ >> "$log" 2>&1
   else
     ssh "$host" "zsh --login -c 'cd ~/dev/tana/tana-helper/release; ./build.sh'" > "$log" 2>&1
     echo_blue "\rFetching $arch build"
-    rsync -a "${host}:~/dev/tana/tana-helper/release/dist/*" builds/
+    rsync -a "${host}:~/dev/tana/tana-helper/release/dist/*" builds/ >> "$log" 2>&1
   fi
 
   echo_blue "\rCompleted $arch build"
 }
 
 
-# Parallelize building the two architectures and wait
+# Parallelize building the three architectures
 
 remote_build "Monterey-x86" "x86_64" &
 pid1=$!
 remote_build "Monterey-arm" "arm64" &
 pid2=$!
 remote_build "Windows-arm" "win" &
-pid3=$!
+winpid=$!
 
+# wait for the two Mac builds
 wait_for_process_completion $pid1 $pid2 #$pid3
 
 # Mac specific build of Universal bindary
@@ -150,7 +151,12 @@ lipo_files () {
 }
 
 # use arm64 build as our "primary" and recurse that structure
-lipo_files "$ARM64" "Contents" ""
+lipo_files "$ARM64" "Contents" "" > builds/lipo.log 2>&1 &
+lipopid=$!
+
+# show process spinner
+wait_for_process_completion $lipopid
+echo_blue "Completed Universal .app build"
 
 # Codesign the resulting app bundle
 echo_blue "Codesigning the resulting .app bundle"
@@ -170,8 +176,11 @@ create-dmg \
   "dist/$NAME.dmg" \
   "dist/dmg/"
 
-echo_blue "Univeral Mac .app build DONE!"
+echo_blue "Mac DMG built"
 echo ""
+
+# and wait for the Windows build if it's still not done
+wait_for_process_completion $winpid
 
 echo "DONE!"
 
