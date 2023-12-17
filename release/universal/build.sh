@@ -8,33 +8,86 @@ X86_64_NAME="$NAME (12.7-x86_64).app"
 X86_64="builds/$X86_64_NAME"
 
 
-# BUILD Windows ARM
-./build_win.sh
+# ANSI color codes
+BLUE='\033[0;34m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
 
+echo_blue() {
+  echo "${BLUE}$1${NC}"
+}
+
+echo_red() {
+  echo "${RED}$1${NC}"
+}
+
+
+# wait with spinner function
+wait_for_process_completion() {
+  local pids="$@"
+  local spin='-\|/'
+  local i=0
+
+  while kill -0 $pids 2>/dev/null
+  do
+    i=$(( (i+1) %4 ))
+    printf "\r${spin:$i:1}"
+    sleep .1
+  done
+  printf "\r"
+}
 
 # BUILD Mac ARM64 and Mac x86_64
+echo_blue "Cleaning up from previous builds"
 rm -rf builds
 mkdir -p builds
 
-# Parallelize this
-# BUILD X86
-echo "Building X86_64 architecture"
+echo_blue "Updating remote git repos"
+
 git push Monterey-x86
-ssh -t administrator@Monterey-x86 "zsh --login -c 'cd ~/dev/tana/tana-helper/release; ./build.sh'"
-
-# BUILD ARM64
-echo "Building ARM64 architecture"
 git push Monterey-arm
-ssh -t admin@Monterey-arm "zsh --login -c 'cd ~/dev/tana/tana-helper/release; ./build.sh'"
+git push Windows-arm
 
-# Wait for both background processes to finish
-#wait
+echo_blue "Starting parallel builds"
 
-rsync -a "administrator@Monterey-x86:~/dev/tana/tana-helper/release/dist/dmg/" builds/
-rsync -a "admin@Monterey-arm:~/dev/tana/tana-helper/release/dist/dmg/" builds/
+remote_build() {
+  local host=$1
+  local arch=$2
+  local log="builds/build_${arch}.log"
+
+  echo_blue "\rBuilding $arch architecture"
+  # if window arch, slightly different
+  if [ "$arch" = "win" ]; then
+    ssh "$host" "cd ~/dev/tana/tana-helper/release; ./build.sh" > "$log" 2>&1
+    echo_blue "\rFetching $arch build"
+    scp -r "${host}:~/dev/tana/tana-helper/release/dist/*" builds/
+  else
+    #ssh "$host" "zsh --login -c 'cd ~/dev/tana/tana-helper/release; ./build.sh'" > "$log" 2>&1
+    ssh "$host" "cd ~/dev/tana/tana-helper/release; ./build.sh" > "$log" 2>&1
+    echo_blue "\rFetching $arch build"
+    rsync -a "${host}:~/dev/tana/tana-helper/release/dist/*" builds/
+  fi
+
+  echo_blue "\rCompleted $arch build"
+}
+
+
+# Parallelize building the two architectures and wait
+
+remote_build "Monterey-x86" "x86_64" & 
+pid1=$!
+remote_build "Monterey-arm" "arm64" &
+pid2=$!
+remote_build "Windows-arm" "win" &
+pid3=$!
+
+wait_for_process_completion $pid1 $pid2 $pid3
+
+# Mac specific build of Universal bindary
 
 # LIPO the two into one
-echo "Lipo-ing the two architectures into one"
+echo_blue "Preparing Universal Map .app"
+echo_blue "Lipo-ing the two architectures into one"
 rm -rf "dist"
 mkdir -p "dist/dmg"
 
@@ -73,24 +126,22 @@ lipo_files () {
     if [ -L "$elem" ]; then
       # copy the link itself
       cp -P "$parent/$mid" "$BASE/$mid"
-      printf "\r$nest copied link $elem"
+      printf "\r$nest copied link $elem\033[K"
     # if the file is a non-link directory, recurse into it
     elif [ -d "$elem" ]; then
       lipo_files "$parent" "$subpath/$folder" "$filename"
     # else try and lipo the file
     else
       if lipo -create -output "$BASE/$mid" "$ARM64/$mid" "$X86_64/$mid" 2> /dev/null; then
-        printf "\r$nest lipo'd file $mid"
+        printf "\r$nest lipo'd file $mid\033[K"
       # if lipo fails, then just copy it
       else
         cp "$parent/$mid" "$BASE/$mid"
-        printf "\r$nest copied file $mid"
+        printf "\r$nest copied file $mid\033[K"
       fi
     fi
   done
   IFS="$OIFS"
-
-
 
   nest=$oldnest
 }
@@ -99,11 +150,11 @@ lipo_files () {
 lipo_files "$ARM64" "Contents" ""
 
 # Codesign the resulting app bundle
-echo "Codesigning the resulting app bundle"
+echo_blue "Codesigning the resulting .app bundle"
 codesign --sign "Developer ID Application: Brett Adam (264JVTH455)" "$BASE" --force
 
 # Create the DMG.
-echo "Creating DMG for distribution"
+echo_blue "Creating DMG for distribution"
 create-dmg \
   --volname "$NAME" \
   --volicon "../$NAME.icns" \
@@ -116,7 +167,7 @@ create-dmg \
   "dist/$NAME.dmg" \
   "dist/dmg/"
 
-echo "Mac build DONE!"
+echo_blue "Univeral Mac .app build DONE!"
 echo ""
 
 echo "DONE!"
