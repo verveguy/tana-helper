@@ -7,7 +7,7 @@ if [ "$#" -ne 1 ]; then
 fi
 
 # List of hosts
-hosts=("Monterey-x86" "Monterey-arm" "Windows-arm")
+hosts=("Monterey-x86" "Monterey-arm" "windows-x86")
 
 # Loop through each host
 for host in "${hosts[@]}"

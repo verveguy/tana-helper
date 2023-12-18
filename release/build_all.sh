@@ -1,5 +1,15 @@
 #!/bin/sh
 
+# remotely building on Windows is a pain to setup.
+# Make sure OpenSSH server is installed and correctly configured
+# with keys, etc.
+
+# Then set up the git bash shell as default login shell
+# See https://unix.stackexchange.com/questions/557751/how-can-i-execute-command-through-ssh-remote-is-windows
+# New-ItemProperty -Path "HKLM:\SOFTWARE\OpenSSH" -Name DefaultShell -Value "C:\Program Files\Git\bin\sh.exe" -PropertyType String -Force
+
+start=$(date +%s)
+
 # ensure we clean up background processes when we are killed
 trap "exit" INT TERM ERR
 trap "kill 0" EXIT
@@ -17,14 +27,19 @@ BLUE='\033[0;34m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+timestamp() {
+  date +"%T" # current time
+}
+
 echo_blue() {
-  echo "${BLUE}$1${NC}"
+  echo "$(timestamp) ${BLUE}$1${NC}"
 }
 
 echo_red() {
-  echo "${RED}$1${NC}"
+  echo "$(timestamp) ${RED}$1${NC}"
 }
 
+echo_blue "START builds"
 
 # wait with spinner function
 wait_for_process_completion() {
@@ -51,7 +66,7 @@ echo_blue "Updating remote git repos"
 
 git push Monterey-x86
 git push Monterey-arm
-git push Windows-arm
+git push windows-x86
 
 echo_blue "Starting parallel builds"
 
@@ -63,11 +78,11 @@ remote_build() {
   echo_blue "\rBuilding $arch architecture"
   # if window arch, slightly different
   if [ "$arch" = "win" ]; then
-    ssh "$host" "cd ~/dev/tana/tana-helper/release; ./build.sh" > "$log" 2>&1
+    ssh "$host" "cd ~/dev/tana/tana-helper/release; git pull; ./build.sh" > "$log" 2>&1
     echo_blue "\rFetching $arch build"    
     scp -r "${host}:~/dev/tana/tana-helper/release/dist/*" builds/ >> "$log" 2>&1
   else
-    ssh "$host" "zsh --login -c 'cd ~/dev/tana/tana-helper/release; ./build.sh'" > "$log" 2>&1
+    ssh "$host" "zsh --login -c 'cd ~/dev/tana/tana-helper/release; git pull; ./build.sh'" > "$log" 2>&1
     echo_blue "\rFetching $arch build"
     rsync -a "${host}:~/dev/tana/tana-helper/release/dist/*" builds/ >> "$log" 2>&1
   fi
@@ -82,7 +97,7 @@ remote_build "Monterey-x86" "x86_64" &
 pid1=$!
 remote_build "Monterey-arm" "arm64" &
 pid2=$!
-remote_build "Windows-arm" "win" &
+remote_build "windows-x86" "win" &
 winpid=$!
 
 # wait for the two Mac builds
@@ -166,7 +181,7 @@ codesign --sign "Developer ID Application: Brett Adam (264JVTH455)" "$BASE" --fo
 echo_blue "Creating DMG for distribution"
 create-dmg \
   --volname "$NAME" \
-  --volicon "../$NAME.icns" \
+  --volicon "$NAME.icns" \
   --window-pos 200 120 \
   --window-size 600 300 \
   --icon-size 100 \
@@ -182,5 +197,11 @@ echo ""
 # and wait for the Windows build if it's still not done
 wait_for_process_completion $winpid
 
-echo "DONE!"
+mv builds/*.tar.gz dist/
+
+echo "END builds"
+
+end=$(date +%s)
+echo "Elapsed Time: $(($end-$start)) seconds"
+
 
