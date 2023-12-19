@@ -14,7 +14,6 @@ from pathlib import Path
 import os
 import re
 from snowflake import SnowflakeGenerator
-import torch
 
 logger = getLogger()
 snowflakes = SnowflakeGenerator(42)

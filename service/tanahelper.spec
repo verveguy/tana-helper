@@ -25,7 +25,7 @@ start_binaries += tmp_ret[1]
 start_hiddenimports += tmp_ret[2]
 
 start_hiddenimports += collect_submodules('service')
-start_hiddenimports += ['hnswlib', 'torch']
+start_hiddenimports += ['hnswlib']
 
 start_datas += [('service/dist', 'service/dist'), 
     ('icons', 'icons'), 
