@@ -197,7 +197,7 @@ echo ""
 # and wait for the Windows build if it's still not done
 wait_for_process_completion $winpid
 
-mv builds/*.tar.gz dist/
+mv builds/*.zip dist/
 
 echo "END builds"
 
