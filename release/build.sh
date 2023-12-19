@@ -29,6 +29,6 @@ elif [[ "$OSTYPE" == "msys"* ]]; then
     ARCH="win"
     NAME="Tana Helper ($OS_VERSION-$ARCH)"
     mkdir -p "dist"
-    tar -cvzf "dist/$NAME.tar.gz" ../service/dist/tanahelper > /dev/null
-    echo "Windows tarball done"
+    powershell Compress-Archive ../service/dist/tanahelper dist/tanahelper.zip
+    echo "Windows .zip done"
 fi

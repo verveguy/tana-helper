@@ -13,6 +13,8 @@ poetry install --no-root
 test -f "service/bin" && rm -r "service/bin"
 mkdir -p service/bin
 
+test -f "dist" && rm -r "dist"
+
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # build the Calendar helper swift script first
     # Compile for macOS
@@ -31,15 +33,24 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 
     echo "Removing arch builds..."
     rm service/bin/*.arm64 service/bin/*.amd64
+
+    
+    # build the python bundle for menubar app and start wrapper
+    # build the .app bundle 
+
+    echo "Building tanahelper .app using pyinstaller..."
+    test -f "dist" && rm -r "dist"
+    pyinstaller tanahelper.spec --noconfirm
+
 elif [[ "$OSTYPE" == "msys"* ]]; then
     # Windows builds anything?
     # not here
     echo "Windows does not support Calendar helper"
+
+    # build the python bundle for menubar app and start wrapper
+    # build the .exe bundle 
+    # NOTE: we do this differently for Mac and Win since Windows suffers false positives
+    # on the pysinstaller bootloader unless we use --clean
+    echo "Building tanahelper .exe using pyinstaller..."
+    pyinstaller tanahelper.spec --noconfirm --clean
 fi
-
-# build the python bundle for menubar app and start wrapper
-# build the .app / .exe bundle 
-
-echo "Building tanahelper executable using pyinstaller..."
-test -f "dist" && rm -r "dist"
-pyinstaller tanahelper.spec --noconfirm
