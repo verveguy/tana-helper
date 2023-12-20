@@ -1,17 +1,17 @@
-from fastapi import FastAPI, Request, Response
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from logging import getLogger
-# note pinecone is not included - problems with PyInstaller and google API depedencies...
 from service.endpoints import calendar, chroma, weaviate, inlinerefs, exec_code, webhooks, jsonify, graph_view, configure, proxy
+# note pinecone is not included - problems with PyInstaller and google API depedencies...
+from fastapi.middleware.cors import CORSMiddleware
 from service.logconfig import setup_rich_logger
+from fastapi import FastAPI, Request, Response
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse
+from service.dependencies import settings
 from snowflake import SnowflakeGenerator
+from logging import getLogger
+import platform
 import time
 import os
-import platform
-from service.dependencies import settings
 
 def get_app() -> FastAPI:
     app = FastAPI(
