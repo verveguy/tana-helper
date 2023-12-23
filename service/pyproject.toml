@@ -23,7 +23,6 @@ ratelimit = "^2.2.1"
 chromadb = "^0.4.15"
 weaviate-client = "^3.25.1"
 pydantic-settings = "^2.0.3"
-pyinstaller = "^6.1.0"
 pyqt6 = "^6.6.0"
 
 [tool.poetry.group.dev.dependencies]
