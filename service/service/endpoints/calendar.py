@@ -10,19 +10,12 @@ from fastapi.responses import HTMLResponse
 
 from logging import getLogger
 
+from service.dependencies import CalendarRequest
+
 logger = getLogger()
 
 router = APIRouter()
 
-class CalendarRequest(BaseModel):
-    me: Optional[str] = None
-    one2one: Optional[str] = None
-    meeting: Optional[str] = None
-    person: Optional[str] = None
-    solo: Optional[bool] = None
-    calendar: Optional[str] = None
-    offset: Optional[str] = None
-    range: Optional[str] = None
 
 @router.post("/calendar", response_class=HTMLResponse, tags=["Calendar"])
 async def get_calendar(request: CalendarRequest):
