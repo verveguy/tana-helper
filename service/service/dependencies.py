@@ -1,5 +1,5 @@
 import openai
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import ForwardRef, List, Optional
 from datetime import datetime
@@ -9,13 +9,17 @@ import pytz
 import os
 import httpx
 import json 
+from dotenv import load_dotenv
 
 logger = getLogger()
 
+# Load environment variables from .env file
+load_dotenv()
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8')
-    openai_api_key: str = "OPENAI API KEY NOT SET"
-    tana_api_token: str = "TANA API TOKEN NOT SET"
+    openai_api_key: str = os.getenv("OPENAI_API_KEY") or "OPENAI_API_KEY NOT SET"
+    tana_api_token: str = os.getenv("TANA_API_TOKEN") or "TANA_API_TOKEN NOT SET"
     production: bool = False
     logger_file: str = 'tana-handler.log'
     template_path: str = '/tmp/tana_helper/webhooks'
@@ -27,11 +31,23 @@ class Settings(BaseSettings):
 settings = Settings()
 
 # Pinecone keys that are not configured
-# put them in .env?
-TANA_NAMESPACE = os.environ.get("PINECONE_NAMESPACE") or "tana-namespace"
-TANA_ENVIRONMENT = os.environ.get("PINECONE_ENVIRONMENT") or "us-west4-gcp-free"
-TANA_TYPE = os.environ.get("PINECONE_TYPE") or "tana-node"
-TANA_INDEX = os.environ.get("PINECONE_INDEX") or "tana-helper"
+# TODO: put them in .env?
+TANA_NAMESPACE = os.getenv("PINECONE_NAMESPACE") or "tana-namespace"
+TANA_ENVIRONMENT = os.getenv("PINECONE_ENVIRONMENT") or "us-west4-gcp-free"
+TANA_TYPE = os.getenv("PINECONE_TYPE") or "tana-node"
+TANA_INDEX = os.getenv("PINECONE_INDEX") or "tana-helper"
+
+
+class CalendarRequest(BaseModel):
+    me: Optional[str] = None
+    one2one: Optional[str] = None
+    meeting: Optional[str] = None
+    person: Optional[str] = None
+    solo: Optional[bool] = None
+    calendar: Optional[str] = None
+    offset: Optional[str] = None
+    range: Optional[str] = None
+    model_config = ConfigDict(extra='forbid')
 
 class HelperRequest(BaseModel):
   context: Optional[str] = ''
