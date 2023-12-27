@@ -220,9 +220,16 @@ class NodeIndex(BaseModel):
             child_node = self.node(child_id)
             if child_node.props.docType == 'tuple':
               # tuples are fields
-              node.fields.append(child_id)
-              linkage = (node.id, child_id, IS_FIELD_CONTENT_LINK)
-              self.master_pairs.append(linkage)
+              if child_node.children:
+                if len(child_node.children) < 2:
+                  continue
+                field_id = child_node.children[0]
+                value_id = child_node.children[1]
+                if self.valid(field_id) and self.valid(value_id):
+                  node.fields.append({"field": field_id, "value": value_id})
+                  # TODO field linkages have extra ID (value_id)
+                  linkage = (node.id, field_id, IS_FIELD_CONTENT_LINK)
+                  self.master_pairs.append(linkage)
             else:
               linkage = (node.id, child_id, IS_CHILD_CONTENT_LINK)
               self.master_pairs.append(linkage)
