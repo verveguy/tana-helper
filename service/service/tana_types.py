@@ -11,7 +11,7 @@ from typing import Optional, Union, List, Dict, Any
 
 class Props(BaseModel):
   created: int
-  name: Optional[str] = None
+  name: str = ''
   description: Optional[str] = None
   ownerId: Optional[str] = Field(default=None, alias='_ownerId')
   metaNodeId: Optional[str] = Field(default=None, alias='_metaNodeId')
@@ -33,6 +33,9 @@ class NodeDump(BaseModel):
   inbound_refs: Optional[List[str]] = []
   outbound_refs: Optional[List[str]] = []
   color: Optional[str] = None
+  tags: List[str] = []
+  content: List[str] = []
+  fields:List[str] = []
   
 
 # config for graph visualization.
@@ -42,6 +45,7 @@ class Visualizer(BaseModel):
   include_node_tag_links: bool = True
   include_inline_refs: bool = True
   include_inline_ref_nodes: bool = True
+  include_content_nodes: bool = False
   
   # make this hashable
   model_config = ConfigDict(frozen = True)

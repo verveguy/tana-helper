@@ -50,14 +50,17 @@ def patch_node_name(index:NodeIndex, node:NodeDump):
   return name
 
 
-@router.post("/graph", tags=["Visualizer"])
-async def graph(tana_dump:TanaDump):
+@router.post("/class_diagram", tags=["Visualizer"])
+async def class_diagram(tana_dump:TanaDump):
 
   links = []  # final results we build into
 
-  config = tana_dump.visualize
-  if config is None:
-    config = Visualizer()
+  # we just want the class heirarchy
+  config = Visualizer(include_content_nodes=False, 
+                      include_inline_refs=False,
+                      include_tag_tag_links=True,
+                      include_node_tag_links=False,
+                      include_inline_ref_nodes=False)
 
   index = NodeIndex(tana_dump=tana_dump, config=config)
 
@@ -103,7 +106,6 @@ async def graph(tana_dump:TanaDump):
     new_name = patch_node_name(index, node)
     render_node = RenderNode(id=node.id, name=new_name, color=node.color)
     graph.nodes.append(render_node)
-
 
   return graph
 

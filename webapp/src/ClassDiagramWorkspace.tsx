@@ -20,8 +20,7 @@ import IconButton from '@mui/material/IconButton';
 import MenuIcon from '@mui/icons-material/Menu';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import ForceGraph3D, { GraphData } from 'react-force-graph-3d';
-// import ForceGraph2D, { GraphData } from 'react-force-graph-2d';
+import ForceGraph2D, { GraphData } from 'react-force-graph-2d';
 import { Button, Checkbox, CircularProgress, FormControlLabel, FormGroup, Grid, TextField } from '@mui/material';
 import axios from 'axios';
 import { Container } from "@mui/system";
@@ -88,20 +87,12 @@ const DrawerHeader = styled('div')(({ theme }) => ({
   justifyContent: 'flex-end',
 }));
 
-interface GraphConfig {
-  include_all_nodes: boolean;
-  include_tag_nodes: boolean;
-  include_tag_links: boolean;
-  include_inline_refs: boolean;
-  include_inline_ref_nodes: boolean;
-}
 
-export default function GraphWorkspace() {
+export default function ClassDiagramWorkspace() {
   const theme = useTheme();
   const [open, setOpen] = useState(true);
   const [rawGraphData, setRawGraphData] = useState<GraphData>();
   const [graphData, setGraphData] = useState<GraphData>();
-  const [config, setConfig] = useState<GraphConfig>();
   const [dumpFile, setDumpFile] = useState<File>();
   const [upload, setUpload] = useState(false);
   const [searchString, setSearchString] = useState('');
@@ -127,14 +118,9 @@ export default function GraphWorkspace() {
   };
 
   useEffect(() => {
-    let new_config: GraphConfig = { include_all_nodes: true, include_tag_nodes: false, include_tag_links: false, include_inline_ref_nodes: false, include_inline_refs: false };
-    setConfig(new_config)
-  }, []);
-
-  useEffect(() => {
     if (upload) {
       setLoading(true);
-      axios.post('/graph', dumpFile, {
+      axios.post('/class_diagram', dumpFile, {
         headers: {
           "Content-Type": "application/json",
         }
@@ -194,27 +180,22 @@ export default function GraphWorkspace() {
       // filter links based on config and search index
       const new_links = rawGraphData.links.filter((link) => {
         // config is easy, check link types
-        let found = (link.reason == IS_INLINE_REF_LINK && config?.include_inline_ref_nodes)
-          || (link.reason == IS_INDIRECT_REF_LINK && config?.include_inline_refs)
-          || (link.reason == IS_TAG_LINK && config?.include_tag_links)
-          || (link.reason == IS_TAG_TAG_LINK && config?.include_tag_nodes);
-
+        let found = true;
         // complex polymorphic stuff here since the graph engine seems to mutate
         // the link structure _sometimes_
         let source_id = get_id_from(link.source);
         let target_id = get_id_from(link.target);
 
         // search index is harder
-        if (found) {
-          // should we search?
-          if (search_dict != undefined) {
-            found = false;
-            // if the node at either end is included, include the whole link
-            if (source_id in search_dict || target_id in search_dict) {
-              found = true;
-            }
+        // should we search?
+        if (search_dict != undefined) {
+          found = false;
+          // if the node at either end is included, include the whole link
+          if (source_id in search_dict || target_id in search_dict) {
+            found = true;
           }
         }
+
         // whether we searched or not, is this link found?
         if (found) {
           // ensure nodes at both end of links are included
@@ -233,7 +214,7 @@ export default function GraphWorkspace() {
 
       // now filter nodes as well based on search index
       const new_nodes = new_graph.nodes.filter((node) => {
-        let found = (config?.include_all_nodes == true);
+        let found = false;
         if (node.id && node.id in new_search_dict) {
           found = true;
         }
@@ -243,39 +224,8 @@ export default function GraphWorkspace() {
       new_graph.nodes = new_nodes;
       setGraphData(new_graph);
     }
-  }, [config, rawGraphData, searchString]);
+  }, [rawGraphData, searchString]);
 
-
-  function handleShowAllNodes(event: SyntheticEvent<Element, Event>, checked: boolean): void {
-    let new_config = { ...config } as GraphConfig;
-    new_config.include_all_nodes = checked;
-    setConfig(new_config);
-  }
-
-  function handleShowTagTagLinks(event: SyntheticEvent<Element, Event>, checked: boolean): void {
-    let new_config = { ...config } as GraphConfig;
-    new_config.include_tag_nodes = checked;
-    setConfig(new_config);
-  }
-
-
-  function handleIncludeTagLinks(event: SyntheticEvent<Element, Event>, checked: boolean): void {
-    let new_config = { ...config } as GraphConfig;
-    new_config.include_tag_links = checked;
-    setConfig(new_config);
-  }
-
-  function handleShowInlineRefs(event: SyntheticEvent<Element, Event>, checked: boolean): void {
-    let new_config = { ...config } as GraphConfig;
-    new_config.include_inline_refs = checked;
-    setConfig(new_config);
-  }
-
-  function handleIncludeInlineNodes(event: SyntheticEvent<Element, Event>, checked: boolean): void {
-    let new_config = { ...config } as GraphConfig;
-    new_config.include_inline_ref_nodes = checked;
-    setConfig(new_config);
-  }
 
   // TODO: rework this to be cleaner React.
   // See example:
@@ -309,7 +259,7 @@ export default function GraphWorkspace() {
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" noWrap component="div">
-            Tana Workspace Visualizer
+            Tana Workspace Class Diagram
           </Typography>
         </Toolbar>
       </AppBar>
@@ -347,50 +297,32 @@ export default function GraphWorkspace() {
           </label>
         </Box>
         <Divider />
-        <FormGroup style={{ padding: 10 }}>
-          <FormControlLabel control={<Checkbox checked={config?.include_all_nodes} />}
-            label="Show all nodes" onChange={handleShowAllNodes} />
-          <Divider />
-          <FormControlLabel control={<Checkbox checked={config?.include_tag_nodes} />}
-            label="Show supertag 'extends' as links" onChange={handleShowTagTagLinks} />
-          <Divider />
-          <FormControlLabel control={<Checkbox checked={config?.include_tag_links} />}
-            label="Show node tags as links" onChange={handleIncludeTagLinks} />
-          <Divider />
-          <FormControlLabel control={<Checkbox checked={config?.include_inline_refs} />}
-            label="Show inline refs as links" onChange={handleShowInlineRefs} />
-          <Divider />
-          <FormControlLabel control={<Checkbox checked={config?.include_inline_ref_nodes} />}
-            label="Show inline ref node links" onChange={handleIncludeInlineNodes} />
-          <FormControlLabel control={<Checkbox disabled={true} />}
-            label="Show fields as links" />
-          <FormControlLabel control={<Checkbox disabled={true} />}
-            label="Show child links" />
-          <Divider />
-        </FormGroup>
         <TextField label="Search" onChange={e => setSearchString(e.target.value)} />
       </Drawer>
       <Main open={open}>
         <DrawerHeader />
-        <Container sx={{ display: 'flex', width: '100%', height: '100%', justifyContent: 'center' }}>
+        <Container sx={{ display: 'flex', width: '100%', height: '100%', justifyContent: 'center', backgroundColor: 'white' }}>
           {loading
             ?
             <CircularProgress />
-            : <ForceGraph3D ref={fgRef}
-              graphData={graphData}
-              width={width - 50 - (open ? drawerWidth : 0)}
-              height={height - 115}
-              onNodeClick={handleNodeClick}
-              onNodeDragEnd={node => {
-                node.fx = node.x;
-                node.fy = node.y;
-                node.fz = node.z;
-              }}
-            // : <ForceGraph2D graphData={graphData}
+            // : <ForceGraph3D ref={fgRef}
+            //   graphData={graphData}
+            //   width={width - 50 - (open ? drawerWidth : 0)}
+            //   height={height - 115}
+            //   onNodeClick={handleNodeClick}
             //   onNodeDragEnd={node => {
             //     node.fx = node.x;
             //     node.fy = node.y;
-            // }}
+            //     node.fz = node.z;
+            //   }}
+            : <ForceGraph2D graphData={graphData}
+            width={width - 50 - (open ? drawerWidth : 0)}
+            height={height - 115}
+            onNodeClick={handleNodeClick}
+            onNodeDragEnd={node => {
+                node.fx = node.x;
+                node.fy = node.y;
+            }}
             />
           }
         </Container>
