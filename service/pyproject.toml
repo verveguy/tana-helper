@@ -10,7 +10,7 @@ packages = [{include = "tana_helper"}]
 [tool.poetry.dependencies]
 python = ">=3.11, <3.13"
 uvicorn = "^0.23.2"
-openai = "^0.28.1"
+openai = "~1.1.0"
 fastapi = "^0.104.0"
 pytz = "^2023.3.post1"
 Jinja2 = "^3.1.2"
@@ -24,6 +24,10 @@ chromadb = "^0.4.15"
 weaviate-client = "^3.25.1"
 pydantic-settings = "^2.0.3"
 pyqt6 = "^6.6.0"
+llama-index = "^0.9.21"
+qdrant-client = "^1.7.0"
+torch = "^2.1.2"
+transformers = "^4.36.2"
 
 [tool.poetry.group.dev.dependencies]
 pyinstaller = "^6.1.0"

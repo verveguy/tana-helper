@@ -2,7 +2,7 @@ import { copy } from 'esbuild-plugin-copy';
 import { build } from 'esbuild'
 
 const res = await build({
-  entryPoints: ['src/Graph.tsx', 'src/Configure.tsx'],
+  entryPoints: ['src/Graph.tsx', 'src/Configure.tsx', 'src/ClassDiagram.tsx'],
   platform: 'browser',
   bundle: true,
   minify: true,

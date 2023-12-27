@@ -6,7 +6,6 @@ from service.dependencies import OpenAICompletion, get_chatcompletion, settings,
 from starlette.requests import Request
 from logging import getLogger
 import httpx
-from openai.error import AuthenticationError
 import json
 import re
 import os
@@ -124,7 +123,7 @@ async def do_webhook(schema: str, body: str):
       completion = get_chatcompletion(completion_request)
     logger.debug(f'Result from OpenAI: {completion}')
 
-  except AuthenticationError as e:
+  except Exception as e:
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="OpenAI Authentication Error. Did you pass your OpenAI API Key in X-OpenAI-API-Key header or set your service env variable?")
 
   jsonstring = '{' + completion['choices'][0].message.content
