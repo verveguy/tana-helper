@@ -34,7 +34,7 @@ class TanaDocument(BaseModel):
   description: Optional[str]
   tags: List[str] = []
   fields: List[TanaField] = []
-  content: str = ''
+  content: List[str] = []
 
 class DocumentDump(BaseModel):
   documents: List[TanaDocument] = []
@@ -138,11 +138,11 @@ async def topics(tana_dump:TanaDump):
 
   return topics
 
-def recurse_content(index:NodeIndex, node_id:str, depth_limit=10) -> str:
+def recurse_content(index:NodeIndex, node_id:str, depth_limit=10) -> List[str]:
   content_node = index.node(node_id)
-  content = patch_node_name(index, node_id)
+  content = [patch_node_name(index, node_id)]
   for content_id in content_node.content:
     depth_limit = depth_limit - 1
     if depth_limit > 0:
-      content = content + '\n' + recurse_content(index, content_id, depth_limit)
+      content = content + recurse_content(index, content_id, depth_limit)
   return content
