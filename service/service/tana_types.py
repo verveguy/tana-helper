@@ -35,7 +35,7 @@ class NodeDump(BaseModel):
   color: Optional[str] = None
   tags: List[str] = []
   content: List[str] = []
-  fields:List[str] = []
+  fields:List[dict] = []
   
 
 # config for graph visualization.

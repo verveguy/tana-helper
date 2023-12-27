@@ -16,10 +16,11 @@ class Link(BaseModel):
   reason: str
 
 class TanaField(BaseModel):
-  id: str
+  field_id: str
   name: str
+  value_id: str
   value: str
-  tag_id: str = ''
+  #tag_id: str = ''
 
 class TanaTag(BaseModel):
   id: str
@@ -115,10 +116,15 @@ async def topics(tana_dump:TanaDump):
         topic.tags.append(index.node(tag_id).props.name)
 
       # add all the field names and values
-      for field_id in node.fields:
-        field = TanaField(id=field_id, 
+      for field_dict in node.fields:
+        field_id = field_dict['field']
+        value_id = field_dict['value']
+        value_content = recurse_content(index, value_id)
+
+        field = TanaField(field_id=field_id,
+                          value_id=value_id,
                           name=index.node(field_id).props.name,
-                          value='unknown'
+                          value=value_content,
                           )
         topic.fields.append(field)
 
