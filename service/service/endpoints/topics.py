@@ -100,7 +100,7 @@ async def topics(tana_dump:TanaDump):
   # find pairs that are tagged nodes only
   # and collect these into the initial list
   # gathering content along the way
-  topics = {}
+  topics = []
   for (source_id, target_id, reason) in final_pairs:
     if reason == IS_TAG_LINK:
       node = index.node(source_id)
@@ -109,7 +109,7 @@ async def topics(tana_dump:TanaDump):
                           description=node.props.description,
                           )
       
-      topics[source_id] = topic
+      topics.append(topic)
 
       # add all the tag names
       for tag_id in node.tags:
@@ -119,8 +119,8 @@ async def topics(tana_dump:TanaDump):
       for field_dict in node.fields:
         field_id = field_dict['field']
         value_id = field_dict['value']
-        value_content = recurse_content(index, value_id)
-
+        # value_content = recurse_content(index, value_id)
+        value_content = patch_node_name(index, value_id)
         field = TanaField(field_id=field_id,
                           value_id=value_id,
                           name=index.node(field_id).props.name,
