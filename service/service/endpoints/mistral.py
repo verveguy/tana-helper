@@ -56,14 +56,11 @@ def get_qdrant():
   
 @lru_cache() # reuse connection to ollama
 def get_mistral():
-
   vector_store = get_qdrant()
-
   service_context = get_llm()
 
   # load the index from the vector store
   index = VectorStoreIndex.from_vector_store(vector_store=vector_store, service_context=service_context) # type: ignore
-
   logger.info("Connected to Mistral")
   return index
 

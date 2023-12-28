@@ -24,6 +24,11 @@ start_datas += tmp_ret[0]
 start_binaries += tmp_ret[1]
 start_hiddenimports += tmp_ret[2]
 
+tmp_ret = collect_all('llama-index')
+start_datas += tmp_ret[0]
+start_binaries += tmp_ret[1]
+start_hiddenimports += tmp_ret[2]
+
 start_hiddenimports += collect_submodules('service')
 start_hiddenimports += ['hnswlib']
 
