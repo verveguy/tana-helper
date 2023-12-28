@@ -49,7 +49,7 @@ def get_queue_collection(req:ChromaRequest):
   collection = chroma.get_or_create_collection(name="queue")
   return collection
 
-# attempt to paralleize non-async code
+# attempt to parallelize non-async code
 # see https://github.com/tiangolo/fastapi/discussions/6347
 lock = asyncio.Lock()
 

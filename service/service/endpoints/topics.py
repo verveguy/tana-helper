@@ -66,7 +66,7 @@ def patch_node_name(index:NodeIndex, node_id:str) -> str:
 
 
 @router.post("/topics", tags=["Extractor"])
-async def topics(tana_dump:TanaDump):
+async def extract_topics(tana_dump:TanaDump):
 
   # we just want top level tagged nodes and their child contents
   config = Visualizer(include_content_nodes=True, 

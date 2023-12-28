@@ -98,6 +98,16 @@ class ChromaRequest(EmbeddingRequest):
   tags: Optional[str] = ''
   nodeId: str
 
+
+class MistralRequest(EmbeddingRequest):
+  score: Optional[float] = 0.80
+  top: Optional[int] = 10
+  tags: Optional[str] = ''
+  nodeId: str
+
+class MistralAsk(BaseModel):
+  query: str
+
 class QueueRequest(HelperRequest):
   environment: Optional[str] = "local"
 
