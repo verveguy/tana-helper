@@ -32,42 +32,43 @@ To launch `tana-helper`, double-click the Mac .app. You'll get a menu bar app wi
 
 First, using a terminal app, clone this git repo:
 
-`git clone https://github.com/verveguy/tana-helper.git`
+    git clone https://github.com/verveguy/tana-helper.git
 
 And change into the source directory before proceeding.
 
-`cd tana-helper`
+    cd tana-helper
 
 ## Mac OSX
 
 Install homebrew if you don't already have it (will install XCode tools if required)
 
-`/bin/bash -c “$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)“`
+    /bin/bash -c “$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)“
 
 ### Install base toolset
 
-`brew install python@3.11`
-`brew install node`
-`brew install yarn`
-`brew install create-dmg`
+    brew install python@3.11
+    brew install node
+    brew install yarn
+    brew install create-dmg
 
 Add python install location to PATH
-Edit ~/.zprofile or whichever shell you use
-`echo “PATH=$PATH:/usr/local/opt/python@3.11/libexec/bin/” >> ~/.zprofile`
-`source ~/.zprofile`
-`pip install poetry`
+Edit `~/.zprofile` or whichever shell you use
+
+    echo “PATH=$PATH:/usr/local/opt/python@3.11/libexec/bin/” >> ~/.zprofile
+    source ~/.zprofile
+    pip install poetry
 
 ### Build everything, including .app and .dmg
 
-`cd release`
-`./build.sh`
+    cd release
+    ./build.sh
 
 ## Windows
 (instructions coming soon!)
 
 For Windows 11:
 
- `.\\.venv\\Scripts\\Activate.ps1`
+     .\\.venv\\Scripts\\Activate.ps1
  
  If you have problems doing this due to "Execution Policy", open PowerShell as Administrator and do `set-executionpolicy remotesigned`. This should let you run the virtualenv `Activate.ps1` script)
 
@@ -75,8 +76,8 @@ For Windows 11:
 
 Then you can start the service:
 
-`cd service`
-`uvicorn src.main:app`
+    cd service
+    uvicorn service.main:app
 
 (If you want to hack on `tana-helper`, run it with `--reload` to ease development iterations)
 
