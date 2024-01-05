@@ -21,12 +21,15 @@ You can either install from source (instructions below), or if you are on a Mac 
 
 ## Prebuilt Mac OS .app
 
-Mac OS app bundles have been tested on Monterey (12.x) , Ventura (13.x) and Sonoma (14.x) on both Intel and Apple Silicon. If you have any problems with these, please add an issue here or come find me on the Tana slack community.
+Mac OS app bundles have been tested on Monterey (12.x), Ventura (13.x) and Sonoma (14.x) on both Intel and Apple Silicon. If you have any problems with these, please add an issue here or come find me on the Tana slack community.
 
-To launch `tana-helper`, double-click the Mac .app. You'll get a menu bar app with a single `Start tana-helper` menu item. This will launch a Terminal window with showing the log as the helper service starts up.
+To launch `tana-helper`, double-click the Mac .app. You'll get a menu bar app with a single `Start tana-helper` menu item. This will launch a Terminal window showing the log as the helper service starts up.
 
 ## Prebuilt Windows .exe
-(Coming sometime!)
+Windows prebuilt binaries have been tested on Windows 11. 
+
+To launch `tana-helper`, double-click the .exe. You'll get a task bar app with a single `Start tana-helper` menu item available via right-click. This will launch a Command console window showing the log as the helper service starts up.
+
 
 # Installation from source
 
