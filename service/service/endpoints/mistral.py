@@ -8,6 +8,7 @@ from logging import getLogger
 from pathlib import Path
 
 from fastapi import APIRouter, Request, status
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import HTMLResponse
 from pydantic.json import pydantic_encoder
 from typing import Optional
@@ -105,19 +106,22 @@ async def mistral_preload(request: Request,tana_dump:TanaDump):
     logger.info(f'DO txid={request.headers["x-request-id"]}')
 
     result = await extract_topics(tana_dump) # type: ignore
-    
+    logger.info('Extracted topics from Tana dump')
+
     # save output to a temporary file
     with tempfile.TemporaryDirectory() as tmp:
         path = os.path.join(tmp, 'topics.json')
         # use path
         with open(path, "w") as f:
-            f.write( json.dumps(result, default=pydantic_encoder))
+            json_result = jsonable_encoder(result)
+            f.write(json.dumps(json_result))
         
         index = load_topic_index(path)
 
     process_time = (time.time() - start_time) * 1000
     formatted_process_time = '{0:.2f}'.format(process_time)
     logger.info(f'DONE txid={request.headers["x-request-id"]} time={formatted_process_time}')
+    #TODO: consider returning some kind of completion confirmation payload with statidtics
     return None
 
 
