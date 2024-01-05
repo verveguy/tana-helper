@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 import argparse
 import requests
@@ -26,14 +27,16 @@ if __name__ == "__main__":
     with open(filename, 'rb') as f:
         response = requests.post(url, data=f, headers=headers)
 
-    if response.status_code != 200:
+    if response.status_code != 204:
         print("Error sending data to preload API:")
         print(response.text)
         exit(1)
 
+    print("Testing /mistral/ask endpoint ...")
+
     # query the index to test liveness
-    url = "http://localhost:8000/mistral/preload"
-    question = { 'query': "What do you know about Tana?"}
+    url = "http://localhost:8000/mistral/ask"
+    question = { "query": "What do you know about Tana?"}
     print(question)
-    response = requests.post(url, data=question, headers=headers)
-    print(response)
+    response = requests.post(url, json=question, headers=headers)
+    print(response.text)
