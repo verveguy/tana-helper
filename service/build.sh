@@ -1,4 +1,5 @@
 #!/bin/sh
+set -e # return error if any command fails
 
 # activate correct python virtual env
 poetry env use 3.11

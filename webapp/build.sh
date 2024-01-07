@@ -1,4 +1,5 @@
 #!/bin/sh
+set -e # return error if any command fails
 
 yarn install
 
