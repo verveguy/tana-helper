@@ -10,10 +10,10 @@ esac
 
 poetry install --no-root
 
-test -f "service/bin" && rm -r "service/bin"
+test -d "service/bin" && rm -r "service/bin"
 mkdir -p service/bin
 
-test -f "dist" && rm -r "dist"
+test -d "dist" && rm -r "dist"
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # build the Calendar helper swift script first
@@ -39,7 +39,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     # build the .app bundle 
 
     echo "Building tanahelper .app using pyinstaller..."
-    test -f "dist" && rm -r "dist"
+    test -d "dist" && rm -r "dist"
     pyinstaller tanahelper.spec --noconfirm
 
 elif [[ "$OSTYPE" == "msys"* ]]; then
