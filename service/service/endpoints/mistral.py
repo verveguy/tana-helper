@@ -135,7 +135,7 @@ async def mistral_preload(request: Request,tana_dump:TanaDump):
 @router.post("/mistral/ask", response_class=HTMLResponse, tags=["Mistral"])
 def mistral_ask(req: MistralAsk):
   index = get_mistral()
-  query_engine = index.as_query_engine(similarity_top_k=20, stream=False, timeout=1000*60*5)
+  query_engine = index.as_query_engine(similarity_top_k=20, stream=False)
   logger.info(f'Querying Mistral with {req.query}')
   response = query_engine.query(req.query)
   return str(response)

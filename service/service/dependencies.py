@@ -13,9 +13,6 @@ from dotenv import load_dotenv
 
 logger = getLogger()
 
-# get shared client object
-openai_client = OpenAI()
-
 # Load environment variables from .env file
 load_dotenv()
 
@@ -166,13 +163,16 @@ class TanaInputAPIClient:
 # OpenAI helper functions
 
 def get_embedding(req:EmbeddingRequest):
-  openai_client.api_key = settings.openai_api_key if not req.openai else req.openai
+  # get shared client object
+  api_key = settings.openai_api_key if not req.openai else req.openai
+  openai_client = OpenAI(api_key=api_key)
   content = req.name + req.context 
   embedding = openai_client.embeddings.create(input=content, model=req.embedding_model)
   return embedding.data # type: ignore
 
 def get_chatcompletion(req:OpenAICompletion) -> dict:
-  openai_client.api_key = settings.openai_api_key if not req.openai else req.openai
+  api_key = settings.openai_api_key if not req.openai else req.openai
+  openai_client = OpenAI(api_key=api_key)
   completion = openai_client.chat.completions.create(
             messages=[{ 'role': 'user', 'content': req.prompt }],
             model=req.model, 
