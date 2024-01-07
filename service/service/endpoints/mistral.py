@@ -13,6 +13,11 @@ from fastapi.responses import HTMLResponse
 from pydantic.json import pydantic_encoder
 from typing import Optional
 
+# This is here to satisfy runtime import needs 
+# that pyinstaller appears to miss
+from transformers import AutoModel, AutoTokenizer
+import tqdm
+
 from llama_index import (
     StorageContext,
     VectorStoreIndex,
@@ -37,6 +42,8 @@ logger = getLogger()
 snowflakes = SnowflakeGenerator(42)
 
 router = APIRouter()
+
+minutes = 1000 * 60
 
 # TODO: Add header support throughout so we can pass Tana API key and OpenAPI Key as headers
 # NOTE: we already have this in the main.py middleware wrapper, but it would be better
@@ -68,7 +75,7 @@ def get_mistral():
 # get the LLM 
 @lru_cache() # reuse connection to ollama
 def get_llm():
-  llm = Ollama(model="mistral")
+  llm = Ollama(model="mistral", request_timeout=(5 * minutes))
   service_context = ServiceContext.from_defaults(llm=llm,embed_model="local")
   logger.info("Mistral (ollama) service context ready")
   return service_context
@@ -116,7 +123,7 @@ async def mistral_preload(request: Request,tana_dump:TanaDump):
             json_result = jsonable_encoder(result)
             f.write(json.dumps(json_result))
         
-        index = load_topic_index(path)
+        load_topic_index(path)
 
     process_time = (time.time() - start_time) * 1000
     formatted_process_time = '{0:.2f}'.format(process_time)
@@ -128,7 +135,8 @@ async def mistral_preload(request: Request,tana_dump:TanaDump):
 @router.post("/mistral/ask", response_class=HTMLResponse, tags=["Mistral"])
 def mistral_ask(req: MistralAsk):
   index = get_mistral()
-  query_engine = index.as_query_engine(similarity_top_k=20)
+  query_engine = index.as_query_engine(similarity_top_k=20, stream=False, timeout=1000*60*5)
+  logger.info(f'Querying Mistral with {req.query}')
   response = query_engine.query(req.query)
   return str(response)
 

@@ -4,6 +4,8 @@
 # We will assemble them into a universal, signed bundle later
 
 import platform
+from PyInstaller.building.api import PYZ, EXE, COLLECT
+
 plat = platform.system()
 
 from PyInstaller.utils.hooks import collect_data_files
@@ -17,29 +19,30 @@ name = 'tanahelper'
 start_datas = []
 start_binaries = []
 start_hiddenimports = []
-start_datas += copy_metadata('opentelemetry-sdk')
-
-tmp_ret = collect_all('chromadb')
-start_datas += tmp_ret[0]
-start_binaries += tmp_ret[1]
-start_hiddenimports += tmp_ret[2]
-
-
-tmp_ret = collect_all('transformers')
-start_datas += tmp_ret[0]
-start_binaries += tmp_ret[1]
-start_hiddenimports += tmp_ret[2]
-
-
-start_datas += [('.venv/lib/python3.11/site-packages/llama_index/VERSION', 'llama_index/')]
 
 start_hiddenimports += collect_submodules('service')
-start_hiddenimports += ['hnswlib']
 
 start_datas += [('service/dist', 'service/dist'), 
     ('icons', 'icons'), 
     ('service/bin', 'service/bin'),
      ('service/scripts', 'service/scripts')]
+
+
+# chromadb, llamindex and ollama need things that aren't detected
+# automatically by pyinstaller
+start_hiddenimports += ['hnswlib', 'tiktoken_ext.openai_public', 'tiktoken_ext']
+
+for meta in ['opentelemetry-sdk', 'tqdm', 'regex', 'requests']:
+    start_datas += copy_metadata(meta)
+
+# llamaindex is really picky about package metadata...
+start_datas += [('.venv/lib/python3.11/site-packages/llama_index/VERSION', 'llama_index/')]
+
+for coll in ['transformers', 'chromadb']:
+    stuff = collect_all(coll)
+    start_datas += stuff[0]
+    start_binaries += stuff[1]
+    start_hiddenimports += stuff[2]
 
 start_a = Analysis(
     ['start.py'],
