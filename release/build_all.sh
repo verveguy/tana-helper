@@ -79,10 +79,19 @@ remote_build() {
   # if window arch, slightly different
   if [ "$arch" = "win" ]; then
     ssh "$host" "cd ~/dev/tana/tana-helper/release; git pull; ./build.sh" > "$log" 2>&1
+    echo $?
+    if [ $? -ne 0 ]; then
+      echo_red "Build failed for $arch"
+      exit 1
+    fi
     echo_blue "\rFetching $arch build"    
     scp -r "${host}:~/dev/tana/tana-helper/release/dist/*" builds/ >> "$log" 2>&1
   else
     ssh "$host" "zsh --login -c 'cd ~/dev/tana/tana-helper/release; git pull; ./build.sh'" > "$log" 2>&1
+    if [ $? -ne 0 ]; then
+      echo_red "Build failed for $arch"
+      exit 1
+    fi
     echo_blue "\rFetching $arch build"
     rsync -a "${host}:~/dev/tana/tana-helper/release/dist/*" builds/ >> "$log" 2>&1
   fi
