@@ -1,4 +1,5 @@
 #!/bin/sh
+set -euo pipefail # return error if any command fails
 
 # first make sure we are up to date
 echo "Updating from git"
