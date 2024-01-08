@@ -36,7 +36,7 @@ for meta in ['opentelemetry-sdk', 'tqdm', 'regex', 'requests']:
     start_datas += copy_metadata(meta)
 
 # llamaindex is really picky about package metadata...
-start_datas += [('.venv/lib/python3.11/site-packages/llama_index/VERSION', 'llama_index/')]
+start_datas += [('.venv/lib/site-packages/llama_index/VERSION', 'llama_index/')]
 
 for coll in ['transformers', 'chromadb']:
     stuff = collect_all(coll)
