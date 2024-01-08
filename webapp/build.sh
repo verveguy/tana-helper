@@ -1,5 +1,5 @@
 #!/bin/sh
-set -euxo pipefail # return error if any command fails
+set -euo pipefail # return error if any command fails
 
 yarn install
 

@@ -15,6 +15,6 @@ do
   echo "Configuring $host"
   git push $host $1
   # SSH into the host and switch branches
-  ssh "$host" "cd ~/dev/tana/tana-helper/release && git fetch && git checkout $1"
+  ssh "$host" "cd ~/dev/tana/tana-helper/release && git fetch && git pull && git checkout $1"
 done
 
