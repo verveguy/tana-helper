@@ -32,11 +32,11 @@ start_datas += [('service/dist', 'service/dist'),
 # automatically by pyinstaller
 start_hiddenimports += ['hnswlib', 'tiktoken_ext.openai_public', 'tiktoken_ext']
 
-for meta in ['opentelemetry-sdk', 'tqdm', 'regex', 'requests']:
+for meta in ['opentelemetry-sdk', 'tqdm', 'regex', 'requests', 'llama_index']:
     start_datas += copy_metadata(meta)
 
 # llamaindex is really picky about package metadata...
-start_datas += [('.venv/lib/site-packages/llama_index/VERSION', 'llama_index/')]
+# start_datas += [('.venv/lib/site-packages/llama_index/VERSION', 'llama_index/')]
 
 for coll in ['transformers', 'chromadb']:
     stuff = collect_all(coll)
