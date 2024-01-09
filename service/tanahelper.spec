@@ -30,13 +30,16 @@ start_datas += [('service/dist', 'service/dist'),
 
 # chromadb, llamindex and ollama need things that aren't detected
 # automatically by pyinstaller
-start_hiddenimports += ['hnswlib', 'tiktoken_ext.openai_public', 'tiktoken_ext']
+start_hiddenimports += ['hnswlib', 'tiktoken_ext.openai_public', 'tiktoken_ext', 'llama_index']
 
 for meta in ['opentelemetry-sdk', 'tqdm', 'regex', 'requests', 'llama_index']:
     start_datas += copy_metadata(meta)
 
 # llamaindex is really picky about package metadata...
-# start_datas += [('.venv/lib/site-packages/llama_index/VERSION', 'llama_index/')]
+if plat == 'Windows':
+    start_datas += [('.venv/lib/site-packages/llama_index/VERSION', 'llama_index/')]
+else:
+    start_datas += [('.venv/lib/python3.11/site-packages/llama_index/VERSION', 'llama_index/')]
 
 for coll in ['transformers', 'chromadb']:
     stuff = collect_all(coll)
@@ -92,8 +95,8 @@ helper_a = Analysis(
 helper_pyz = PYZ(helper_a.pure)
 
 icon=None
-# if plat == 'Windows':
-#     icon=['icons/TanaHelper.ico']
+if plat == 'Windows':
+    icon=['icons/TanaHelper.ico']
 
 helper_exe = EXE(
     helper_pyz,
