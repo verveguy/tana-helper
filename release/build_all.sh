@@ -76,16 +76,24 @@ checkjobs() { # PID
       return 1
     fi
   done
+  return "$@" # there might be fewer jobs left after this check...
 }
 
 waitalljobs() { # PID...
   local i=0
   local spin='-\|/'
   while :; do
-    checkjobs "$@"
-    if [ $? -ne 0 ]; then
-      return 1
-    fi
+    for pid in "$@"; do
+      shift
+      if kill -0 "$pid" 2>/dev/null; then
+        set -- "$@" "$pid"
+      elif wait "$pid"; then
+        echo_blue "Background job complete"
+      else
+        echo_red "Background job failed"
+        return 1
+      fi
+    done
     (("$#" > 0)) || break
     i=$(( (i+1) %4 ))
     printf "\r${spin:$i:1}"
