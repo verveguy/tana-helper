@@ -250,7 +250,9 @@ echo_blue "Mac DMG built"
 echo ""
 
 # and wait for the Windows build if it's still not done
-waitalljobs $winpid
+# TODO figure out how to wait on a PID that might have completed
+# without error
+# waitalljobs $winpid
 
 echo "Builds complete"
 
