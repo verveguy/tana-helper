@@ -254,11 +254,11 @@ echo ""
 # without error
 # waitalljobs $winpid
 
-echo "Builds complete"
+echo_blue "Builds complete"
 
 mv builds/*.zip dist/
 
-echo "END builds"
+echo_blue "END builds"
 
 end=$(date +%s)
 echo "Elapsed Time: $(($end-$start)) seconds"
