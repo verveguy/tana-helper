@@ -92,8 +92,8 @@ helper_a = Analysis(
 helper_pyz = PYZ(helper_a.pure)
 
 icon=None
-if plat == 'Windows':
-    icon=['icons/TanaHelper.ico']
+# if plat == 'Windows':
+#     icon=['icons/TanaHelper.ico']
 
 helper_exe = EXE(
     helper_pyz,
