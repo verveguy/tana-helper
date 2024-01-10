@@ -32,6 +32,10 @@ start_datas += [('service/dist', 'service/dist'),
 # automatically by pyinstaller
 start_hiddenimports += ['hnswlib']
 
+for meta in ['opentelemetry-sdk']:
+    start_datas += copy_metadata(meta)
+
+
 start_a = Analysis(
     ['start.py'],
     pathex=['service'],
