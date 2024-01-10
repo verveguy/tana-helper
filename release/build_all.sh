@@ -8,11 +8,19 @@
 # See https://unix.stackexchange.com/questions/557751/how-can-i-execute-command-through-ssh-remote-is-windows
 # New-ItemProperty -Path "HKLM:\SOFTWARE\OpenSSH" -Name DefaultShell -Value "C:\Program Files\Git\bin\sh.exe" -PropertyType String -Force
 
+# ensure we clean up background processes when we are killed
+trap "exit" INT TERM 
+trap "kill 0" EXIT
+
+error() {
+  echo_red "Build failed" >&2
+  exit 1
+}
+
+trap error ERR
+
 start=$(date +%s)
 
-# ensure we clean up background processes when we are killed
-trap "exit" INT TERM ERR
-trap "kill 0" EXIT
 
 NAME='Tana Helper'
 BASE="dist/dmg/$NAME.app"
@@ -32,11 +40,11 @@ timestamp() {
 }
 
 echo_blue() {
-  echo "$(timestamp) ${BLUE}$1${NC}"
+  echo "\r$(timestamp) ${BLUE}$1${NC}"
 }
 
 echo_red() {
-  echo "$(timestamp) ${RED}$1${NC}"
+  echo "\r$(timestamp) ${RED}$1${NC}"
 }
 
 echo_blue "START builds"
@@ -54,6 +62,43 @@ wait_for_process_completion() {
     sleep .1
   done
   printf "\r"
+}
+
+checkjobs() { # PID
+ for pid in "$@"; do
+    shift
+    if kill -0 "$pid" 2>/dev/null; then
+      set -- "$@" "$pid"
+    elif wait "$pid"; then
+      echo_blue "Background job complete"
+    else
+      echo_red "Background job failed"
+      return 1
+    fi
+  done
+  return "$@" # there might be fewer jobs left after this check...
+}
+
+waitalljobs() { # PID...
+  local i=0
+  local spin='-\|/'
+  while :; do
+    for pid in "$@"; do
+      shift
+      if kill -0 "$pid" 2>/dev/null; then
+        set -- "$@" "$pid"
+      elif wait "$pid"; then
+        echo_blue "Background job complete"
+      else
+        echo_red "Background job failed"
+        return 1
+      fi
+    done
+    (("$#" > 0)) || break
+    i=$(( (i+1) %4 ))
+    printf "\r${spin:$i:1}"
+    sleep .1
+   done
 }
 
 # BUILD Mac ARM64 and Mac x86_64
@@ -75,21 +120,30 @@ remote_build() {
   local arch=$2
   local log="builds/build_${arch}.log"
 
-  echo_blue "\rBuilding $arch architecture"
+  echo_blue "Building $arch architecture"
   # if window arch, slightly different
   if [ "$arch" = "win" ]; then
     ssh "$host" "cd ~/dev/tana/tana-helper/release; git pull; ./build.sh" > "$log" 2>&1
-    echo_blue "\rFetching $arch build"    
+    if [ $? -ne 0 ]; then
+      echo_red "Build failed for $arch"
+      tail -n 1 "$log"
+      return 1
+    fi
+    echo_blue "Fetching $arch build"    
     scp -r "${host}:~/dev/tana/tana-helper/release/dist/*" builds/ >> "$log" 2>&1
   else
     ssh "$host" "zsh --login -c 'cd ~/dev/tana/tana-helper/release; git pull; ./build.sh'" > "$log" 2>&1
-    echo_blue "\rFetching $arch build"
+    if [ $? -ne 0 ]; then
+      echo_red "\rBuild failed for $arch"
+      tail -n 1 "$log"
+      return 1
+    fi
+    echo_blue "Fetching $arch build"
     rsync -a "${host}:~/dev/tana/tana-helper/release/dist/*" builds/ >> "$log" 2>&1
   fi
 
-  echo_blue "\rCompleted $arch build"
+  echo_blue "Completed $arch build"
 }
-
 
 # Parallelize building the three architectures
 
@@ -100,8 +154,9 @@ pid2=$!
 remote_build "windows-x86" "win" &
 winpid=$!
 
-# wait for the two Mac builds
-wait_for_process_completion $pid1 $pid2 #$pid3
+# wait for all builds to complete
+# wait_for_process_completion $pid1 $pid2 #$pid3
+waitalljobs $pid1 $pid2 $winpid
 
 # Mac specific build of Universal bindary
 
@@ -170,7 +225,7 @@ lipo_files "$ARM64" "Contents" "" > builds/lipo.log 2>&1 &
 lipopid=$!
 
 # show process spinner
-wait_for_process_completion $lipopid
+waitalljobs $lipopid
 echo_blue "Completed Universal .app build"
 
 # Codesign the resulting app bundle
@@ -195,11 +250,15 @@ echo_blue "Mac DMG built"
 echo ""
 
 # and wait for the Windows build if it's still not done
-wait_for_process_completion $winpid
+# TODO figure out how to wait on a PID that might have completed
+# without error
+# waitalljobs $winpid
+
+echo_blue "Builds complete"
 
 mv builds/*.zip dist/
 
-echo "END builds"
+echo_blue "END builds"
 
 end=$(date +%s)
 echo "Elapsed Time: $(($end-$start)) seconds"

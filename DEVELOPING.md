@@ -8,15 +8,12 @@ Install homebrew (will install XCode tools if required)
 `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
 
 ### Install base toolset
-`brew install python@3.11`
+`brew install pyenv`
 `brew install node`
 `brew install yarn`
 `brew install create-dmg`
 
-Add python install location to PATH
-
-Edit ~/.zprofile or whichever shell you use
-`echo "PATH=$PATH:/usr/local/opt/python@3.11/libexec/bin/" >> ~/.zprofile`
+`pyenv install 3.11.7`
 
 `pipx install poetry`
 
@@ -42,14 +39,21 @@ Add these as remotes to your local git repo in whatever fashion you've set up (s
 
 ## Windows 11
 
-Requires VSCode to be installed for /usr/bin/bash support
+Requires GitBash to be installed for build script support
 
-install node.js from download
-install python from download
+install node
+install yarn
+install pyenv
+
+Use pyenv to install Python versions:
+
+`pyenv install 3.11.7`
 
 using powershell administrator:
 `pip install pipx`
 (set up cmd line per prompts)
+
+Set up VSCode to use gitbash terminal
 
 Using VSCode terminal:
 `pipx install poetry`

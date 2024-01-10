@@ -1,4 +1,5 @@
 #!/bin/sh
+set -euo pipefail # return error if any command fails
 
 # activate correct python virtual env
 poetry env use 3.11
@@ -8,12 +9,12 @@ case "$OSTYPE" in
   msys*)    source .venv/Scripts/activate ;;
 esac
 
-poetry install --no-root
+poetry install --no-root --sync
 
-test -f "service/bin" && rm -r "service/bin"
+test -d "service/bin" && rm -r "service/bin"
 mkdir -p service/bin
 
-test -f "dist" && rm -r "dist"
+test -d "dist" && rm -r "dist"
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # build the Calendar helper swift script first
@@ -39,7 +40,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     # build the .app bundle 
 
     echo "Building tanahelper .app using pyinstaller..."
-    test -f "dist" && rm -r "dist"
+    test -d "dist" && rm -r "dist"
     pyinstaller tanahelper.spec --noconfirm
 
 elif [[ "$OSTYPE" == "msys"* ]]; then

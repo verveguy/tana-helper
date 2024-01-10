@@ -62,6 +62,7 @@ app.include_router(class_diagram.router)
 app.include_router(topics.router)
 app.include_router(configure.router)
 app.include_router(proxy.router)
+app.include_router(mistral.router)
 
 @app.middleware("http")
 async def add_get_authorization_headers(request: Request, call_next):

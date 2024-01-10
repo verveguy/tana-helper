@@ -7,7 +7,7 @@ from ratelimit import limits, RateLimitException, sleep_and_retry
 from functools import lru_cache
 import asyncio
 import time
-from chromadb import EmbeddingFunction, Documents, Embeddings
+from chromadb import EmbeddingFunction, Documents, Embeddings, Where
 import chromadb
 import chromadb.api.segment
 from pathlib import Path
@@ -43,13 +43,13 @@ def get_collection(req:ChromaRequest):
   collection = chroma.get_or_create_collection(name=req.index, metadata={"hnsw:space": "cosine"})
   return collection
 
-def get_queue_collection(req:ChromaRequest):
+def get_queue_collection(req:QueueRequest):
   chroma = get_chroma(req.environment)
   # use cosine rather than l2 (should test this)
   collection = chroma.get_or_create_collection(name="queue")
   return collection
 
-# attempt to paralleize non-async code
+# attempt to parallelize non-async code
 # see https://github.com/tiangolo/fastapi/discussions/6347
 lock = asyncio.Lock()
 
@@ -59,7 +59,7 @@ async def chroma_upsert(request: Request, req: ChromaRequest):
     start_time = time.time()
     logger.info(f'DO txid={request.headers["x-request-id"]}')
     embedding = get_embedding(req)
-    vector = embedding[0]['embedding']
+    vector = embedding[0].embedding
 
     collection = get_collection(req)
 
@@ -93,13 +93,13 @@ def chroma_delete(req: ChromaRequest):
 def get_tana_nodes_for_query(req: ChromaRequest):  
   embedding = get_embedding(req)
 
-  vector = embedding[0]['embedding']
+  vector = embedding[0].embedding
 
   supertags = str(req.tags).split()
-  tag_filter = None
+  tag_filter: Where = {}
   if len(supertags) > 0:
-    tag_filter = {
-      'supertag': { "$in": supertags }    
+    tag_filter : Where = {
+      'supertag': { "$in": supertags }  # type: ignore
     }
 
   collection = get_collection(req)
@@ -109,24 +109,30 @@ def get_tana_nodes_for_query(req: ChromaRequest):
     where=tag_filter
   )
 
-  # the result from ChromaDB is kinda strange. Instead of an array of objects
-  # # it's four distinct arrays of object properties. Very odd interface.
   best = []
   texts = []
-  index = 0
-  for node_id in query_response['ids'][0]:
-    distance = (1.0 - query_response['distances'][0][index])
-    metadata = query_response['metadatas'][0][index]
-    if 'title' in metadata:
-      first_line = metadata['title']
-    else:
-      first_line = metadata['text'].partition('\n')[0]
-    if node_id != req.nodeId:
-      logger.info(f"Found node {node_id} with score {distance}. Title is {first_line}")
-      if distance > req.score: # type: ignore
-        best.append(node_id)
-        texts.append(metadata['text'])
-    index += 1
+
+  if query_response:
+    # the result from ChromaDB is kinda strange. Instead of an array of objects
+    # # it's four distinct arrays of object properties. Very odd interface.
+    index = 0
+    for node_id in query_response['ids'][0]:
+      distances = query_response['distances']
+      if distances is not None:
+        distance = (1.0 - distances[0][index])
+        metadatas = query_response['metadatas']
+        if metadatas is not None:
+          metadata = metadatas[0][index]
+          if 'title' in metadata:
+            first_line = metadata['title']
+          else:
+            first_line = metadata['text'].partition('\n')[0] # type: ignore
+          if node_id != req.nodeId:
+            logger.info(f"Found node {node_id} with score {distance}. Title is {first_line}")
+            if distance > req.score: # type: ignore
+              best.append(node_id)
+              texts.append(metadata['text'])
+          index += 1
 
 
   ids = ["[[^"+match+"]]" for match in best]  
@@ -226,29 +232,31 @@ async def chroma_enqueue(request: Request, req: QueueRequest):
 # dequeue is like query, but gets the node by ID strictly
 @router.post("/chroma/dequeue", response_class=HTMLResponse, tags=["Queue"])
 def chroma_dequeue(request: Request, req: QueueRequest):
+  best = []
+  texts = []
   
   collection = get_queue_collection(req)
 
   extracted_group = re.search(r'\b\d+\b', req.context)
   if extracted_group:
-      queue_id = extracted_group.group()
+    queue_id = extracted_group.group()
 
-  query_response = collection.get(ids=queue_id, limit=1)
+    query_response = collection.get(ids=queue_id, limit=1)
 
-# regex to extract number from this string '- 7135316624697106432 #[[tana paste buffer]] - This is an enqueued Tana Paste\n  - Could not find enqueued content\n'
+    # regex to extract number from this string '- 7135316624697106432 #[[tana paste buffer]] - This is an enqueued Tana Paste\n  - Could not find enqueued content\n'
 
-  # the result from ChromaDB is kinda strange. Instead of an array of objects
-  # # it's four distinct arrays of object properties. Very odd interface.
-  best = []
-  texts = []
-  index = 0
-  for node_id in query_response['ids']:
-    logger.info(f"Found node {node_id}")
-    best.append(node_id)
-    texts.append(query_response['metadatas'][index]['text'])
+    # the result from ChromaDB is kinda strange. Instead of an array of objects
+    # # it's four distinct arrays of object properties. Very odd interface.
+    index = 0
+    for node_id in query_response['ids']:
+      logger.info(f"Found node {node_id}")
+      best.append(node_id)
+      metadatas = query_response['metadatas']
+      if metadatas is not None:
+        texts.append(metadatas[index]['text'])
 
-    # TODO: and delete the node from the queue to keep things clean
-    index += 1
+      # TODO: and delete the node from the queue to keep things clean
+      index += 1
 
   ids = ["[[^"+match+"]]" for match in best]
 

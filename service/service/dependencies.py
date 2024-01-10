@@ -1,4 +1,4 @@
-import openai
+from openai import OpenAI
 from pydantic import BaseModel, Field, ConfigDict
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import ForwardRef, List, Optional
@@ -50,8 +50,8 @@ class CalendarRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
 class HelperRequest(BaseModel):
-  context: Optional[str] = ''
-  name: Optional[str] = ''
+  context: str = ''
+  name: str = ''
 
 class NodeRequest(HelperRequest):
   nodeId: str
@@ -62,9 +62,9 @@ class ExecRequest(BaseModel):
   payload: dict
 
 class OpenAIRequest(BaseModel):
-  openai: Optional[str] = None
-  model: Optional[str] = 'gpt-3.5-turbo'
-  embedding_model: Optional[str] = "text-embedding-ada-002"
+  openai: str
+  model: str = 'gpt-3.5-turbo'
+  embedding_model: str = "text-embedding-ada-002"
 
 class OpenAICompletion(OpenAIRequest):
   prompt: str
@@ -72,7 +72,7 @@ class OpenAICompletion(OpenAIRequest):
   temperature: Optional[int] = 0
 
 class EmbeddingRequest(HelperRequest, OpenAIRequest):
-  # nothing to add
+  # union type, nothing to add
   pass
 
 class PineconeRequest(EmbeddingRequest):
@@ -92,11 +92,21 @@ class PineconeNode(BaseModel):
 
 class ChromaRequest(EmbeddingRequest):
   environment: Optional[str] = "local"
-  index: Optional[str] = TANA_INDEX
+  index:str = TANA_INDEX
   score: Optional[float] = 0.80
   top: Optional[int] = 10
   tags: Optional[str] = ''
   nodeId: str
+
+
+class MistralRequest(EmbeddingRequest):
+  score: Optional[float] = 0.80
+  top: Optional[int] = 10
+  tags: Optional[str] = ''
+  nodeId: str
+
+class MistralAsk(BaseModel):
+  query: str
 
 class QueueRequest(HelperRequest):
   environment: Optional[str] = "local"
@@ -140,7 +150,7 @@ class AddToNodeRequest(BaseModel):
 class TanaInputAPIClient:
   def __init__(self, base_url: str = "https://europe-west1-tagr-prod.cloudfunctions.net", auth_token: Optional[str] = None):
     self.base_url = base_url
-    self.client = httpx.Client(verify=False)
+    self.client = httpx.Client(verify=True)
     self.headers = {'Content-Type': 'application/json'}
     if auth_token:
       self.headers['Authorization'] = f'Bearer {auth_token}'
@@ -152,14 +162,18 @@ class TanaInputAPIClient:
 
 # OpenAI helper functions
 
-def get_embedding(req:OpenAIRequest):
-  openai.api_key = settings.openai_api_key if not req.openai else req.openai
-  embedding = openai.Embedding.create(input=req.name+req.context, model=req.embedding_model)
+def get_embedding(req:EmbeddingRequest):
+  # get shared client object
+  api_key = settings.openai_api_key if not req.openai else req.openai
+  openai_client = OpenAI(api_key=api_key)
+  content = req.name + req.context 
+  embedding = openai_client.embeddings.create(input=content, model=req.embedding_model)
   return embedding.data # type: ignore
 
 def get_chatcompletion(req:OpenAICompletion) -> dict:
-  openai.api_key = settings.openai_api_key if not req.openai else req.openai
-  completion = openai.ChatCompletion.create(
+  api_key = settings.openai_api_key if not req.openai else req.openai
+  openai_client = OpenAI(api_key=api_key)
+  completion = openai_client.chat.completions.create(
             messages=[{ 'role': 'user', 'content': req.prompt }],
             model=req.model, 
             max_tokens=req.max_tokens, 
@@ -290,7 +304,7 @@ def tana_to_json(tana_format):
       children = node['children']
       # if value is non-null and children is non-null, we have a problem
       if value and children:
-        raise Exception('Field with both value and children is not supported')
+        raise TypeError('Field with both value and children is not supported')
       if children:
         value = children
     parent[node['field']] = value

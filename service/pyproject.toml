@@ -24,13 +24,9 @@ chromadb = "^0.4.15"
 weaviate-client = "^3.25.1"
 pydantic-settings = "^2.0.3"
 pyqt6 = "^6.6.0"
-llama-index = "^0.9.21"
-qdrant-client = "^1.7.0"
-torch = "^2.1.2"
-transformers = "^4.36.2"
 
 [tool.poetry.group.dev.dependencies]
-pyinstaller = "^6.1.0"
+pyinstaller = "6.2.0" # keep this old deliberately to avoid virus false positives
 pytest = "^7.4.3"
 python-dotenv = "^1.0.0"
 
