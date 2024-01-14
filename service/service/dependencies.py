@@ -34,8 +34,8 @@ settings = Settings()
 # TODO: put them in .env?
 TANA_NAMESPACE = os.getenv("PINECONE_NAMESPACE") or "tana-namespace"
 TANA_ENVIRONMENT = os.getenv("PINECONE_ENVIRONMENT") or "us-west4-gcp-free"
-TANA_NODE = os.getenv("PINECONE_TYPE") or "tana-node"
 TANA_TEXT = "tana-text"
+TANA_NODE = os.getenv("PINECONE_TYPE") or "tana-node"
 TANA_INDEX = os.getenv("PINECONE_INDEX") or "tana-helper"
 
 
@@ -48,7 +48,7 @@ class CalendarRequest(BaseModel):
     calendar: Optional[str] = None
     offset: Optional[str] = None
     range: Optional[str] = None
-    # date: Optional[str] = None
+    date: Optional[str] = None
     # model_config = ConfigDict(extra='forbid')
 
 class HelperRequest(BaseModel):

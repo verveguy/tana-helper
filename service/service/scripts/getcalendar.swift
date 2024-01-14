@@ -57,8 +57,11 @@ func help() {
 
         -person "#[[tag name for attendees]]" <default: #person >
 
+        -date <tana date string>
+        Which date to query for. Defaults to current date.
+
         -offset <default 0>
-        Which day to query for. +1 means tomorrow, -1 mean yesterday
+        Which day to query for relative to date. +1 means next day, -1 mean previous day
 
         -range <default 1>
         How many days to query for from offset.
@@ -98,7 +101,7 @@ var one2one_tag = "#[[1:1]]"
 var person_tag = "#person"
 var day_offset:Int = 0
 var day_range = 1
-
+var date:String? = nil
 var next:String? = nil
 
 args.removeFirst() // strip command itself
@@ -144,6 +147,8 @@ for argument in args {
                 meeting_tag = argument
             case "-person":
                 person_tag = argument
+            case "-date":
+                date = argument
             case "-offset":
                 day_offset = Int(argument) ?? 0
             case "-range":
@@ -216,7 +221,12 @@ eventStore.requestAccess(to: .event) { (granted, error) in
     }
 }
 
-let today = Calendar.current.startOfDay(for: Date())
+var today = Calendar.current.startOfDay(for: Date())
+if date != nil {
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyy-MM-dd"
+    today = formatter.date(from: date!)!
+}
 
 let startDate = Calendar.current.date(byAdding: .day, value: 0 + day_offset, to: today)!
 let endDate = Calendar.current.date(byAdding: .day, value: day_range + day_offset, to: today)!

@@ -59,6 +59,8 @@ def run_calendar_swift_script(payload: CalendarRequest):
         args += ["-offset", payload.offset]
     if payload.range:
         args += ["-range", payload.range]
+    if payload.date:
+        args += ["-date", payload.date]
     if payload.solo:
         args += ["-solo"]
 
