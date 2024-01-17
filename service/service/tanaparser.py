@@ -12,11 +12,14 @@ TAG='SYS_A13'
 COLOR_SPEC='SYS_A11'
 TRASH='TRASH'
 
+# linkage reasons
+
 IS_INLINE_REF_LINK='iin'
 IS_INDIRECT_REF_LINK='iir'
 IS_TAG_LINK='itl'
 IS_TAG_TAG_LINK='itn'
 IS_CHILD_CONTENT_LINK='icl'
+IS_CHILD_REF_LINK='icr'
 IS_FIELD_CONTENT_LINK='ifl'
 
 # Workhorse class and methods
@@ -25,6 +28,9 @@ IS_FIELD_CONTENT_LINK='ifl'
 # in your dump, that will control what gets included
 # in the output graph. Otherwise, all links get included
 # and it is assumed the client will filter as required.
+
+# Basic structure is a index (dict) of nodes and a list of linkages between them
+# Each linkage is a tuple of (source_id, target_id, reason)
 
 class NodeIndex(BaseModel):
   tana_dump:TanaDump
@@ -218,21 +224,58 @@ class NodeIndex(BaseModel):
         for child_id in node.children:
           if self.valid(child_id) and SUPERTAG not in child_id and FIELD not in child_id and 'SYS' not in child_id:
             child_node = self.node(child_id)
+
             if child_node.props.docType == 'tuple':
               # tuples are fields
               if child_node.children:
                 if len(child_node.children) < 2:
                   continue
+                # field definition itself is the first child
                 field_id = child_node.children[0]
-                value_id = child_node.children[1]
-                if self.valid(field_id) and self.valid(value_id):
-                  node.fields.append({"field": field_id, "value": value_id})
+                # values are all the rest...
+                value_ids = child_node.children[1:]
+                if self.valid(field_id):
+                  node.fields.append({"field": field_id, "values": value_ids})
                   # TODO field linkages have extra ID (value_id)
                   linkage = (node.id, field_id, IS_FIELD_CONTENT_LINK)
                   self.master_pairs.append(linkage)
+            elif child_node.props.docType == 'search':
+              # we don't want to expand search nodes...
+              # TODO: revisit this decision
+              continue
+            elif child_node.props.docType == 'viewDef':
+              # we don't want to expand viewDef nodes...
+              # TODO: revisit this decision
+              continue
+            elif child_node.props.docType == 'associatedData':
+              # we don't want to expand associated data nodes...
+              # TODO: revisit this decision
+              continue
             else:
-              linkage = (node.id, child_id, IS_CHILD_CONTENT_LINK)
+              if child_node.props.ownerId != node.id:
+                # this is a child reference, not an owned child
+                linkage = (node.id, child_id, IS_CHILD_REF_LINK)
+              else:
+                linkage = (node.id, child_id, IS_CHILD_CONTENT_LINK)
+
               self.master_pairs.append(linkage)
               node.content.append(child_id)
+    
+    return self.master_pairs
   
-  
+  link_index: dict[str, dict]|None = None
+
+  def get_linkage_reason(self, source_id:str, target_id:str) -> str:
+    if self.link_index is None:
+      self.link_index = {}
+      for link in self.master_pairs:
+        if link[0] not in self.link_index:
+          index = {}
+          self.link_index[link[0]] = index
+        else:
+          index = self.link_index[link[0]]
+
+        index[link[1]] = link[2]
+    
+    return self.link_index[source_id][target_id]
+    

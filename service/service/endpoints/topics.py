@@ -33,7 +33,8 @@ class TanaDocument(BaseModel):
   name: Optional[str]
   description: Optional[str]
   tags: List[str] = []
-  fields: List[TanaField] = []
+  # fields: List[TanaField]
+  # TODO: consider whether we should preserve more node structure here
   content: List[str] = []
 
 class DocumentDump(BaseModel):
@@ -66,9 +67,20 @@ def patch_node_name(index:NodeIndex, node_id:str) -> str:
 
 
 @router.post("/topics", tags=["Extractor"])
-async def extract_topics(tana_dump:TanaDump):
+async def extract_topics(tana_dump:TanaDump) -> List[TanaDocument]:
+  '''Given a Tana dump JSON payload, return a list of topics and their content.
 
+  Topics are defined as nodes that are tagged with a supertag.
+
+  Uses the main Tana dump parsing code from the Visualizer, but then walks
+  the resulting index to extract topics intended for use by RAG.
+
+  See the RAG articles by Prince 
+  '''
+
+  
   # we just want top level tagged nodes and their child contents
+  # TODO: figure out what we weant to do with fields
   config = Visualizer(include_content_nodes=True, 
                       include_inline_refs=False,
                       include_tag_tag_links=False,
@@ -82,67 +94,124 @@ async def extract_topics(tana_dump:TanaDump):
   
   # OK, now that we have the basic dump indexed...
   # build a collection of meaningful linkages
-  index.build_master_pairs()
+  master_pairs = index.build_master_pairs()
  
   # Now that we have the dump converted to a set of directed 
   # tuples, we can build a graph from it.
 
   # strip the links down to the unique set
-  candidate_pairs = set(index.master_pairs)
+  candidate_pairs = set(master_pairs)
   final_pairs = set()
 
   # also remove redundant bidirectional links
   [final_pairs.add((a, b, r)) for (a, b, r) in candidate_pairs
     if (a, b, r) not in final_pairs and (b, a, r) not in final_pairs]
-
-
-  # start from the top 
-  # find pairs that are tagged nodes only
-  # and collect these into the initial list
-  # gathering content along the way
+  
+  # start from the top and only
+  # iterate nodes that are tagged. We call these "topics"
+  # For each topic, we want the fields and tags of the node
+  # We also want a flattened list of content nodes that are
+  # direct children of the topic node. We call these "content"
+  
+  # remap the final pairs to a list of topics
+  sources = set([(source_id, reason) for (source_id, _, reason) in final_pairs])
   topics = []
-  for (source_id, target_id, reason) in final_pairs:
+  for (source_id, reason) in sources:
     if reason == IS_TAG_LINK:
       node = index.node(source_id)
+      topic_name = patch_node_name(index, source_id)+add_tags(index, node.tags)
       topic = TanaDocument(id=source_id, 
-                          name=patch_node_name(index, source_id),
+                          name=topic_name,
                           description=node.props.description,
                           )
       
       topics.append(topic)
+      
+      topic.content = ['- '+topic_name]
 
-      # add all the tag names
+      # add all the tag names as structured fields 
+      # TODO: is this useful?
       for tag_id in node.tags:
         topic.tags.append(index.node(tag_id).props.name)
 
       # add all the field names and values
       for field_dict in node.fields:
         field_id = field_dict['field']
-        value_id = field_dict['value']
-        
-        # recursing here is important for nested notes 
-        # but is not what you want for simple referenced
-        # nodes. So we'll just patch the name for now
-        # value_content = recurse_content(index, value_id)
-        value_content = patch_node_name(index, value_id)
+        field_name=index.node(field_id).props.name
+        value_ids = field_dict['values']
+                
+        value_content = []
+        for value_id in value_ids:
+          if not index.valid(value_id):
+            logger.warning(f'Invalid field value_id: {value_id} for field: {field_id}. Presumably trashed node.')
+            continue
+          
+          value_node = index.node(value_id)
+          if len(value_node.tags) > 0:
+            # if it's tagged, again assume it's a ref, not an inline content node
+            value_content += ['[['+patch_node_name(index, value_id)+'^'+value_id+']]'+add_tags(index, index.node(value_id).tags)]
+          else:
+            value_content += [patch_node_name(index, value_id)]
+        # value_content = recurse_content(index, value_id, 0)
 
-        field = TanaField(field_id=field_id,
-                          value_id=value_id,
-                          name=index.node(field_id).props.name,
-                          value=value_content,
-                          )
-        topic.fields.append(field)
+        # add structured version of field data
+        # field = TanaField(field_id=field_id,
+        #                   value_id=value_id,
+        #                   name=index.node(field_id).props.name,
+        #                   value=value_content,
+        #                   )
+        # topic.fields.append(field)
+        if len(value_content) > 0 and len(value_content[0]) > 0:
+          topic.content += [f"  - {field_name}:: {value_content[0]}"]
+          for value in value_content[1:]:
+            topic.content += [f"    - {value}"]
 
-      # recursively build up content
-      topic.content = recurse_content(index, source_id)
+      # recursively build up child content
+      topic.content += recurse_content(index, source_id)
 
   return topics
 
-def recurse_content(index:NodeIndex, node_id:str, depth_limit=10) -> List[str]:
-  content_node = index.node(node_id)
-  content = [patch_node_name(index, node_id)]
-  for content_id in content_node.content:
-    depth_limit = depth_limit - 1
-    if depth_limit > 0:
-      content = content + recurse_content(index, content_id, depth_limit)
+def indent(depth:int) -> str:
+    return '  '*depth
+  
+def add_tags(index, tag_ids:List[str]) -> str:
+  if len(tag_ids) > 0:
+    tags = [''] # so we get an initial space
+    for tag_id in tag_ids:
+      tag_name = index.node(tag_id).props.name
+      if ' ' in tag_name:
+        tags += [f'[[#{tag_name}]]']
+      else:
+        tags += [f'#{tag_name}']
+    return ' '.join(tags)
+  return ''
+
+# TODO: think about the way we want to represent the topic nodes
+# for the purpose of RAG generation. Chunks, parents, sentences, etc.
+# Headings are distinct nodes in Tana for example...
+# Also think about whether content nodes should just be text or should
+# themselves be richer nodes with fields and tags in the index
+# TODO: what do we do about references to other nodes?
+def recurse_content(index:NodeIndex, parent_id:str, depth_limit=10) -> List[str]:
+  parent_node = index.node(parent_id)
+  content = []
+
+  for content_id in parent_node.content:
+    content_node = index.node(content_id)
+    reason = index.get_linkage_reason(parent_id, content_id)
+    if reason is IS_CHILD_CONTENT_LINK:
+      if len(content_node.tags) > 0:
+        # this is a tagged topic in it's own right, don't recurse
+        # and treat it like a referenced node. (Yes, this isn't Tana's way
+        # but we want to reduce redundant content and Day nodes mess with this
+        # concept rather badly)
+        content.append(indent(11 - depth_limit)+'- [['+patch_node_name(index, content_id)+'^'+content_id+']]'+add_tags(index, content_node.tags))
+      else:
+        content.append(indent(11 - depth_limit)+'- '+patch_node_name(index, content_id))
+        if depth_limit > 0:
+          content += recurse_content(index, content_id, depth_limit - 1)
+    else:
+      # this is a Tana reference link, so don't recurse
+      content.append(indent(11 - depth_limit)+'- [['+patch_node_name(index, content_id)+'^'+content_id+']]'+add_tags(index, content_node.tags))
+
   return content
