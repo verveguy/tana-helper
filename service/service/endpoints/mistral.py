@@ -10,23 +10,26 @@ from pathlib import Path
 from fastapi import APIRouter, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import HTMLResponse
-from pydantic.json import pydantic_encoder
-from typing import Optional
+from typing import List
 
 # This is here to satisfy runtime import needs 
 # that pyinstaller appears to miss
-from transformers import AutoModel, AutoTokenizer
-import tqdm
 
-from llama_index import (
-    StorageContext,
-    VectorStoreIndex,
-    ServiceContext,
-    download_loader,
-)
+from llama_index.node_parser import SentenceSplitter
+from llama_index.schema import TextNode, NodeRelationship, RelatedNodeInfo
+from llama_index.callbacks import CallbackManager, LlamaDebugHandler
+from llama_index.embeddings import OpenAIEmbedding
 from llama_index.llms import Ollama
 from llama_index.vector_stores.qdrant import QdrantVectorStore
+from llama_index.vector_stores.chroma import ChromaVectorStore
+from llama_index import VectorStoreIndex, Document, StorageContext, ServiceContext, download_loader
+from llama_index.tools import QueryEngineTool, ToolMetadata
+from llama_index.query_engine import SubQuestionQueryEngine
+from llama_index.callbacks import CallbackManager, LlamaDebugHandler
+from llama_index import ServiceContext
+
 from qdrant_client import QdrantClient
+
 from snowflake import SnowflakeGenerator
 
 from service.dependencies import (
@@ -47,13 +50,15 @@ minutes = 1000 * 60
 
 # TODO: Add header support throughout so we can pass Tana API key and OpenAPI Key as headers
 # NOTE: we already have this in the main.py middleware wrapper, but it would be better
-# to do it here for OpenAPI purposes.
+# to do it here for OpenAPI spec purposes.
 # x_tana_api_token: Annotated[str | None, Header()] = None
 # x_openai_api_key: Annotated[str | None, Header()] = None
 
+
+# TODO: change qdrant back to chroma DB perhaps....
 db_path = os.path.join(Path.home(), '.qdrant.db')
 @lru_cache() # reuse connection to qdrant
-def get_qdrant():
+def get_qdrant_vector_store():
   # re-initialize the vector store
   client = QdrantClient(
       path=db_path
@@ -75,10 +80,18 @@ def get_mistral():
 # get the LLM 
 @lru_cache() # reuse connection to ollama
 def get_llm():
+def get_llm(debug=True):
   llm = Ollama(model="mistral", request_timeout=(5 * minutes))
   service_context = ServiceContext.from_defaults(llm=llm,embed_model="local")
+  callback_manager = None
+  if debug:
+    llama_debug = LlamaDebugHandler(print_trace_on_end=True)
+    callback_manager = CallbackManager([llama_debug])
+  service_context = ServiceContext.from_defaults(llm=llm,
+                                                 callback_manager=callback_manager
+                                                )
   logger.info("Mistral (ollama) service context ready")
-  return service_context
+  return service_context, llm
 
 def load_topic_index(filename:str):
   # load the JSON off disk
