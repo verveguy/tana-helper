@@ -1,3 +1,4 @@
+import re
 from pydantic import BaseModel
 from typing import List
 from service.tana_types import NodeDump, TanaDump, Visualizer
@@ -278,4 +279,35 @@ class NodeIndex(BaseModel):
         index[link[1]] = link[2]
     
     return self.link_index[source_id][target_id]
-    
+
+def prune_reference_nodes(context:str) -> str:
+  # walk the nested text structure in context
+  # and prune out levels of indentation below any line
+  # that is a node reference.
+  result = ''
+  prune_level = 0
+  pruning = False
+  for line in context.split('\n'):
+    # figure out indentation level (2 spaces per)
+    indent = (len(line) - len(line.lstrip())) / 2
+    if pruning:
+      if indent >= prune_level:
+        # we are deeper than prune, skip it
+        continue
+      else:
+        # prune is over
+        pruning = False
+
+    # is it a direct reference? (NOT inline ref)
+    # strict conformance to - [[ ]]\n
+    if re.search(r' *- \[\[.*\^.*\]\]', line):
+      # yes, it's a reference
+      # keep it
+      result += line + '\n'
+      # but prune everything below it
+      prune_level = indent + 1
+      pruning = True
+    else:
+      result += line + '\n'
+
+  return result

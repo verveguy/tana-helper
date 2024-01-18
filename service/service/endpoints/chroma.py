@@ -1,7 +1,7 @@
 from fastapi import APIRouter, status, Request
 from fastapi.responses import HTMLResponse
 from typing import Optional
-from service.dependencies import settings, QueueRequest, ChromaRequest, get_embedding, TANA_NAMESPACE, TANA_TYPE, TanaInputAPIClient, SuperTag, Node, AddToNodeRequest
+from service.dependencies import ChromaStoreRequest, settings, QueueRequest, ChromaRequest, get_embedding, TANA_NAMESPACE, TANA_NODE, TanaInputAPIClient, SuperTag, Node, AddToNodeRequest
 from logging import getLogger
 from ratelimit import limits, RateLimitException, sleep_and_retry
 from functools import lru_cache
@@ -14,6 +14,8 @@ from pathlib import Path
 import os
 import re
 from snowflake import SnowflakeGenerator
+
+from service.tanaparser import prune_reference_nodes
 
 logger = getLogger()
 snowflakes = SnowflakeGenerator(42)
@@ -37,7 +39,7 @@ def get_chroma(environment:str):
   logger.info("Connected to chromadb")
   return chroma_client
 
-def get_collection(req:ChromaRequest):
+def get_collection(req:ChromaStoreRequest):
   chroma = get_chroma(req.environment)
   # use cosine rather than l2 (should test this)
   collection = chroma.get_or_create_collection(name=req.index, metadata={"hnsw:space": "cosine"})
@@ -58,22 +60,32 @@ async def chroma_upsert(request: Request, req: ChromaRequest):
   async with lock:
     start_time = time.time()
     logger.info(f'DO txid={request.headers["x-request-id"]}')
+    
+    pruned_content = prune_reference_nodes(req.context)
+    req.context = pruned_content
+    
     embedding = get_embedding(req)
     vector = embedding[0].embedding
 
     collection = get_collection(req)
 
-    metadata = {'category': TANA_TYPE,
-                  'supertag': req.tags,
-                  'title': req.name,
-                  'text': req.context}
+    metadata = {'category': TANA_NODE,
+                'supertag': req.tags,
+                'title': req.name,
+                'text': req.context,
+                'tana_id': req.nodeId,
+              }
     
+    if req.context is None:
+      logger.warning(f"Empty context for {req.nodeId}")
+
     # @sleep_and_retry
     # @limits(calls=5, period=10)
     def do_upsert():
       collection.upsert(
         ids=req.nodeId,
         embeddings=vector,
+        documents=req.context,
         metadatas=metadata
       )
       
@@ -96,11 +108,12 @@ def get_tana_nodes_for_query(req: ChromaRequest):
   vector = embedding[0].embedding
 
   supertags = str(req.tags).split()
-  tag_filter: Where = {}
+  tag_filter:Where = { 'category': TANA_NODE }
   if len(supertags) > 0:
-    tag_filter : Where = {
-      'supertag': { "$in": supertags }  # type: ignore
-    }
+      tag_filter = { '$and': [
+                      {'category': { '$eq': TANA_NODE }},
+                      {'supertag': { '$in': supertags }} # type: ignore
+                    ]}
 
   collection = get_collection(req)
 
@@ -115,24 +128,28 @@ def get_tana_nodes_for_query(req: ChromaRequest):
   if query_response:
     # the result from ChromaDB is kinda strange. Instead of an array of objects
     # # it's four distinct arrays of object properties. Very odd interface.
-    index = 0
-    for node_id in query_response['ids'][0]:
-      distances = query_response['distances']
-      if distances is not None:
-        distance = (1.0 - distances[0][index])
-        metadatas = query_response['metadatas']
-        if metadatas is not None:
-          metadata = metadatas[0][index]
-          if 'title' in metadata:
-            first_line = metadata['title']
-          else:
-            first_line = metadata['text'].partition('\n')[0] # type: ignore
-          if node_id != req.nodeId:
-            logger.info(f"Found node {node_id} with score {distance}. Title is {first_line}")
-            if distance > req.score: # type: ignore
-              best.append(node_id)
-              texts.append(metadata['text'])
-          index += 1
+
+    for node_id, text, metadata, distance in zip(
+            query_response["ids"][0],
+            query_response["documents"][0], # type: ignore
+            query_response["metadatas"][0], # type: ignore
+            query_response["distances"][0], # type: ignore
+        ):
+      
+      distance = (1.0 - distance)
+      if 'title' in metadata:
+        first_line = metadata['title']
+      elif 'text' in metadata:
+        first_line = metadata['text'].partition('\n')[0] # type: ignore
+      else:
+        first_line = "<<No title>>"
+
+      if node_id != req.nodeId:
+        logger.info(f"Found node {node_id} with score {distance}. Title is {first_line}")
+        if distance > req.score: # type: ignore
+          best.append(node_id)
+          if 'text' in metadata:
+            texts.append(metadata['text'])
 
 
   ids = ["[[^"+match+"]]" for match in best]  
@@ -190,7 +207,7 @@ async def chroma_enqueue(request: Request, req: QueueRequest):
     # generate a temporary nodeID
     node_id = str(next(snowflakes))
 
-    metadata = {'category': TANA_TYPE,
+    metadata = {'category': TANA_NODE,
                   'text': req.context}
     
     # @sleep_and_retry

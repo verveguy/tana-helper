@@ -2,12 +2,14 @@ from fastapi import APIRouter, status, Request
 from fastapi.responses import HTMLResponse
 from typing import Optional
 import weaviate
-from service.dependencies import WeaviateRequest, get_embedding, TANA_NAMESPACE, TANA_TYPE
+from service.dependencies import WeaviateRequest, get_embedding, TANA_NAMESPACE, TANA_NODE
 from logging import getLogger
 from ratelimit import limits, RateLimitException, sleep_and_retry
 from functools import lru_cache
 import asyncio
 import time
+
+from service.tanaparser import prune_reference_nodes
 
 logger = getLogger()
 
@@ -78,8 +80,12 @@ async def weaviate_upsert(request: Request, req: WeaviateRequest):
   async with lock:
     start_time = time.time()
     logger.info(f'DO txid={request.headers["x-request-id"]}')
+
+    pruned_content = prune_reference_nodes(req.context)
+    req.context = pruned_content
+
     embedding = get_embedding(req)
-    vector = embedding[0]['embedding']
+    vector = embedding[0].embedding
 
     client = get_weaviate(req.environment)
 
@@ -124,7 +130,7 @@ def weaviate_delete(req: WeaviateRequest):
 def get_tana_nodes_for_query(req: WeaviateRequest, send_text: Optional[bool] = False):  
   embedding = get_embedding(req)
 
-  vector = {'vector': embedding[0]['embedding'] }
+  vector = {'vector': embedding[0].embedding }
 
   supertags = str(req.tags).split()
   tag_filter = None
@@ -141,14 +147,14 @@ def get_tana_nodes_for_query(req: WeaviateRequest, send_text: Optional[bool] = F
     .with_near_vector(vector) \
     .with_additional('certainty') \
     .with_additional('distance') \
-    .with_limit(req.top)
+    .with_limit(req.top) # type: ignore
   
   if tag_filter:
     query = query.with_where(tag_filter) \
   
   result = query.do()
   
-  closest = result.get('data').get('Get').get('TanaNode')
+  closest = result.get('data').get('Get').get('TanaNode') # type: ignore
 
   def threshold_function(match):
     return match['_additional']['certainty'] > req.score
