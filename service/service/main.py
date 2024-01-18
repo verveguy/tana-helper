@@ -63,7 +63,7 @@ app.include_router(class_diagram.router)
 app.include_router(topics.router)
 app.include_router(configure.router)
 app.include_router(proxy.router)
-app.include_router(mistral.router)
+app.include_router(llamaindex.router)
 
 # async helpers to get the body during middleware evaluation
 # useful for debugging in the layer _prior_ to pydantic validation
