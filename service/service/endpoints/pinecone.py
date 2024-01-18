@@ -2,12 +2,14 @@ from fastapi import APIRouter, status, Request
 from fastapi.responses import HTMLResponse
 from typing import Optional
 import pinecone
-from service.dependencies import PineconeRequest, PineconeNode, get_embedding, TANA_NAMESPACE, TANA_TYPE
+from service.dependencies import PineconeRequest, PineconeNode, get_embedding, TANA_NAMESPACE, TANA_NODE
 from logging import getLogger
 from ratelimit import limits, RateLimitException, sleep_and_retry
 from functools import lru_cache
 import asyncio
 import time
+
+from service.tanaparser import prune_reference_nodes
 
 logger = getLogger()
 
@@ -70,10 +72,15 @@ async def upsert(request: Request, req: PineconeRequest):
   async with lock:
     start_time = time.time()
     logger.info(f'DO txid={request.headers["x-request-id"]}')
+
+    pruned_content = prune_reference_nodes(req.context)
+    req.context = pruned_content
+
     embedding = get_embedding(req)
-    vectors = [(req.nodeId, embedding[0]['embedding'],
+    vector = embedding[0].embedding
+    vectors = [(req.nodeId, vector,
                 {
-                'category': TANA_TYPE,
+                'category': TANA_NODE,
                 'supertag': req.tags,
                 'text': req.context
                 })
@@ -109,7 +116,7 @@ def get_tana_nodes_for_query(req: PineconeRequest, send_text: Optional[bool] = F
   tag_filter = None
   if len(supertags) > 0:
     tag_filter = {
-      'category': TANA_TYPE,
+      'category': TANA_NODE,
       'supertag': { "$in": supertags }    
     }
 

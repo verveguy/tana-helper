@@ -34,7 +34,8 @@ settings = Settings()
 # TODO: put them in .env?
 TANA_NAMESPACE = os.getenv("PINECONE_NAMESPACE") or "tana-namespace"
 TANA_ENVIRONMENT = os.getenv("PINECONE_ENVIRONMENT") or "us-west4-gcp-free"
-TANA_TYPE = os.getenv("PINECONE_TYPE") or "tana-node"
+TANA_NODE = os.getenv("PINECONE_TYPE") or "tana-node"
+TANA_TEXT = "tana-text"
 TANA_INDEX = os.getenv("PINECONE_INDEX") or "tana-helper"
 
 
@@ -86,14 +87,16 @@ class PineconeRequest(EmbeddingRequest):
   nodeId: str
 
 class PineconeNode(BaseModel):
-  category: str = TANA_TYPE
+  category: str = TANA_NODE
   supertag: Optional[List[str]] = []
   text: str
 
 
-class ChromaRequest(EmbeddingRequest):
+class ChromaStoreRequest(BaseModel):
   environment: Optional[str] = "local"
   index:str = TANA_INDEX
+
+class ChromaRequest(EmbeddingRequest, ChromaStoreRequest):
   score: Optional[float] = 0.80
   top: Optional[int] = 10
   tags: Optional[str] = ''
