@@ -48,7 +48,8 @@ class CalendarRequest(BaseModel):
     calendar: Optional[str] = None
     offset: Optional[str] = None
     range: Optional[str] = None
-    model_config = ConfigDict(extra='forbid')
+    # date: Optional[str] = None
+    # model_config = ConfigDict(extra='forbid')
 
 class HelperRequest(BaseModel):
   context: str = ''
