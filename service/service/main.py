@@ -64,17 +64,29 @@ app.include_router(configure.router)
 app.include_router(proxy.router)
 app.include_router(mistral.router)
 
+# async helpers to get the body during middleware evaluation
+# useful for debugging in the layer _prior_ to pydantic validation
+async def set_body(request: Request, body: bytes):
+  async def receive():
+      return {"type": "http.request", "body": body}
+  request._receive = receive
+ 
+async def get_body(request: Request) -> bytes:
+  body = await request.body()
+  await set_body(request, body)
+  return body
+
 @app.middleware("http")
 async def add_get_authorization_headers(request: Request, call_next):
-    # find headers in request
-    x_tana_api_token = request.headers.get('x-tana-api-token')
-    x_openai_api_key = request.headers.get('x-openai-api-key')
-    # TODO: make settings per-request context, not gobal
-    # use passed in header tokens if present, otherwise look for env vars
-    settings.openai_api_key = settings.openai_api_key if not x_openai_api_key else x_openai_api_key
-    settings.tana_api_token = settings.tana_api_token if not x_tana_api_token else x_tana_api_token
-    response = await call_next(request)
-    return response
+  # find headers in request
+  x_tana_api_token = request.headers.get('x-tana-api-token')
+  x_openai_api_key = request.headers.get('x-openai-api-key')
+  # TODO: make settings per-request context, not gobal
+  # use passed in header tokens if present, otherwise look for env vars
+  settings.openai_api_key = settings.openai_api_key if not x_openai_api_key else x_openai_api_key
+  settings.tana_api_token = settings.tana_api_token if not x_tana_api_token else x_tana_api_token
+  response = await call_next(request)
+  return response
 
 snowflakes = SnowflakeGenerator(42)
 
@@ -88,7 +100,10 @@ async def log_entry_exit(request: Request, call_next):
      
   logger.info(f"txid={idem} start request path={request.url.path}")
   start_time = time.time()
-    
+
+  # await set_body(request, await request.body())
+  # body = await get_body(request)
+  # logger.info(f"txid={idem} body={body}")
   response:Response = await call_next(request)
 
   process_time = (time.time() - start_time) * 1000
