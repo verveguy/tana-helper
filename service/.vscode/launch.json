@@ -22,7 +22,7 @@
         "--reload"
       ],
       "jinja": true,
-      "justMyCode": true
+      "justMyCode": false
     }
   ]
 }
