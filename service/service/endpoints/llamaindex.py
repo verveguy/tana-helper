@@ -19,23 +19,17 @@ from llama_index.node_parser import SentenceSplitter
 from llama_index.schema import TextNode, NodeRelationship, RelatedNodeInfo
 from llama_index.callbacks import CallbackManager, LlamaDebugHandler
 from llama_index.embeddings import OpenAIEmbedding
-from llama_index.llms import Ollama, OpenAI
-from llama_index.vector_stores.qdrant import QdrantVectorStore
+from llama_index.llms import OpenAI
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from llama_index import VectorStoreIndex, Document, StorageContext, ServiceContext, download_loader
-from llama_index.tools import QueryEngineTool, ToolMetadata
-from llama_index.query_engine import SubQuestionQueryEngine
 from llama_index.callbacks import CallbackManager, LlamaDebugHandler
 from llama_index import ServiceContext
-
-from qdrant_client import QdrantClient
 
 from snowflake import SnowflakeGenerator
 
 from service.dependencies import (
     TANA_NODE,
     TANA_TEXT,
-    ChromaRequest,
     ChromaStoreRequest,
     MistralAsk,
 )
@@ -58,23 +52,11 @@ minutes = 1000 * 60
 # x_openai_api_key: Annotated[str | None, Header()] = None
 
 
-# TODO: change qdrant back to chroma DB perhaps....
-db_path = os.path.join(Path.home(), '.qdrant.db')
-@lru_cache() # reuse connection to qdrant
-def get_qdrant_vector_store():
-  # re-initialize the vector store
-  client = QdrantClient(
-      path=db_path
-  )
-  vector_store = QdrantVectorStore(client=client, collection_name="tana")
-  logger.info("Mistral (qdrant) vector store ready")
-  return vector_store
-
 @lru_cache() # reuse connection to chroma
 def get_chroma_vector_store():
   chroma_collection = get_collection(ChromaStoreRequest())
   vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
-  logger.info("Mistral (chroma) vector store ready")
+  logger.info("Llamaindex (chroma) vector store ready")
   return vector_store
 
 # use this to ease switching backends
@@ -95,7 +77,7 @@ def get_llm(debug=True):
                                                  embed_model=embed_model, # or 'local'
                                                  callback_manager=callback_manager
                                                 )
-  logger.info("Mistral (ollama) service context ready")
+  logger.info("Llamaindex (openai) service context ready")
   return service_context, llm
 
 @lru_cache() # reuse connection to llama_index
@@ -105,7 +87,7 @@ def get_index():
 
   # load the index from the vector store
   index = VectorStoreIndex.from_vector_store(vector_store=vector_store, service_context=service_context) # type: ignore
-  logger.info("Connected to Mistral")
+  logger.info("Connected to Llamaindex")
   return index, service_context, vector_store, llm
 
 
@@ -226,7 +208,7 @@ def load_index_from_topics(topics:List[TanaDocument]):
 # see https://github.com/tiangolo/fastapi/discussions/6347
 lock = asyncio.Lock()
 
-@router.post("/mistral/preload", status_code=status.HTTP_204_NO_CONTENT, tags=["Mistral"])
+@router.post("/llamaindex/preload", status_code=status.HTTP_204_NO_CONTENT, tags=["LlamaIndex"])
 async def mistral_preload(request: Request,tana_dump:TanaDump):
   '''Accepts a Tana dump JSON payload and builds the Mistral index from it
   Uses the topic extraction code from the topics endpoint to build
@@ -263,7 +245,7 @@ async def mistral_preload(request: Request,tana_dump:TanaDump):
     return None
 
 
-@router.post("/mistral/ask", response_class=HTMLResponse, tags=["Mistral"])
+@router.post("/llamaindex/ask", response_class=HTMLResponse, tags=["LlamaIndex"])
 def mistral_ask(req: MistralAsk):
   '''Ask a question of the Mistral index and return the top results
   '''
