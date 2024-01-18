@@ -21,7 +21,7 @@ if __name__ == "__main__":
     print("Sending data to Tana Helper Mistral Preload API...")
 
     # throw Tana json export at the topic dumper API
-    url = "http://localhost:8000/mistral/preload"
+    url = "http://localhost:8000/llamaindex/preload"
 
     headers = {'Content-type': 'application/json'}
     with open(filename, 'rb') as f:
@@ -32,10 +32,10 @@ if __name__ == "__main__":
         print(response.text)
         exit(1)
 
-    print("Testing /mistral/ask endpoint ...")
+    print("Testing /llamaindex/ask endpoint ...")
 
     # query the index to test liveness
-    url = "http://localhost:8000/mistral/ask"
+    url = "http://localhost:8000/llamaindex/ask"
     question = { "query": "What do you know about Tana?"}
     print(question)
     response = requests.post(url, json=question, headers=headers)

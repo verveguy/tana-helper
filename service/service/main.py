@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from logging import getLogger
 # note pinecone is not included - problems with PyInstaller and google API depedencies...
-from service.endpoints import calendar, chroma, weaviate, mistral, inlinerefs, exec_code, webhooks, jsonify, graph_view, class_diagram, configure, proxy, topics
+from service.endpoints import calendar, chroma, llamaindex, weaviate, inlinerefs, exec_code, webhooks, jsonify, graph_view, class_diagram, configure, proxy, topics
 from service.logconfig import setup_rich_logger
 from snowflake import SnowflakeGenerator
 import time
@@ -51,6 +51,7 @@ if plat == 'Darwin':
     app.include_router(calendar.router)
 
 app.include_router(chroma.router)
+app.include_router(llamaindex.router)
 app.include_router(weaviate.router)
 #app.include_router(pinecone.router)
 app.include_router(inlinerefs.router)
