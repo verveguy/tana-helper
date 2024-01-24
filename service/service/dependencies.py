@@ -94,7 +94,6 @@ class PineconeNode(BaseModel):
 
 class ChromaStoreRequest(BaseModel):
   environment: Optional[str] = "local"
-  index:str = TANA_INDEX
 
 class ChromaRequest(EmbeddingRequest, ChromaStoreRequest):
   score: Optional[float] = 0.80
@@ -113,7 +112,7 @@ class MistralAsk(BaseModel):
   query: str
 
 class QueueRequest(HelperRequest):
-  environment: Optional[str] = "local"
+  pass
 
 class WeaviateRequest(EmbeddingRequest):
   environment: Optional[str] = TANA_ENVIRONMENT

@@ -1,10 +1,12 @@
+import re
+from logging import getLogger
+from typing import Optional, List, Tuple
+
 from fastapi import APIRouter
 from pydantic import BaseModel
-from typing import Optional, List
+
 from service.tana_types import NodeDump, TanaDump, Visualizer
 from service.tanaparser import IS_CHILD_CONTENT_LINK, IS_TAG_LINK, NodeIndex
-from logging import getLogger
-import re
 
 router = APIRouter()
 
@@ -33,9 +35,9 @@ class TanaDocument(BaseModel):
   name: Optional[str]
   description: Optional[str]
   tags: List[str] = []
-  # fields: List[TanaField]
+  fields: Optional[List[TanaField]]
   # TODO: consider whether we should preserve more node structure here
-  content: List[str] = []
+  content: List[Tuple[str, int, str]] = []
 
 class DocumentDump(BaseModel):
   documents: List[TanaDocument] = []
@@ -67,7 +69,7 @@ def patch_node_name(index:NodeIndex, node_id:str) -> str:
 
 
 @router.post("/topics", tags=["Extractor"])
-async def extract_topics(tana_dump:TanaDump) -> List[TanaDocument]:
+async def extract_topics(tana_dump:TanaDump, format:str='TANA') -> List[TanaDocument]:
   '''Given a Tana dump JSON payload, return a list of topics and their content.
 
   Topics are defined as nodes that are tagged with a supertag.
@@ -123,14 +125,14 @@ async def extract_topics(tana_dump:TanaDump) -> List[TanaDocument]:
       topic = TanaDocument(id=source_id, 
                           name=topic_name,
                           description=node.props.description,
+                          fields=[]
                           )
       
       topics.append(topic)
       
-      topic.content = ['- '+topic_name]
+      topic.content = [(source_id, 0, '- '+topic_name)]
 
-      # add all the tag names as structured fields 
-      # TODO: is this useful?
+      # add all the tag names as structured elems 
       for tag_id in node.tags:
         topic.tags.append(index.node(tag_id).props.name)
 
@@ -140,7 +142,7 @@ async def extract_topics(tana_dump:TanaDump) -> List[TanaDocument]:
         field_name=index.node(field_id).props.name
         value_ids = field_dict['values']
                 
-        value_content = []
+        value_contents = []
         for value_id in value_ids:
           if not index.valid(value_id):
             logger.warning(f'Invalid field value_id: {value_id} for field: {field_id}. Presumably trashed node.')
@@ -149,22 +151,31 @@ async def extract_topics(tana_dump:TanaDump) -> List[TanaDocument]:
           value_node = index.node(value_id)
           if len(value_node.tags) > 0:
             # if it's tagged, again assume it's a ref, not an inline content node
-            value_content += ['[['+patch_node_name(index, value_id)+'^'+value_id+']]'+add_tags(index, index.node(value_id).tags)]
+            value = '[['+patch_node_name(index, value_id)+'^'+value_id+']]'+add_tags(index, index.node(value_id).tags)
           else:
-            value_content += [patch_node_name(index, value_id)]
-        # value_content = recurse_content(index, value_id, 0)
+            value = patch_node_name(index, value_id)
 
-        # add structured version of field data
-        # field = TanaField(field_id=field_id,
-        #                   value_id=value_id,
-        #                   name=index.node(field_id).props.name,
-        #                   value=value_content,
-        #                   )
-        # topic.fields.append(field)
-        if len(value_content) > 0 and len(value_content[0]) > 0:
-          topic.content += [f"  - {field_name}:: {value_content[0]}"]
-          for value in value_content[1:]:
-            topic.content += [f"    - {value}"]
+          value_contents += [value]
+
+          # so how do we want to represent fields?
+          if format == 'JSON':
+            # structure fields as metadata
+            field = TanaField(field_id=field_id,
+                              value_id=value_id,
+                              name=index.node(field_id).props.name,
+                              value=value)
+          
+            topic.fields.append(field) # type: ignore
+        
+        #TODO: redo all ths code to use field value_ids instead of ''
+        if format == 'TANA':
+          # structure fields in Tana paste format
+          if len(value_contents) > 0 and len(value_contents[0]) > 0:
+            topic.content += [('', 0,  f"  - {field_name}:: {value_contents[0]}")]
+            for value in value_contents[1:]:
+              topic.content += [('', 0, f"    - {value}")]
+          # and remove any structured fields
+          topic.fields = None
 
       # recursively build up child content
       topic.content += recurse_content(index, source_id)
@@ -186,13 +197,27 @@ def add_tags(index, tag_ids:List[str]) -> str:
     return ' '.join(tags)
   return ''
 
+def is_reference_content(name:str) -> Tuple[bool, str]:
+  node_id = None
+  
+  is_ref = re.match(r'\[\[.*\^\w+\]\]', name)
+  if is_ref:
+    node_id = re.match(r'\[\[.*\^(\w+)\]\]', name).group(1) # type: ignore
+
+  return is_ref, node_id # type: ignore
+
+
+def node_ids_from_text(text:str) -> List[str]:
+  results = re.findall(r'\[\[.*\^(\w+)\]\]', text)
+  return results
+
 # TODO: think about the way we want to represent the topic nodes
 # for the purpose of RAG generation. Chunks, parents, sentences, etc.
 # Headings are distinct nodes in Tana for example...
 # Also think about whether content nodes should just be text or should
 # themselves be richer nodes with fields and tags in the index
 # TODO: what do we do about references to other nodes?
-def recurse_content(index:NodeIndex, parent_id:str, depth_limit=10) -> List[str]:
+def recurse_content(index:NodeIndex, parent_id:str, depth_limit=10) -> List[Tuple[str, int, str]]:
   parent_node = index.node(parent_id)
   content = []
 
@@ -205,13 +230,15 @@ def recurse_content(index:NodeIndex, parent_id:str, depth_limit=10) -> List[str]
         # and treat it like a referenced node. (Yes, this isn't Tana's way
         # but we want to reduce redundant content and Day nodes mess with this
         # concept rather badly)
-        content.append(indent(11 - depth_limit)+'- [['+patch_node_name(index, content_id)+'^'+content_id+']]'+add_tags(index, content_node.tags))
+        content.append((content_id, 1, indent(11 - depth_limit)+'- [['+patch_node_name(index, content_id)+'^'+content_id+']]'+add_tags(index, content_node.tags)))
       else:
-        content.append(indent(11 - depth_limit)+'- '+patch_node_name(index, content_id))
+        # this is a regular text node, untagged and not a reference
+        # TODO: decide what, if anything, to do with fields on such nodes
+        content.append((content_id, 0, indent(11 - depth_limit)+'- '+patch_node_name(index, content_id)))
         if depth_limit > 0:
           content += recurse_content(index, content_id, depth_limit - 1)
     else:
       # this is a Tana reference link, so don't recurse
-      content.append(indent(11 - depth_limit)+'- [['+patch_node_name(index, content_id)+'^'+content_id+']]'+add_tags(index, content_node.tags))
+      content.append((content_id, 1, indent(11 - depth_limit)+'- [['+patch_node_name(index, content_id)+'^'+content_id+']]'+add_tags(index, content_node.tags)))
 
   return content

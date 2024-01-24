@@ -1,17 +1,18 @@
-from fastapi import FastAPI, Request, Response
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from logging import getLogger
-# note pinecone is not included - problems with PyInstaller and google API depedencies...
-from service.endpoints import calendar, chroma, llamaindex, weaviate, inlinerefs, exec_code, webhooks, jsonify, graph_view, class_diagram, configure, proxy, topics
-from service.logconfig import setup_rich_logger
-from snowflake import SnowflakeGenerator
-import time
 import os
 import platform
+import time
+from logging import getLogger
+
+from fastapi import FastAPI, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+
 from service.dependencies import settings
+from service.endpoints import (calendar, chroma, class_diagram, configure, exec_code, graph_view, 
+                 inlinerefs, jsonify, llamaindex, proxy, topics, weaviate, webhooks)
+from service.logconfig import setup_rich_logger
+from snowflake import SnowflakeGenerator
 
 def get_app() -> FastAPI:
   app = FastAPI(
@@ -127,12 +128,12 @@ async def usage():
 # fiddle with the CWD to satsify double-clickable .app
 # context
 basedir = os.path.dirname(__file__)
-print(f"Install dir = {basedir}")
+logger.info(f"Install dir = {basedir}")
 cwd = os.getcwd()
-print(f"Current working dir = {cwd}")
+logger.info(f"Current working dir = {cwd}")
 os.chdir(basedir)
 cwd = os.getcwd()
-print(f"Setting cwd = {cwd}")
+logger.info(f"Setting cwd = {cwd}")
 
 app.mount("/static", StaticFiles(directory="dist"), name="static")
 

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, status, Request
 from fastapi.responses import HTMLResponse
-from typing import Optional
-from service.dependencies import ChromaStoreRequest, settings, QueueRequest, ChromaRequest, get_embedding, TANA_NAMESPACE, TANA_NODE, TanaInputAPIClient, SuperTag, Node, AddToNodeRequest
+from typing import Dict, List, Optional
+from service.dependencies import TANA_INDEX, ChromaStoreRequest, settings, QueueRequest, ChromaRequest, get_embedding, TANA_NAMESPACE, TANA_NODE, TanaInputAPIClient, SuperTag, Node, AddToNodeRequest
 from logging import getLogger
 from ratelimit import limits, RateLimitException, sleep_and_retry
 from functools import lru_cache
@@ -22,6 +22,8 @@ snowflakes = SnowflakeGenerator(42)
 
 router = APIRouter()
 
+INBOX_QUEUE = "queue"
+
 # TODO: Add header support throughout so we can pass Tana API key and OpenAPI Key as headers
 # NOTE: we already have this in the main.py middleware wrapper, but it would be better
 # to do it here for OpenAPI purposes.
@@ -30,25 +32,23 @@ router = APIRouter()
 
 db_path = os.path.join(Path.home(), '.chroma.db')
 @lru_cache() # reuse connection to chromadb to avoid connection rate limiting on parallel requests
-def get_chroma(environment:str):
-  # pinecone.init(api_key=api_key, environment=environment)
-  # TODO: let environment specify file name?
-
+def get_chroma():
   chroma_client = chromadb.PersistentClient(path=db_path)
 
   logger.info("Connected to chromadb")
   return chroma_client
 
-def get_collection(req:ChromaStoreRequest):
-  chroma = get_chroma(req.environment)
+
+def get_collection():
+  chroma = get_chroma()
   # use cosine rather than l2 (should test this)
-  collection = chroma.get_or_create_collection(name=req.index, metadata={"hnsw:space": "cosine"})
+  collection = chroma.get_or_create_collection(name=TANA_INDEX, metadata={"hnsw:space": "cosine"})
   return collection
 
-def get_queue_collection(req:QueueRequest):
-  chroma = get_chroma(req.environment)
+def get_queue_collection():
+  chroma = get_chroma()
   # use cosine rather than l2 (should test this)
-  collection = chroma.get_or_create_collection(name="queue")
+  collection = chroma.get_or_create_collection(name=INBOX_QUEUE)
   return collection
 
 # attempt to parallelize non-async code
@@ -61,17 +61,20 @@ async def chroma_upsert(request: Request, req: ChromaRequest):
     start_time = time.time()
     logger.info(f'DO txid={request.headers["x-request-id"]}')
     
+    # we only want the direct children of the node as context
+    # so we prune the context before embedding
     pruned_content = prune_reference_nodes(req.context)
     req.context = pruned_content
     
     embedding = get_embedding(req)
     vector = embedding[0].embedding
 
-    collection = get_collection(req)
+    collection = get_collection()
 
     metadata = {'category': TANA_NODE,
                 'supertag': req.tags,
                 'title': req.name,
+                # we put the pruned node context into the metadata
                 'text': req.context,
                 'tana_id': req.nodeId,
               }
@@ -85,7 +88,8 @@ async def chroma_upsert(request: Request, req: ChromaRequest):
       collection.upsert(
         ids=req.nodeId,
         embeddings=vector,
-        documents=req.context,
+        # we only embed the name of the node (primary content of the node)
+        documents=req.name,
         metadatas=metadata
       )
       
@@ -97,10 +101,41 @@ async def chroma_upsert(request: Request, req: ChromaRequest):
 
 @router.post("/chroma/delete", status_code=status.HTTP_204_NO_CONTENT, tags=["Chroma"])
 def chroma_delete(req: ChromaRequest):  
-  collection = get_collection(req)
+  collection = get_collection()
   collection.delete(ids=[req.nodeId])
   return None
 
+
+def get_nodes_by_id(node_ids: List[str]):  
+
+  collection = get_collection()
+
+  query_response = collection.get(ids=node_ids)
+
+  texts = []
+
+  if query_response:
+    # the result from ChromaDB is kinda strange. Instead of an array of objects
+    # # it's four distinct arrays of object properties. Very odd interface.
+
+    for node_id, text, metadata in zip(
+            query_response["ids"],
+            query_response["documents"], # type: ignore
+            query_response["metadatas"], # type: ignore
+        ):
+      
+      # strip out llama_index metadata
+      # TODO: figure out how to turn this whole thing into a customretriever of whole nodes
+      del metadata['_node_type']
+      del metadata['_node_content']
+      del metadata['title']
+
+      content = text+'\n'
+      content += '\n'.join([f'  - {key}:: {value}' for key, value in metadata.items()])
+
+      texts.append(content)
+
+  return texts
 
 def get_tana_nodes_for_query(req: ChromaRequest):  
   embedding = get_embedding(req)
@@ -115,7 +150,7 @@ def get_tana_nodes_for_query(req: ChromaRequest):
                       {'supertag': { '$in': supertags }} # type: ignore
                     ]}
 
-  collection = get_collection(req)
+  collection = get_collection()
 
   query_response = collection.query(query_embeddings=vector,
     n_results=req.top, # type: ignore
@@ -184,7 +219,7 @@ def chroma_query_text(req: ChromaRequest):
 
 @router.post("/chroma/purge", status_code=status.HTTP_204_NO_CONTENT, tags=["Chroma"])
 def chroma_purge(req: ChromaRequest):
-  collection = get_collection(req)
+  collection = get_collection()
   collection.delete()
   return None
 
@@ -202,7 +237,7 @@ async def chroma_enqueue(request: Request, req: QueueRequest):
     vector = [0]
     #embedding[0]['embedding']
 
-    collection = get_queue_collection(req)
+    collection = get_queue_collection()
 
     # generate a temporary nodeID
     node_id = str(next(snowflakes))
@@ -252,7 +287,7 @@ def chroma_dequeue(request: Request, req: QueueRequest):
   best = []
   texts = []
   
-  collection = get_queue_collection(req)
+  collection = get_queue_collection()
 
   extracted_group = re.search(r'\b\d+\b', req.context)
   if extracted_group:
