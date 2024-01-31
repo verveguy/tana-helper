@@ -179,17 +179,15 @@ struct Event: Codable {
     let location: String?
     let attendees: [Attendee]?
     let notes: String?
-    let recurrence: [String]?
 
     init(title: String, startDate:String, endDate:String,
-        attendees:[Attendee]?=nil, notes:String?=nil, location:String?=nil, recurrence:[String]?=nil) {
+        attendees:[Attendee]?=nil, notes:String?=nil, location:String?=nil) {
         self.title = title
         self.startDate = startDate
         self.endDate = endDate
         self.location = location
         self.attendees = attendees
         self.notes = notes
-        self.recurrence = recurrence
     }
 }
 
@@ -286,16 +284,11 @@ let eventArray = filteredEvents.map { event in
             //, url: attendee.url
             )
     }
-    
-    let recurrence: [String]? = event.hasRecurrenceRules ? event.recurrenceRules!.map { rule in
-         return rule.description
-    } : nil
-    
+        
     return Event(title: event.title
         , startDate: startDateString, endDate: endDateString
         , attendees: attendees, notes: notes
         , location: event.location
-        , recurrence: recurrence
         )
 }
 
