@@ -277,8 +277,6 @@ def get_vector_store():
 def load_index_from_topics(topics:List[TanaDocument], model:str, observe=False):
   '''Load the topic index from the topic array directly.'''
 
-  #parser = SentenceSplitter()
-
   logger.info('Building llama_index nodes')
 
   index_nodes = []
@@ -353,29 +351,6 @@ def load_index_from_topics(topics:List[TanaDocument], model:str, observe=False):
 
       index_nodes.append(current_text_node)
       previous_text_node = current_text_node
-
-      # TODO: do we need to split the sentences here? There's a RAG argument that it improves
-      # relevance, but it's not clear that it does. It does make the index much larger though.
-      
-      # now split the sentences as make them children of the index_tana_node
-      # sentences = parser.split_text(tana_node)
-      # last_sentence = None
-      # for sentence in sentences:
-      #   sentence_node = TextNode(text=sentence)
-      #   sentence_node.metadata = document.metadata
-
-      #   # wire up all the relationships (useful?)
-      #   sentence_node.relationships[NodeRelationship.PARENT] = RelatedNodeInfo(node_id=index_tana_node.node_id)
-      #   sentence_node.relationships[NodeRelationship.SOURCE] = RelatedNodeInfo(node_id=document.node_id)
-      #   if last_sentence:
-      #     sentence_node.relationships[NodeRelationship.PREVIOUS] = RelatedNodeInfo(node_id=last_sentence.node_id)
-      #     last_sentence.relationships[NodeRelationship.NEXT] = RelatedNodeInfo(node_id=sentence_node.node_id)
-          
-      #   last_sentence = sentence_node
-      #   # replicate metadata (seems excessive...?)                         
-
-      #   # TODO: what else can we add to the sentence node?
-      #   index_nodes.append(sentence_node)
 
   logger.info(f'Gathered {len(index_nodes)} tana nodes')
   logger.info("Preparing storage context")
