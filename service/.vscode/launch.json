@@ -5,6 +5,13 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Launch getcalendar",
+      "args": [],
+      "program": "${workspaceFolder}/service/bin/getcalendar"
+    },
+    {
       "name": "Python: Current File",
       "type": "python",
       "request": "launch",
