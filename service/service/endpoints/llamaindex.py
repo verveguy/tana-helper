@@ -10,13 +10,22 @@ from pathlib import Path
 from fastapi import APIRouter, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import HTMLResponse
-from typing import List
+from typing import List, Dict, Any
+from pydantic import Field
 
 # This is here to satisfy runtime import needs 
 # that pyinstaller appears to miss
 
 from llama_index.node_parser import SentenceSplitter
-from llama_index.schema import TextNode, NodeRelationship, RelatedNodeInfo
+from llama_index.schema import TextNode, NodeRelationship, RelatedNodeInfo, MetadataMode
+from llama_index.callbacks import CallbackManager, LlamaDebugHandler, OpenInferenceCallbackHandler
+from llama_index.embeddings import OpenAIEmbedding, OllamaEmbedding
+from llama_index.indices.query.query_transform import HyDEQueryTransform
+from llama_index.query_pipeline import QueryPipeline
+from llama_index.llms import OpenAI, Ollama
+from llama_index.llms.base import BaseLLM
+from llama_index.vector_stores.chroma import ChromaVectorStore
+from llama_index import LLMPredictor, PromptTemplate, VectorStoreIndex, Document, StorageContext, ServiceContext, download_loader
 from llama_index.callbacks import CallbackManager, LlamaDebugHandler
 from llama_index.embeddings import OpenAIEmbedding
 from llama_index.llms import OpenAI
@@ -24,14 +33,24 @@ from llama_index.vector_stores.chroma import ChromaVectorStore
 from llama_index import VectorStoreIndex, Document, StorageContext, ServiceContext, download_loader
 from llama_index.callbacks import CallbackManager, LlamaDebugHandler
 from llama_index import ServiceContext
+from llama_index.postprocessor import CohereRerank
+from llama_index.response_synthesizers import TreeSummarize
+from llama_index.postprocessor import PrevNextNodePostprocessor, LLMRerank
+from llama_index.storage.docstore import SimpleDocumentStore
+from llama_index.query_pipeline import CustomQueryComponent, InputKeys, OutputKeys
+
+from llama_index.indices.vector_store.retrievers import (
+    VectorIndexAutoRetriever,
+)
+from llama_index.vector_stores.types import MetadataInfo, VectorStoreInfo
 
 from snowflake import SnowflakeGenerator
 
 from service.dependencies import (
     TANA_NODE,
     TANA_TEXT,
-    ChromaStoreRequest,
-    MistralAsk,
+    LlamaindexAsk,
+    TanaNodeMetadata,
 )
 from service.endpoints.chroma import get_collection
 
@@ -63,13 +82,75 @@ def get_chroma_vector_store():
 def get_vector_store():
   return get_chroma_vector_store()
 
+# enrich our retriever with knowledge of our metadata
+def get_auto_retriever(index:VectorStoreIndex):
+  vector_store_info = VectorStoreInfo(
+    content_info="My Tana Notebook. Comprises many Tana nodes with text and metadata fields.",
+    metadata_info=[
+        MetadataInfo(
+            name="category",
+            type="str",
+            description=(
+                "One of TANA_NODE or TANA_TEXT\n"
+                "TANA_NODE means that this is a top-level topic in my Tana notebook\n"
+                "TANA_TEXT means this is detailed information as part of a topic, identfied by topic_id metadata.\n"
+                "Do NOT use category to query the index. Only use category to enrich your understanding of the result.\n"
+                "DO NOT reference category in your responses.\n"
+            ),
+        ),
+        MetadataInfo(
+            name="topic_id",
+            type="str",
+            description=(
+                "Identifies the Tana Notebook Node that this text is part of. Should be used as a reference to the notebook entry.\n"
+                "Only use topic_id to query the index when you want a single specific node by reference.\n"
+                "You can use topic_id when referencing a Tana Notebook Node in your responses.\n"
+            ),
+        ),
+        MetadataInfo(
+            name="tana_id",
+            type="str",
+            description=(
+                "The Tana Notebook Node for this piece of text. Should be used a reference to the notebook entry.\n"
+                "Only use topic_id to query the index when you want a single specific node by reference.\n"
+                "You can use tana_id when referencing a Tana Notebook Node in your responses.\n"
+            ),
+        ),
+        MetadataInfo(
+            name="supertag",
+            type="str",
+            description=(
+                "One or more optional semantic tags for this Tana Notebook Node. Examples include #task, #person, #meeting, etc.\n"
+                "Use tags to enrich your understanding of a query result.\n"
+                "Do NOT use tags to query the index unless specifically asked to do so.\n"
+            ),
+        ),
+      ],
+  )
+
+  retriever = VectorIndexAutoRetriever(
+      index, vector_store_info=vector_store_info, similarity_top_k=10
+  )
+  return retriever
+
 # get the LLM 
 @lru_cache() # reuse connection to ollama
-def get_llm(debug=True):
-  #llm = Ollama(model="mistral", request_timeout=(5 * minutes))
-  llm = OpenAI(model="gpt-4-1106-preview", request_timeout=(5 * minutes))
-  embed_model = OpenAIEmbedding(embed_batch_size=500)
-  callback_manager = None
+def get_llm(model:str="openai", debug=False, observe=False):
+  if model == "openai":
+    # TODO: also allow which openAI model to be parameterized?
+    llm = OpenAI(model="gpt-4-1106-preview", request_timeout=(5 * minutes), temperature=0)
+    embed_model = OpenAIEmbedding(embed_batch_size=250)
+  else:
+    # assume the model is via ollama
+    # TODO: try catch errors here
+    llm = Ollama(model=model, request_timeout=(5 * minutes))
+    embed_model = OllamaEmbedding(model_name=model, embed_batch_size=250)
+  
+  callback_managers = []
+
+  if observe:
+    callback_managers += [OpenInferenceCallbackHandler()]
+
   if debug:
     llama_debug = LlamaDebugHandler(print_trace_on_end=True)
     callback_manager = CallbackManager([llama_debug])
@@ -83,7 +164,11 @@ def get_llm(debug=True):
 @lru_cache() # reuse connection to llama_index
 def get_index():
   vector_store = get_vector_store()
-  service_context, llm = get_llm()
+  service_context, llm = get_llm(model, observe=observe)
+
+  # create a storage context to load our index from
+  storage_context = StorageContext.from_defaults(vector_store=vector_store)
+  logger.info("Llamaindex storage context ready")
 
   # load the index from the vector store
   index = VectorStoreIndex.from_vector_store(vector_store=vector_store, service_context=service_context) # type: ignore
@@ -91,43 +176,163 @@ def get_index():
   return index, service_context, vector_store, llm
 
 
-
-def load_index_from_file(filename:str):
-  '''Load the topic index from a temporary JSON file
-
-  The topic index is built from walking the Tana dump and extracting
-  all of the topics. This is a very expensive operation, so we only
-  want to do it once. This function loads the index from a temporary
-  file that was created by the preload endpoint.
-  '''
-
-  # load the JSON off disk as a set of documents
-  # TODO: change this to load topic fragments with 
-  # parent nodes as discrete chunks and also do sentence level embedding
-  json_reader = download_loader("JSONReader")
-  loader = json_reader()
-  documents = loader.load_data(Path(filename))
-
+def create_index(model, observe, index_nodes):
   vector_store = get_vector_store()
 
   # create a storage context in order to create a new index
   storage_context = StorageContext.from_defaults(vector_store=vector_store)
-  logger.info("Mistral storage context ready")
+  logger.info("Llamaindex storage context ready")
 
-  # initialize the LLM
-  (service_context, llm) = get_llm()
+  # initialize the LLM.
+  # TODO: how to allow this to be parameterized?
+  (service_context, _) = get_llm(model=model, observe=observe)
 
-  # create the index; this will embed the documents and store them in the vector store
+  # create the index; this will embed the documents and nodes and store them in the vector store
   #TODO: ensure we are upserting by topic id, otherwise we will have duplicates
   # and will have to drop the index first
-  index = VectorStoreIndex.from_documents(documents, service_context=service_context, storage_context=storage_context)
-  logger.info("Mistral index populated and ready")
+  index = VectorStoreIndex(index_nodes, service_context=service_context, storage_context=storage_context)
   return index
- 
 
-def load_index_from_topics(topics:List[TanaDocument]):
-  '''Load the topic index from the topic array directly.
-  '''
+
+class DecomposeQueryWithNodeContext(CustomQueryComponent):
+    """Rerferenced nodes component."""
+
+    llm: BaseLLM = Field(..., description="OpenAI LLM")
+
+    def _validate_component_inputs(
+        self, input: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Validate component inputs during run_component."""
+        # NOTE: this is OPTIONAL but we show you here how to do validation as an example
+        return input
+
+    @property
+    def _input_keys(self) -> set:
+        """Input keys dict."""
+        # NOTE: These are required inputs. If you have optional inputs please override
+        # `optional_input_keys_dict`
+        return {"query"}
+
+    @property
+    def _output_keys(self) -> set:
+        return {"questions"}
+
+    def _run_component(self, **kwargs) -> Dict[str, Any]:
+        """Run the component."""
+        # first get all the Tana nodes from the query context
+        tana_nodes = node_ids_from_text(kwargs["query"])
+        context = '\n'.join(get_nodes_by_id(tana_nodes))
+
+        # use QueryPipeline itself here for convenience
+        prompt_tmpl = PromptTemplate(
+          "Propose a number of research questions that would help to answer the question posed.\n"
+          "Only respond with the questions themselves. Do not add any extraneous comments.\n"
+          "Each question should be numbered and on a separate line.\n"
+          "{query}\n"
+          "Also use this initial information to help shape the research questions:\n"
+          "{nodes}\n"
+          )
+        p = QueryPipeline(chain=[prompt_tmpl, self.llm])
+        response = p.run(query=kwargs["query"], nodes=context)
+        questions = response.message.content 
+        return {"questions": questions.split('\n')}
+
+
+# TODO: migrate chroma query/ask feature over. This includes tag filtering
+@router.post("/llamaindex/ask", response_class=HTMLResponse, tags=["LlamaIndex"])
+def llama_ask(req: LlamaindexAsk, model:str):
+  '''Ask a question of Llamaindex and return the top results.'''
+
+  (index, service_context, storage_context, llm) = get_index(model, observe=True)
+
+  vector_store = get_vector_store()
+
+  response = index.as_query_engine().query(req.query)
+  return str(response)
+
+
+#TODO: Move model out of POST body and into query params perhaps?
+@router.post("/llamaindex/research", response_class=HTMLResponse, tags=["LlamaIndex"])
+def llama_ask_custom_pipeline(req: LlamaindexAsk, model:str):
+  '''Research a question using Llamaindex and return the top results.'''
+
+  (index, service_context, storage_context, llm) = get_index(model, observe=True)
+
+  logger.info(f'Researching LLamaindex with {req.query}')
+
+  # first, build up a set of research questions
+  decompose_transform = DecomposeQueryWithNodeContext(llm=llm)
+  p1 = QueryPipeline(chain=[decompose_transform])
+  questions = p1.run(query=req.query)
+  
+  # for each euestion, do a fetch against Chroma to find potentially relevant nodes
+  results = []
+  retriever = get_auto_retriever(index)
+  for question in questions:
+    logger.info(f'Question: {question}')
+    # use our metadata aware auto-retriever to fetch from Chroma
+    nodes = retriever.retrieve(question)
+    logger.info(f'Answer:\n{nodes}')
+    result = {'question': question,
+              'answer': nodes}
+    results.append(result)
+
+  # now we need to preprocess the result nodes to make use of next/previous
+  # TODO: how to do this?
+  
+  # now build up the context from the result nodes
+  context = []
+  for result in results:
+    question = result['question']
+    answer = result['answer']
+    context.append(f'QUESTION: {question}\n')
+    context.append('ANSWERS:\n')
+    # TODO: instead of dumping all nodes into the primary context
+    # we should prepare an answer to each question and then use that
+    node:TextNode
+    for node in answer:
+      context.append(node.get_content(metadata_mode=MetadataMode.LLM)+'\n')
+    context.append('\n')
+
+  # now combine all that research 
+  prompt_tmpl = PromptTemplate(
+    "You are an expert Q&A system that is trusted around the world.\n"
+    "Always answer the question using the provided context information, and not prior knowledge.\n"
+    "Some rules to follow:\n"
+    "1. Avoid statements like 'Based on the context, ...' or 'The context information ...' or anything along those lines.\n"
+    "2. You will be given CONTEXT information in the form of one or more related QUESTIONS and the ANSWERS to those questions.\n"
+    "3. For each ANSWER, there may be many Tana Notebook Nodes. Nodes have both metadata and text content\n"
+    "4. Whenever your response needs to reference Tana Notebook Nodes from the context, use proper Tana node reference format as follows:\n"
+    "  the characters '[[' + '^' + tana_id metadata and then the characters ']]'.\n"
+    "  E.g. to reference the Tana context node titled 'Recipe for making icecream' with tana_id: xghysd76 use this format:\n"
+    "    [[^xghysd76]]\n"
+    "5. Try to avoid making many redundant references to the same Tana node in your response. Use footnote style if you really need to do this.\n"
+    "\n"
+    "QUERY: {query}\n"
+    "-----\n"
+    "CONTEXT:\n"
+    "{context}\n"
+    "END_CONTEXT\n"
+    "-----\n"
+  )
+
+
+  # TODO: this is broken - seems a vector store is not enough
+  # and the persistent docstore isn't loading in parallel
+  # (unclear why)
+  # prevnext = PrevNextNodePostprocessor(
+  #   docstore=storage_context.docstore, 
+  #   num_nodes=5,  # number of nodes to fetch when looking forawrds or backwards
+  #   mode="both",  # can be either 'next', 'previous', or 'both'
+  # )
+
+  p2 = QueryPipeline(chain=[prompt_tmpl, llm])
+  response = p2.run(query=req.query, context='\n'.join(context))
+  return response.message.content
+
+
+def load_index_from_topics(topics:List[TanaDocument], model:str, observe=False):
+  '''Load the topic index from the topic array directly.'''
 
   # TODO: change this to load topic fragments with 
   # parent nodes as discrete chunks and also do sentence level embedding
@@ -162,8 +367,24 @@ def load_index_from_topics(topics:List[TanaDocument]):
 
     # now iterate all the remaining topic.content and create a node for each
     # TODO: make these tana_nodes richer structurally
-    # TODO: use actual tana node id here
-    for tana_node in topic.content:
+    # TODO: use actual tana node id here perhaps?
+    previous_text_node = None
+    if len(topic.content) > 30:
+      logger.warning(f'Large topic {topic.id} with {len(topic.content)} children')
+
+    # process all the child content records...
+    for (content_id, is_ref, tana_element) in topic.content[1:]:
+    
+      content_metadata = TanaNodeMetadata(
+        category=TANA_TEXT,
+        # use the parent doc's metadata...??
+        title=topic.name,
+        topic_id=topic.id,
+        tana_id=content_id,
+        # 'doc_id': document_node.node_id,
+        # 'supertag': ' '.join(['#' + tag for tag in topic.tags]),
+        # text gets added below...
+      )
       
       # wire up the tana_node as an index_node
       index_tana_node = TextNode(text=tana_node)
@@ -174,7 +395,7 @@ def load_index_from_topics(topics:List[TanaDocument]):
       index_tana_node.metadata['category'] = TANA_TEXT
       index_tana_node.relationships[NodeRelationship.SOURCE] = RelatedNodeInfo(node_id=document.node_id)
 
-      index_nodes.append(index_tana_node)
+      current_text_node.metadata = content_metadata.model_dump()
 
       # now split the sentences as make them children of the index_tana_node
       # sentences = parser.split_text(tana_node)
@@ -196,11 +417,11 @@ def load_index_from_topics(topics:List[TanaDocument]):
       #   # TODO: what else can we add to the sentence node?
       #   index_nodes.append(sentence_node)
 
-  # create the index; this will embed the documents and nodes and store them in the vector store
-  #TODO: ensure we are upserting by topic id, otherwise we will have duplicates
-  # and will have to drop the index first
-  index = VectorStoreIndex(index_nodes, service_context=service_context, storage_context=storage_context)
-  logger.info("Mistral index populated and ready")
+  logger.info(f'Gathered {len(index_nodes)} tana nodes')
+  logger.info("Preparing storage context")
+
+  index = create_index(model, observe, index_nodes)
+  logger.info("Llamaindex populated and ready")
   return index
 
 
@@ -208,8 +429,9 @@ def load_index_from_topics(topics:List[TanaDocument]):
 # see https://github.com/tiangolo/fastapi/discussions/6347
 lock = asyncio.Lock()
 
+# Note: accepts ?model= query param
 @router.post("/llamaindex/preload", status_code=status.HTTP_204_NO_CONTENT, tags=["LlamaIndex"])
-async def mistral_preload(request: Request,tana_dump:TanaDump):
+async def llama_preload(request: Request, tana_dump:TanaDump, model:str="openai"):
   '''Accepts a Tana dump JSON payload and builds the Mistral index from it
   Uses the topic extraction code from the topics endpoint to build
   a temporary JSON file, then loads that into the index.
@@ -231,12 +453,12 @@ async def mistral_preload(request: Request,tana_dump:TanaDump):
           f.write(json.dumps(json_result))
       
       logger.info('Loading index ...')
-      # don't use file anymore...
-      # load_index_from_file(path)
-      # load directly from in-memory representation
-      load_index_from_topics(result)
-    
-    logger.info(f'Deleted temp file {path}')
+    # don't use file anymore...
+    # load_index_from_file(path)
+    # load directly from in-memory representation
+    load_index_from_topics(result, model=model)
+  
+    # logger.info(f'Deleted temp file {path}')
 
     process_time = (time.time() - start_time) * 1000
     formatted_process_time = '{0:.2f}'.format(process_time)

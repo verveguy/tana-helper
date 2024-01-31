@@ -1,7 +1,7 @@
 from fastapi import APIRouter, status, Request
 from fastapi.responses import HTMLResponse
 from typing import Dict, List, Optional
-from service.dependencies import TANA_INDEX, ChromaStoreRequest, settings, QueueRequest, ChromaRequest, get_embedding, TANA_NAMESPACE, TANA_NODE, TanaInputAPIClient, SuperTag, Node, AddToNodeRequest
+from service.dependencies import TANA_INDEX, ChromaStoreRequest, TanaNodeMetadata, settings, QueueRequest, ChromaRequest, get_embedding, TANA_NAMESPACE, TANA_NODE, TanaInputAPIClient, SuperTag, Node, AddToNodeRequest
 from logging import getLogger
 from ratelimit import limits, RateLimitException, sleep_and_retry
 from functools import lru_cache
@@ -10,6 +10,7 @@ import time
 from chromadb import EmbeddingFunction, Documents, Embeddings, Where
 import chromadb
 import chromadb.api.segment
+from chromadb.config import Settings
 from pathlib import Path
 import os
 import re
@@ -33,7 +34,7 @@ INBOX_QUEUE = "queue"
 db_path = os.path.join(Path.home(), '.chroma.db')
 @lru_cache() # reuse connection to chromadb to avoid connection rate limiting on parallel requests
 def get_chroma():
-  chroma_client = chromadb.PersistentClient(path=db_path)
+  chroma_client = chromadb.PersistentClient(path=db_path, settings=Settings(anonymized_telemetry=False))
 
   logger.info("Connected to chromadb")
   return chroma_client
@@ -71,13 +72,15 @@ async def chroma_upsert(request: Request, req: ChromaRequest):
 
     collection = get_collection()
 
-    metadata = {'category': TANA_NODE,
-                'supertag': req.tags,
-                'title': req.name,
+    metadata = TanaNodeMetadata(
+                category=TANA_NODE,
+                supertag=req.tags,
+                title=req.name,
                 # we put the pruned node context into the metadata
-                'text': req.context,
-                'tana_id': req.nodeId,
-              }
+                text=req.context,
+                tana_id=req.nodeId,
+                topic_id=req.nodeId,
+    )
     
     if req.context is None:
       logger.warning(f"Empty context for {req.nodeId}")
@@ -90,7 +93,7 @@ async def chroma_upsert(request: Request, req: ChromaRequest):
         embeddings=vector,
         # we only embed the name of the node (primary content of the node)
         documents=req.name,
-        metadatas=metadata
+        metadatas=metadata.model_dump(),
       )
       
     do_upsert()
@@ -108,6 +111,9 @@ def chroma_delete(req: ChromaRequest):
 
 def get_nodes_by_id(node_ids: List[str]):  
 
+  if len(node_ids) == 0:
+    return []
+  
   collection = get_collection()
 
   query_response = collection.get(ids=node_ids)
@@ -126,9 +132,9 @@ def get_nodes_by_id(node_ids: List[str]):
       
       # strip out llama_index metadata
       # TODO: figure out how to turn this whole thing into a customretriever of whole nodes
-      del metadata['_node_type']
-      del metadata['_node_content']
-      del metadata['title']
+      metadata.pop('_node_type', None)
+      metadata.pop('_node_content', None)
+      metadata.pop('title', None)
 
       content = text+'\n'
       content += '\n'.join([f'  - {key}:: {value}' for key, value in metadata.items()])

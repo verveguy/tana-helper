@@ -108,8 +108,16 @@ class MistralRequest(EmbeddingRequest):
   tags: Optional[str] = ''
   nodeId: str
 
-class MistralAsk(BaseModel):
+class LlamaindexAsk(BaseModel):
   query: str
+
+class TanaNodeMetadata(BaseModel):
+  category: str = TANA_NODE
+  title: str
+  supertag: Optional[str] = None
+  topic_id: str
+  tana_id: str
+  text: Optional[str] = None
 
 class QueueRequest(HelperRequest):
   pass

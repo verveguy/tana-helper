@@ -8,6 +8,7 @@ import os
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', '--file', help='Specify a file name', required=True)
+    parser.add_argument('-m', '--model', help='Specify a model name', required=False)
     args = parser.parse_args()
     return args
 
@@ -18,10 +19,14 @@ if __name__ == "__main__":
     if not filename:
         filename = "data/tana_dump.json"
 
-    print("Sending data to Tana Helper Mistral Preload API...")
+    model = args.model
+    if not model:
+        model = "openai"
+
+    print("Sending data to Tana Helper Preload API...")
 
     # throw Tana json export at the topic dumper API
-    url = "http://localhost:8000/llamaindex/preload"
+    url = f"http://localhost:8000/llamaindex/preload?model={model}"
 
     headers = {'Content-type': 'application/json'}
     with open(filename, 'rb') as f:
@@ -35,7 +40,7 @@ if __name__ == "__main__":
     print("Testing /llamaindex/ask endpoint ...")
 
     # query the index to test liveness
-    url = "http://localhost:8000/llamaindex/ask"
+    url = f"http://localhost:8000/llamaindex/ask?model={model}"
     question = { "query": "What do you know about Tana?"}
     print(question)
     response = requests.post(url, json=question, headers=headers)

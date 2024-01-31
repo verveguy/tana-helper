@@ -32,7 +32,7 @@ class TanaTag(BaseModel):
 
 class TanaDocument(BaseModel):
   id: str # the tana node id
-  name: Optional[str]
+  name: str
   description: Optional[str]
   tags: List[str] = []
   fields: Optional[List[TanaField]]
