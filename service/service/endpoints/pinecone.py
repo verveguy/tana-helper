@@ -32,7 +32,7 @@ def create_index_if_needed(req:PineconeRequest):
   index = None
   # Check if the index name is specified and exists in Pinecone
   if req.index and req.index not in pinecone.list_indexes():
-    fields_to_index = list(PineconeNode.__fields__.keys())
+    fields_to_index = list(PineconeNode.model_fields.keys())
 
     # Create a new index with the specified name, dimension, and metadata configuration
     # TODO: ignore metadata narrowing  - not supported on free plan anyhow

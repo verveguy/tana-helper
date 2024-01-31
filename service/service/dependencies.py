@@ -17,39 +17,40 @@ logger = getLogger()
 load_dotenv()
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8')
-    openai_api_key: str = os.getenv("OPENAI_API_KEY") or "OPENAI_API_KEY NOT SET"
-    tana_api_token: str = os.getenv("TANA_API_TOKEN") or "TANA_API_TOKEN NOT SET"
-    production: bool = False
-    logger_file: str = 'tana-handler.log'
-    template_path: str = '/tmp/tana_helper/webhooks'
-    temp_files: str = '/tmp/tana_helper/tmp'
-    export_path: str = '/tmp/tana_helper/export'
+  model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8')
+  openai_api_key: str = os.getenv("OPENAI_API_KEY") or "OPENAI_API_KEY NOT SET"
+  tana_api_token: str = os.getenv("TANA_API_TOKEN") or "TANA_API_TOKEN NOT SET"
+  production: bool = False
+  logger_file: str = 'tana-handler.log'
+  template_path: str = '/tmp/tana_helper/webhooks'
+  temp_files: str = '/tmp/tana_helper/tmp'
+  export_path: str = '/tmp/tana_helper/export'
 
 # create global settings 
 # TODO: make settings per-request context, not gobal
 settings = Settings()
 
-# Pinecone keys that are not configured
-# TODO: put them in .env?
-TANA_NAMESPACE = os.getenv("PINECONE_NAMESPACE") or "tana-namespace"
+# pinecone specific setting from .env file
+# NOTE: there's no API level config for this yet
 TANA_ENVIRONMENT = os.getenv("PINECONE_ENVIRONMENT") or "us-west4-gcp-free"
+
+TANA_NAMESPACE = "tana-namespace"
 TANA_TEXT = "tana-text"
-TANA_NODE = os.getenv("PINECONE_TYPE") or "tana-node"
-TANA_INDEX = os.getenv("PINECONE_INDEX") or "tana-helper"
+TANA_NODE = "tana-node"
+TANA_INDEX = "tana-helper"
 
 
 class CalendarRequest(BaseModel):
-    me: Optional[str] = None
-    one2one: Optional[str] = None
-    meeting: Optional[str] = None
-    person: Optional[str] = None
-    solo: Optional[bool] = None
-    calendar: Optional[str] = None
-    offset: Optional[str] = None
-    range: Optional[str] = None
-    date: Optional[str] = None
-    # model_config = ConfigDict(extra='forbid')
+  me: Optional[str] = None
+  one2one: Optional[str] = None
+  meeting: Optional[str] = None
+  person: Optional[str] = None
+  solo: Optional[bool] = None
+  calendar: Optional[str] = None
+  offset: Optional[str] = None
+  range: Optional[str] = None
+  date: Optional[str] = None
+  # model_config = ConfigDict(extra='forbid')
 
 class HelperRequest(BaseModel):
   context: str = ''
@@ -185,10 +186,10 @@ def get_chatcompletion(req:OpenAICompletion) -> dict:
   api_key = settings.openai_api_key if not req.openai else req.openai
   openai_client = OpenAI(api_key=api_key)
   completion = openai_client.chat.completions.create(
-            messages=[{ 'role': 'user', 'content': req.prompt }],
-            model=req.model, 
-            max_tokens=req.max_tokens, 
-            temperature=req.temperature)
+                  messages=[{ 'role': 'user', 'content': req.prompt }],
+                  model=req.model, 
+                  max_tokens=req.max_tokens, 
+                  temperature=req.temperature)
   
   return completion # type: ignore
 
@@ -211,15 +212,15 @@ def get_date():
 
 # helper function for timing exeuction of various calls
 class LineTimer:
-    def __init__(self, name=None):
-        self.name = " '"  + name + "'" if name else ''
+  def __init__(self, name=None):
+    self.name = " '"  + name + "'" if name else ''
 
-    def __enter__(self):
-        self.start = timeit.default_timer()
+  def __enter__(self):
+    self.start = timeit.default_timer()
 
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.took = (timeit.default_timer() - self.start) * 1000.0
-        logger.info('Code block' + self.name + ' took: ' + str(self.took) + ' ms')
+  def __exit__(self, exc_type, exc_value, traceback):
+    self.took = (timeit.default_timer() - self.start) * 1000.0
+    logger.info('Code block' + self.name + ' took: ' + str(self.took) + ' ms')
 
 
 # tana to JSON conversion. Takes Tana API payload in "native" format
