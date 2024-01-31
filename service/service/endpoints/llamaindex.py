@@ -32,6 +32,7 @@ from llama_index.llms import OpenAI
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from llama_index import VectorStoreIndex, Document, StorageContext, ServiceContext, download_loader
 from llama_index.callbacks import CallbackManager, LlamaDebugHandler
+from llama_index.indices.query.query_transform.base import DecomposeQueryTransform
 from llama_index import ServiceContext
 from llama_index.postprocessor import CohereRerank
 from llama_index.response_synthesizers import TreeSummarize
@@ -173,6 +174,9 @@ summary_tmpl = PromptTemplate(
 def llama_ask_custom_pipeline(req: LlamaindexAsk, model:str):
   '''Research a question using Llamaindex and return the top results.'''
 
+# use this to ease switching backends
+def get_vector_store():
+  return get_chroma_vector_store()
   (index, service_context, storage_context, llm) = get_index(model, observe=True)
 
   logger.info(f'Researching LLamaindex with {req.query}')
@@ -273,38 +277,42 @@ def llama_ask_custom_pipeline(req: LlamaindexAsk, model:str):
 def load_index_from_topics(topics:List[TanaDocument], model:str, observe=False):
   '''Load the topic index from the topic array directly.'''
 
-  # TODO: change this to load topic fragments with 
-  # parent nodes as discrete chunks and also do sentence level embedding
+  #parser = SentenceSplitter()
 
-  vector_store = get_vector_store()
-
-  # create a storage context in order to create a new index
-  storage_context = StorageContext.from_defaults(vector_store=vector_store)
-  logger.info("Mistral storage context ready")
-
-  # initialize the LLM
-  (service_context, llm) = get_llm()
-
-  parser = SentenceSplitter()
+  logger.info('Building llama_index nodes')
 
   index_nodes = []
   # loop through all the topics and create a Document for each
   for topic in topics:
-    metadata = {'category': TANA_NODE,
-                'supertag': ' '.join(topic.tags),
-                'title': topic.name,
-                'text': topic.content[0], # first line only
-                'tana_id': topic.id,
+    metadata = {
+      'category': TANA_NODE,
+      'supertag': ' '.join(['#' + tag for tag in topic.tags]),
+      'title': topic.name,
+      'tana_id': topic.id,
+      # text gets added below...
+      # TODO: check that this matches at the embedding layer
       }
+    
+    if topic.fields:
+      # get all the fields as metdata as well
+      fields = set([field.name for field in topic.fields])
+      for field_name in fields:
+        metadata[field_name] = ' '.join([field.value for field in topic.fields if field.name == field_name])
 
     # what other props do we need to create?
-    document = Document(id_=topic.id, text=topic.name) # type: ignore
-    document.metadata = metadata
+    # document = Document(id_=topic.id, text=topic.name) # type: ignore
+    # we only add the ffirst line and fields to the document payload
+    # anything else and we blow out the token limits (and cost a lot!)
+    text = topic.content[0][2]
+    document_node = Document(doc_id=topic.id, text=text) # first line only
+    document_node.metadata = metadata
 
     # make a note of the document in our nodes list
-    index_nodes.append(document)
+    index_nodes.append(document_node)
 
     # now iterate all the remaining topic.content and create a node for each
+    # each of these is simply a string, being the name of a tana child node
+    # but with [[]name^id]] reference syntax used for references
     # TODO: make these tana_nodes richer structurally
     # TODO: use actual tana node id here perhaps?
     previous_text_node = None
@@ -325,17 +333,30 @@ def load_index_from_topics(topics:List[TanaDocument], model:str, observe=False):
         # text gets added below...
       )
       
-      # wire up the tana_node as an index_node
-      index_tana_node = TextNode(text=tana_node)
-      # we copy all the metadata to associate this strongly with the parent document
-      # TODO: check if this is strictly required
-      index_tana_node.metadata = document.metadata
-      # reset the category since text nodes aren't actual Tana nodes (I mean, they are, but we don't link them that way)
-      index_tana_node.metadata['category'] = TANA_TEXT
-      index_tana_node.relationships[NodeRelationship.SOURCE] = RelatedNodeInfo(node_id=document.node_id)
+      # wire up the tana_node as an index_node with the text as the payload
+      if is_ref:
+        current_text_node = TextNode(text=tana_element)
+        current_text_node.metadata['tana_ref_id'] = content_id
+      else:
+        current_text_node = TextNode(id_=content_id, text=tana_element)
 
       current_text_node.metadata = content_metadata.model_dump()
 
+      # check if this is a reference node and add additional metadata
+      # TODO: backport this to chroma upsert...?
+
+      current_text_node.relationships[NodeRelationship.SOURCE] = RelatedNodeInfo(node_id=document_node.node_id)
+      # wire up next/previous
+      if previous_text_node:
+        current_text_node.relationships[NodeRelationship.PREVIOUS] = RelatedNodeInfo(node_id=previous_text_node.node_id)
+        previous_text_node.relationships[NodeRelationship.NEXT] = RelatedNodeInfo(node_id=current_text_node.node_id)
+
+      index_nodes.append(current_text_node)
+      previous_text_node = current_text_node
+
+      # TODO: do we need to split the sentences here? There's a RAG argument that it improves
+      # relevance, but it's not clear that it does. It does make the index much larger though.
+      
       # now split the sentences as make them children of the index_tana_node
       # sentences = parser.split_text(tana_node)
       # last_sentence = None
@@ -379,7 +400,7 @@ async def llama_preload(request: Request, tana_dump:TanaDump, model:str="openai"
     start_time = time.time()
     logger.info(f'DO txid={request.headers["x-request-id"]}')
 
-    result = await extract_topics(tana_dump) # type: ignore
+    result = await extract_topics(tana_dump, 'JSON') # type: ignore
     logger.info('Extracted topics from Tana dump')
 
     # save output to a temporary file
