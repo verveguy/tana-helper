@@ -14,32 +14,32 @@ import platform
 from service.dependencies import settings
 
 def get_app() -> FastAPI:
-    app = FastAPI(
-        description="Tana Helper", version="0.0.2",
-        # TODO: get servers from passed in cmd line / env var
-        servers=[
-          {"url": "https://verveguy.ngrok.app", "description": "Personal laptop"},
-        ])
-    setup_rich_logger()
-    return app
+  app = FastAPI(
+    description="Tana Helper", version="0.0.2",
+    # TODO: get servers from passed in cmd line / env var
+    servers=[
+      {"url": "https://verveguy.ngrok.app", "description": "Personal laptop"},
+    ])
+  setup_rich_logger()
+  return app
 
 app = get_app()
 
 logger = getLogger()
 
 origins = [
-    "http://localhost",
-    "https://localhost",
-    "http://app.tana.inc",
-    "https://app.tana.inc",
+  "http://localhost",
+  "https://localhost",
+  "http://app.tana.inc",
+  "https://app.tana.inc",
 ]
 
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+  CORSMiddleware,
+  allow_origins=origins,
+  allow_credentials=True,
+  allow_methods=["*"],
+  allow_headers=["*"],
 )
 
 # import our various service endpoints
@@ -48,7 +48,7 @@ app.add_middleware(
 
 plat = platform.system()
 if plat == 'Darwin':
-    app.include_router(calendar.router)
+  app.include_router(calendar.router)
 
 app.include_router(chroma.router)
 app.include_router(llamaindex.router)
@@ -69,7 +69,7 @@ app.include_router(llamaindex.router)
 # useful for debugging in the layer _prior_ to pydantic validation
 async def set_body(request: Request, body: bytes):
   async def receive():
-      return {"type": "http.request", "body": body}
+    return {"type": "http.request", "body": body}
   request._receive = receive
  
 async def get_body(request: Request) -> bytes:

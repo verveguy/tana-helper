@@ -31,22 +31,22 @@ def get_weaviate(environment:str):
 def create_schema(client):
   schema = {
     "classes": [{
-        "class": "TanaNode",
-        "description": "Tana nodes",
-        "vectorizer": "none",
-        "properties": [
-            {
-                "name": "nodeId",
-                "dataType": ["text"],
-            },
-            {
-                "name": "supertags",
-                "dataType": ["text"],
-            },
-            {
-                "name": "content",
-                "dataType": ["text"],
-            }]
+      "class": "TanaNode",
+      "description": "Tana nodes",
+      "vectorizer": "none",
+      "properties": [
+          {
+              "name": "nodeId",
+              "dataType": ["text"],
+          },
+          {
+              "name": "supertags",
+              "dataType": ["text"],
+          },
+          {
+              "name": "content",
+              "dataType": ["text"],
+          }]
     }]
   }
   #TODO: figure out how to avoid this exception. Check schema exists first?

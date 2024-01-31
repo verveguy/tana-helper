@@ -12,10 +12,10 @@ router = APIRouter()
 logger = getLogger()
 
 def extract_json_from_code_node(payload):
-   # this is a code node full of json
-    left = payload.find('```json\n')+8
-    right = payload.rfind('```\n')
-    return payload[left:right]
+  # this is a code node full of json
+  left = payload.find('```json\n')+8
+  right = payload.rfind('```\n')
+  return payload[left:right]
 
 @router.post("/jsonify", tags=["Conversions"])
 async def jsonify(req:Request, body:str=Body(...)):

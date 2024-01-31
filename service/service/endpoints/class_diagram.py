@@ -46,7 +46,7 @@ def patch_node_name(index:NodeIndex, node:NodeDump):
 
   name = node.props.name
   if name and '<span' in name:
-      name = re.sub('<span data-inlineref-node="([^"]*)"></span>', subfunc, name)
+    name = re.sub('<span data-inlineref-node="([^"]*)"></span>', subfunc, name)
   return name
 
 
