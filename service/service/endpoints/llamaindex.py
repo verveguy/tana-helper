@@ -11,7 +11,7 @@ from fastapi import APIRouter, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import HTMLResponse
 from typing import List, Dict, Any
-from pydantic import Field
+from pydantic import Field, validator
 
 # This is here to satisfy runtime import needs 
 # that pyinstaller appears to miss
@@ -38,10 +38,11 @@ from llama_index.response_synthesizers import TreeSummarize
 from llama_index.postprocessor import PrevNextNodePostprocessor, LLMRerank
 from llama_index.storage.docstore import SimpleDocumentStore
 from llama_index.query_pipeline import CustomQueryComponent, InputKeys, OutputKeys
+from llama_index.postprocessor.types import BaseNodePostprocessor
+from llama_index.vector_stores.types import BasePydanticVectorStore
 
-from llama_index.indices.vector_store.retrievers import (
-    VectorIndexAutoRetriever,
-)
+from llama_index.indices.vector_store.retrievers import VectorIndexAutoRetriever, VectorIndexRetriever
+
 from llama_index.vector_stores.types import MetadataInfo, VectorStoreInfo
 
 from snowflake import SnowflakeGenerator
@@ -52,9 +53,10 @@ from service.dependencies import (
     LlamaindexAsk,
     TanaNodeMetadata,
 )
-from service.endpoints.chroma import get_collection
+from service.endpoints.chroma import get_collection, get_tana_nodes_by_id
 
-from service.endpoints.topics import TanaDocument, extract_topics
+from service.endpoints.topics import TanaDocument, extract_topics, is_reference_content, tana_node_ids_from_text
+from service.llamaindex import DecomposeQueryWithNodeContext, WidenNodeWindowPostProcessor, create_index, get_index
 from service.tana_types import TanaDump
 
 logger = getLogger()
@@ -70,17 +72,6 @@ minutes = 1000 * 60
 # x_tana_api_token: Annotated[str | None, Header()] = None
 # x_openai_api_key: Annotated[str | None, Header()] = None
 
-
-@lru_cache() # reuse connection to chroma
-def get_chroma_vector_store():
-  chroma_collection = get_collection(ChromaStoreRequest())
-  vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
-  logger.info("Llamaindex (chroma) vector store ready")
-  return vector_store
-
-# use this to ease switching backends
-def get_vector_store():
-  return get_chroma_vector_store()
 
 # enrich our retriever with knowledge of our metadata
 def get_auto_retriever(index:VectorStoreIndex):
@@ -120,122 +111,26 @@ def get_auto_retriever(index:VectorStoreIndex):
             name="supertag",
             type="str",
             description=(
-                "One or more optional semantic tags for this Tana Notebook Node. Examples include #task, #person, #meeting, etc.\n"
-                "Use tags to enrich your understanding of a query result.\n"
-                "Do NOT use tags to query the index unless specifically asked to do so.\n"
+                "One or more optional GENERAL semantic ontology tags for this Tana Notebook Node.\n"
+                "Delimited by spaces (NOT a LIST. Do not use IN operator to test membership)\n"
+                "Example: \n"
+                "{ supertag:  #task #topic #person #meeting }\n"
+                "Do NOT use supertags to query the index. Only use supertags to enrich your understanding of the result.\n"
             ),
         ),
       ],
   )
 
-  retriever = VectorIndexAutoRetriever(
-      index, vector_store_info=vector_store_info, similarity_top_k=10
-  )
+  # THIS doesn't work at all well with GPT 2
+  # retriever = VectorIndexAutoRetriever(
+  #     index, 
+  #     vector_store_info=vector_store_info, 
+  #     similarity_top_k=10
+  # )
+
+  retriever = VectorIndexRetriever(index=index, similarity_top_k=10)
   return retriever
 
-# get the LLM 
-@lru_cache() # reuse connection to ollama
-def get_llm(model:str="openai", debug=False, observe=False):
-  if model == "openai":
-    # TODO: also allow which openAI model to be parameterized?
-    llm = OpenAI(model="gpt-4-1106-preview", request_timeout=(5 * minutes), temperature=0)
-    embed_model = OpenAIEmbedding(embed_batch_size=250)
-  else:
-    # assume the model is via ollama
-    # TODO: try catch errors here
-    llm = Ollama(model=model, request_timeout=(5 * minutes))
-    embed_model = OllamaEmbedding(model_name=model, embed_batch_size=250)
-  
-  callback_managers = []
-
-  if observe:
-    callback_managers += [OpenInferenceCallbackHandler()]
-
-  if debug:
-    llama_debug = LlamaDebugHandler(print_trace_on_end=True)
-    callback_manager = CallbackManager([llama_debug])
-  service_context = ServiceContext.from_defaults(llm=llm,
-                                                 embed_model=embed_model, # or 'local'
-                                                 callback_manager=callback_manager
-                                                )
-  logger.info("Llamaindex (openai) service context ready")
-  return service_context, llm
-
-@lru_cache() # reuse connection to llama_index
-def get_index():
-  vector_store = get_vector_store()
-  service_context, llm = get_llm(model, observe=observe)
-
-  # create a storage context to load our index from
-  storage_context = StorageContext.from_defaults(vector_store=vector_store)
-  logger.info("Llamaindex storage context ready")
-
-  # load the index from the vector store
-  index = VectorStoreIndex.from_vector_store(vector_store=vector_store, service_context=service_context) # type: ignore
-  logger.info("Connected to Llamaindex")
-  return index, service_context, vector_store, llm
-
-
-def create_index(model, observe, index_nodes):
-  vector_store = get_vector_store()
-
-  # create a storage context in order to create a new index
-  storage_context = StorageContext.from_defaults(vector_store=vector_store)
-  logger.info("Llamaindex storage context ready")
-
-  # initialize the LLM.
-  # TODO: how to allow this to be parameterized?
-  (service_context, _) = get_llm(model=model, observe=observe)
-
-  # create the index; this will embed the documents and nodes and store them in the vector store
-  #TODO: ensure we are upserting by topic id, otherwise we will have duplicates
-  # and will have to drop the index first
-  index = VectorStoreIndex(index_nodes, service_context=service_context, storage_context=storage_context)
-  return index
-
-
-class DecomposeQueryWithNodeContext(CustomQueryComponent):
-    """Rerferenced nodes component."""
-
-    llm: BaseLLM = Field(..., description="OpenAI LLM")
-
-    def _validate_component_inputs(
-        self, input: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Validate component inputs during run_component."""
-        # NOTE: this is OPTIONAL but we show you here how to do validation as an example
-        return input
-
-    @property
-    def _input_keys(self) -> set:
-        """Input keys dict."""
-        # NOTE: These are required inputs. If you have optional inputs please override
-        # `optional_input_keys_dict`
-        return {"query"}
-
-    @property
-    def _output_keys(self) -> set:
-        return {"questions"}
-
-    def _run_component(self, **kwargs) -> Dict[str, Any]:
-        """Run the component."""
-        # first get all the Tana nodes from the query context
-        tana_nodes = node_ids_from_text(kwargs["query"])
-        context = '\n'.join(get_nodes_by_id(tana_nodes))
-
-        # use QueryPipeline itself here for convenience
-        prompt_tmpl = PromptTemplate(
-          "Propose a number of research questions that would help to answer the question posed.\n"
-          "Only respond with the questions themselves. Do not add any extraneous comments.\n"
-          "Each question should be numbered and on a separate line.\n"
-          "{query}\n"
-          "Also use this initial information to help shape the research questions:\n"
-          "{nodes}\n"
-          )
-        p = QueryPipeline(chain=[prompt_tmpl, self.llm])
-        response = p.run(query=kwargs["query"], nodes=context)
-        questions = response.message.content 
-        return {"questions": questions.split('\n')}
 
 
 # TODO: migrate chroma query/ask feature over. This includes tag filtering
@@ -251,6 +146,28 @@ def llama_ask(req: LlamaindexAsk, model:str):
   return str(response)
 
 
+summary_tmpl = PromptTemplate(
+    "You are an expert Q&A system that is trusted around the world.\n"
+    "TASK\n"
+    "Summarize the following CONTEXT in order to best answer the QUERY.\n"
+    "Answer the QUERY using the provided CONTEXT information, and not prior knowledge.\n"
+    "Some rules to follow:\n"
+    "1. Avoid statements like 'Based on the context, ...' or 'The context information ...' or anything along those lines.\n"
+    "2. The CONTEXT contais references to many Tana Notebook Nodes. Nodes have both metadata and text content\n"
+    "3. Whenever your summary needs to reference Tana Notebook Nodes from the CONTEXT, use proper Tana node reference format as follows:\n"
+    "  the characters '[[' + '^' + tana_id metadata and then the characters ']]'.\n"
+    "  E.g. to reference the Tana context node titled 'Recipe for making icecream' with tana_id: xghysd76 use this format:\n"
+    "    [[^xghysd76]]\n"
+    "5. Try to avoid making many redundant references to the same Tana node in your summary. Use footnote style if you really need to do this.\n"
+    "\n"
+    "QUERY: {query_str}\n"
+    "-----\n"
+    "CONTEXT:\n"
+    "{context_str}\n"
+    "END_CONTEXT\n"
+    "-----\n"
+  )
+
 #TODO: Move model out of POST body and into query params perhaps?
 @router.post("/llamaindex/research", response_class=HTMLResponse, tags=["LlamaIndex"])
 def llama_ask_custom_pipeline(req: LlamaindexAsk, model:str):
@@ -265,33 +182,55 @@ def llama_ask_custom_pipeline(req: LlamaindexAsk, model:str):
   p1 = QueryPipeline(chain=[decompose_transform])
   questions = p1.run(query=req.query)
   
-  # for each euestion, do a fetch against Chroma to find potentially relevant nodes
-  results = []
+ 
   retriever = get_auto_retriever(index)
+  # and preprocess the result nodes to make use of next/previous
+  prevnext = WidenNodeWindowPostProcessor(storage_context=storage_context, num_nodes=5, mode="both")
+  summarizer = TreeSummarize(summary_template=summary_tmpl, service_context=service_context)
+
+  # for each question, do a fetch against Chroma to find potentially relevant nodes
+  results = []
   for question in questions:
+    if question == '':
+      continue
+
     logger.info(f'Question: {question}')
     # use our metadata aware auto-retriever to fetch from Chroma
-    nodes = retriever.retrieve(question)
-    logger.info(f'Answer:\n{nodes}')
+    q1 = QueryPipeline(chain=[retriever, prevnext])
+    nodes = q1.run(input=question)
+    # nodes = retriever.retrieve(question)
+    # logger.info(f'Nodes:\n{nodes}')
+    research = '\n'.join([node.get_content(metadata_mode=MetadataMode.LLM) for node in nodes])
+    logger.info(f'Nodes:\n{research}')
+
+    # tailor the summarizer prompt
+    sum_result = summarizer.as_query_component().run_component(nodes=nodes, query_str=question)
+    summary = sum_result['output'].response
+    logger.info(f'Summary:\n{summary}')
+
     result = {'question': question,
-              'answer': nodes}
+              'answers': nodes,
+              'summary': summary}
     results.append(result)
 
-  # now we need to preprocess the result nodes to make use of next/previous
-  # TODO: how to do this?
-  
   # now build up the context from the result nodes
   context = []
   for result in results:
     question = result['question']
-    answer = result['answer']
+    answer = result['answers']
+    summary = result['summary']
     context.append(f'QUESTION: {question}\n')
-    context.append('ANSWERS:\n')
+
+    #context.append('RESEARCH:\n')
     # TODO: instead of dumping all nodes into the primary context
     # we should prepare an answer to each question and then use that
-    node:TextNode
-    for node in answer:
-      context.append(node.get_content(metadata_mode=MetadataMode.LLM)+'\n')
+    # node:TextNode
+    # for node in answer:
+    #   context.append(node.get_content(metadata_mode=MetadataMode.LLM)+'\n')
+    
+    context.append('ANSWER:\n')
+    context.append(summary+'\n')
+
     context.append('\n')
 
   # now combine all that research 
@@ -449,8 +388,8 @@ async def llama_preload(request: Request, tana_dump:TanaDump, model:str="openai"
       logger.info(f'Saving topics to {path}')
       # use path
       with open(path, "w") as f:
-          json_result = jsonable_encoder(result)
-          f.write(json.dumps(json_result))
+        json_result = jsonable_encoder(result)
+        f.write(json.dumps(json_result))
       
       logger.info('Loading index ...')
     # don't use file anymore...

@@ -109,7 +109,7 @@ def chroma_delete(req: ChromaRequest):
   return None
 
 
-def get_nodes_by_id(node_ids: List[str]):  
+def get_tana_nodes_by_id(node_ids: List[str]):  
 
   if len(node_ids) == 0:
     return []

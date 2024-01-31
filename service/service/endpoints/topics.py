@@ -207,7 +207,7 @@ def is_reference_content(name:str) -> Tuple[bool, str]:
   return is_ref, node_id # type: ignore
 
 
-def node_ids_from_text(text:str) -> List[str]:
+def tana_node_ids_from_text(text:str) -> List[str]:
   results = re.findall(r'\[\[.*\^(\w+)\]\]', text)
   return results
 
