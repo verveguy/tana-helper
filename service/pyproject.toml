@@ -29,6 +29,7 @@ qdrant-client = "^1.7.0"
 torch = "^2.1.2"
 transformers = "^4.36.2"
 pinecone-client = "^3.0.2"
+ollama = "^0.1.5"
 
 [tool.poetry.group.dev.dependencies]
 pyinstaller = "6.2.0" # keep this old deliberately to avoid virus false positives
