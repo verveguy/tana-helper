@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from service.dependencies import settings
 from service.endpoints import (calendar, chroma, class_diagram, configure, exec_code, graph_view, 
-                 inlinerefs, jsonify, llamaindex, pinecone, proxy, topics, weaviate, webhooks)
+                 inlinerefs, jsonify, preload, proxy, research, topics, weaviate, webhooks)
 from service.logconfig import setup_rich_logger
 from snowflake import SnowflakeGenerator
 
@@ -62,7 +62,8 @@ app.include_router(configure.router)
 app.include_router(proxy.router)
 
 app.include_router(chroma.router)
-app.include_router(llamaindex.router)
+app.include_router(preload.router)
+app.include_router(research.router)
 
 app.include_router(weaviate.router)
 # TODO: uprgade pinecone code

@@ -122,7 +122,9 @@ def get_auto_retriever(index:VectorStoreIndex):
       ],
   )
 
-  # THIS doesn't work at all well with GPT 2
+  # THIS doesn't work at all well with GPT 3
+  # and only works sometimes with GPT4. Problem is that it becomes fixated on the 
+  # use of metadata to filter results, overly constraining relevance.
   # retriever = VectorIndexAutoRetriever(
   #     index, 
   #     vector_store_info=vector_store_info, 
@@ -133,17 +135,17 @@ def get_auto_retriever(index:VectorStoreIndex):
   return retriever
 
 
+@router.post("/llamaindex/ask", response_class=HTMLResponse, tags=["research"])
+def llamaindex_ask(req: LlamaindexAsk, model:str):
+  '''Ask a question of the Llamaindex and return the top results
+  '''
 
-# TODO: migrate chroma query/ask feature over. This includes tag filtering
-@router.post("/llamaindex/ask", response_class=HTMLResponse, tags=["LlamaIndex"])
-def llama_ask(req: LlamaindexAsk, model:str):
-  '''Ask a question of Llamaindex and return the top results.'''
+  (index, service_context, vector_store, llm) = get_index(model=model)
 
-  (index, service_context, storage_context, llm) = get_index(model, observe=True)
+  query_engine=index.as_query_engine(similarity_top_k=20, stream=False)
 
-  vector_store = get_vector_store()
-
-  response = index.as_query_engine().query(req.query)
+  logger.info(f'Querying LLamaindex with {req.query}')
+  response = query_engine.query(req.query)
   return str(response)
 
 
@@ -170,13 +172,9 @@ summary_tmpl = PromptTemplate(
   )
 
 #TODO: Move model out of POST body and into query params perhaps?
-@router.post("/llamaindex/research", response_class=HTMLResponse, tags=["LlamaIndex"])
+@router.post("/llamaindex/research", response_class=HTMLResponse, tags=["research"])
 def llama_ask_custom_pipeline(req: LlamaindexAsk, model:str):
   '''Research a question using Llamaindex and return the top results.'''
-
-# use this to ease switching backends
-def get_vector_store():
-  return get_chroma_vector_store()
   (index, service_context, storage_context, llm) = get_index(model, observe=True)
 
   logger.info(f'Researching LLamaindex with {req.query}')
@@ -259,255 +257,11 @@ def get_vector_store():
     "-----\n"
   )
 
-
-  # TODO: this is broken - seems a vector store is not enough
-  # and the persistent docstore isn't loading in parallel
-  # (unclear why)
-  # prevnext = PrevNextNodePostprocessor(
-  #   docstore=storage_context.docstore, 
-  #   num_nodes=5,  # number of nodes to fetch when looking forawrds or backwards
-  #   mode="both",  # can be either 'next', 'previous', or 'both'
-  # )
-
   p2 = QueryPipeline(chain=[prompt_tmpl, llm])
   response = p2.run(query=req.query, context='\n'.join(context))
   return response.message.content
 
-
-def load_index_from_topics(topics:List[TanaDocument], model:str, observe=False):
-  '''Load the topic index from the topic array directly.'''
-
-  logger.info('Building llama_index nodes')
-
-  index_nodes = []
-  # loop through all the topics and create a Document for each
-  for topic in topics:
-    metadata = {
-      'category': TANA_NODE,
-      'supertag': ' '.join(['#' + tag for tag in topic.tags]),
-      'title': topic.name,
-      'tana_id': topic.id,
-      # text gets added below...
-      # TODO: check that this matches at the embedding layer
-      }
-    
-    if topic.fields:
-      # get all the fields as metdata as well
-      fields = set([field.name for field in topic.fields])
-      for field_name in fields:
-        metadata[field_name] = ' '.join([field.value for field in topic.fields if field.name == field_name])
-
-    # what other props do we need to create?
-    # document = Document(id_=topic.id, text=topic.name) # type: ignore
-    # we only add the ffirst line and fields to the document payload
-    # anything else and we blow out the token limits (and cost a lot!)
-    text = topic.content[0][2]
-    document_node = Document(doc_id=topic.id, text=text) # first line only
-    document_node.metadata = metadata
-
-    # make a note of the document in our nodes list
-    index_nodes.append(document_node)
-
-    # now iterate all the remaining topic.content and create a node for each
-    # each of these is simply a string, being the name of a tana child node
-    # but with [[]name^id]] reference syntax used for references
-    # TODO: make these tana_nodes richer structurally
-    # TODO: use actual tana node id here perhaps?
-    previous_text_node = None
-    if len(topic.content) > 30:
-      logger.warning(f'Large topic {topic.id} with {len(topic.content)} children')
-
-    # process all the child content records...
-    for (content_id, is_ref, tana_element) in topic.content[1:]:
-    
-      content_metadata = TanaNodeMetadata(
-        category=TANA_TEXT,
-        # use the parent doc's metadata...??
-        title=topic.name,
-        topic_id=topic.id,
-        tana_id=content_id,
-        # 'doc_id': document_node.node_id,
-        # 'supertag': ' '.join(['#' + tag for tag in topic.tags]),
-        # text gets added below...
-      )
-      
-      # wire up the tana_node as an index_node with the text as the payload
-      if is_ref:
-        current_text_node = TextNode(text=tana_element)
-        current_text_node.metadata['tana_ref_id'] = content_id
-      else:
-        current_text_node = TextNode(id_=content_id, text=tana_element)
-
-      current_text_node.metadata = content_metadata.model_dump()
-
-      # check if this is a reference node and add additional metadata
-      # TODO: backport this to chroma upsert...?
-
-      current_text_node.relationships[NodeRelationship.SOURCE] = RelatedNodeInfo(node_id=document_node.node_id)
-      # wire up next/previous
-      if previous_text_node:
-        current_text_node.relationships[NodeRelationship.PREVIOUS] = RelatedNodeInfo(node_id=previous_text_node.node_id)
-        previous_text_node.relationships[NodeRelationship.NEXT] = RelatedNodeInfo(node_id=current_text_node.node_id)
-
-      index_nodes.append(current_text_node)
-      previous_text_node = current_text_node
-
-  logger.info(f'Gathered {len(index_nodes)} tana nodes')
-  logger.info("Preparing storage context")
-
-  index = create_index(model, observe, index_nodes)
-  logger.info("Llamaindex populated and ready")
-  return index
-
-
 # attempt to paralleize non-async code
 # see https://github.com/tiangolo/fastapi/discussions/6347
 lock = asyncio.Lock()
-
-# Note: accepts ?model= query param
-@router.post("/llamaindex/preload", status_code=status.HTTP_204_NO_CONTENT, tags=["LlamaIndex"])
-async def llama_preload(request: Request, tana_dump:TanaDump, model:str="openai"):
-  '''Accepts a Tana dump JSON payload and builds the Mistral index from it
-  Uses the topic extraction code from the topics endpoint to build
-  a temporary JSON file, then loads that into the index.
-  '''
-  async with lock:
-    start_time = time.time()
-    logger.info(f'DO txid={request.headers["x-request-id"]}')
-
-    result = await extract_topics(tana_dump, 'JSON') # type: ignore
-    logger.info('Extracted topics from Tana dump')
-
-    # save output to a temporary file
-    with tempfile.TemporaryDirectory() as tmp:
-      path = os.path.join(tmp, 'topics.json')
-      logger.info(f'Saving topics to {path}')
-      # use path
-      with open(path, "w") as f:
-        json_result = jsonable_encoder(result)
-        f.write(json.dumps(json_result))
-      
-      logger.info('Loading index ...')
-    # don't use file anymore...
-    # load_index_from_file(path)
-    # load directly from in-memory representation
-    load_index_from_topics(result, model=model)
-  
-    # logger.info(f'Deleted temp file {path}')
-
-    process_time = (time.time() - start_time) * 1000
-    formatted_process_time = '{0:.2f}'.format(process_time)
-    logger.info(f'DONE txid={request.headers["x-request-id"]} time={formatted_process_time}')
-    #TODO: consider returning some kind of completion confirmation payload with statidtics
-    return None
-
-
-@router.post("/llamaindex/ask", response_class=HTMLResponse, tags=["LlamaIndex"])
-def mistral_ask(req: MistralAsk):
-  '''Ask a question of the Mistral index and return the top results
-  '''
-
-  (index, service_context, vector_store, llm) = get_index()
-
-  query_engine=index.as_query_engine(similarity_top_k=20, stream=False)
-
-  logger.info(f'Querying Mistral with {req.query}')
-  response = query_engine.query(req.query)
-  return str(response)
-
-
-# @router.post("/mistral/upsert", status_code=status.HTTP_204_NO_CONTENT, tags=["Mistral"])
-# async def mistral_upsert(request: Request, req: MistralRequest):
-#   async with lock:
-#     start_time = time.time()
-#     logger.info(f'DO txid={request.headers["x-request-id"]}')
-
-#     metadata = {'category': TANA_TYPE,
-#                   'supertag': req.tags,
-#                   'title': req.name,
-#                   'text': req.context}
-    
-#     # TODO: implement qrant upsert
-#     # @sleep_and_retry
-#     # @limits(calls=5, period=10)
-#     def do_upsert():
-#       pass
-      
-#     do_upsert()
-#     process_time = (time.time() - start_time) * 1000
-#     formatted_process_time = '{0:.2f}'.format(process_time)
-#     logger.info(f'DONE txid={request.headers["x-request-id"]} time={formatted_process_time}')
-#     return None
-
-# @router.post("/mistral/delete", status_code=status.HTTP_204_NO_CONTENT, tags=["Mistral"])
-# def mistral_delete(req: MistralRequest):  
-#   index = get_mistral()
-#   index.delete(ids=[req.nodeId])
-#   return None
-
-
-# def get_tana_nodes_for_query(req: MistralRequest):  
-#   embedding = get_embedding(req)
-
-#   vector = embedding[0]['embedding']
-
-#   supertags = str(req.tags).split()
-#   tag_filter = None
-#   if len(supertags) > 0:
-#     tag_filter = {
-#       'supertag': { "$in": supertags }    
-#     }
-
-#   index = get_mistral()
-
-#   query_response = index.query(query_embeddings=vector,
-#     n_results=req.top, # type: ignore
-#     where=tag_filter
-#   )
-
-#   # the result from ChromaDB is kinda strange. Instead of an array of objects
-#   # # it's four distinct arrays of object properties. Very odd interface.
-#   best = []
-#   texts = []
-#   index = 0
-#   for node_id in query_response['ids'][0]:
-#     distance = (1.0 - query_response['distances'][0][index])
-#     metadata = query_response['metadatas'][0][index]
-#     if 'title' in metadata:
-#       first_line = metadata['title']
-#     else:
-#       first_line = metadata['text'].partition('\n')[0]
-#     if node_id != req.nodeId:
-#       logger.info(f"Found node {node_id} with score {distance}. Title is {first_line}")
-#       if distance > req.score: # type: ignore
-#         best.append(node_id)
-#         texts.append(metadata['text'])
-#     index += 1
-
-
-#   ids = ["[[^"+match+"]]" for match in best]  
-#   return ids, texts
-
-# @router.post("/mistral/query", response_class=HTMLResponse, tags=["Mistral"])
-# def mistral_query(req: MistralRequest, send_text: Optional[bool] = False):  
-#   ids, texts = get_tana_nodes_for_query(req)
-#   if len(ids) == 0:
-#     tana_result = "No sufficiently well-scored results"
-#   else:
-#     if send_text:
-#       tana_result = ''.join([str(text)+"\n" for text in texts])
-#     else:
-#       tana_result = ''.join(["- "+str(id)+"\n" for id in ids])
-#   return tana_result
-
-# @router.post("/mistral/query_text", response_class=HTMLResponse, tags=["Mistral"])
-# def mistral_query_text(req: MistralRequest):  
-#   return mistral_query(req, True)
-
-
-# @router.post("/mistral/purge", status_code=status.HTTP_204_NO_CONTENT, tags=["Mistral"])
-# def mistral_purge(req: MistralRequest):
-#   index = get_mistral()
-#   index.delete()
-#   return None
 

@@ -38,8 +38,9 @@ def run_command(script:str, args:list) -> tuple[str, str]:
     stdout, stderr = process.communicate()
     return stdout.decode('utf-8'), stderr.decode('utf-8')
   except Exception as e:
-    logger.error(f'Exception running command {script} {args}: {e}')
-  return "", "Failed to run command"
+    message = f'Exception running command {script} {args}: {e}'
+    logger.error(message)
+  return "", message
 
 def run_calendar_swift_script(payload: CalendarRequest):
   cmd = os.path.join('bin', 'getcalendar')
