@@ -59,9 +59,6 @@ lock = asyncio.Lock()
 @router.post("/chroma/upsert", status_code=status.HTTP_204_NO_CONTENT, tags=["Chroma"])
 async def chroma_upsert(request: Request, req: ChromaRequest):
   async with lock:
-    start_time = time.time()
-    logger.info(f'DO txid={request.headers["x-request-id"]}')
-    
     # we only want the direct children of the node as context
     # so we prune the context before embedding
     pruned_content = prune_reference_nodes(req.context)
@@ -97,9 +94,7 @@ async def chroma_upsert(request: Request, req: ChromaRequest):
       )
       
     do_upsert()
-    process_time = (time.time() - start_time) * 1000
-    formatted_process_time = '{0:.2f}'.format(process_time)
-    logger.info(f'DONE txid={request.headers["x-request-id"]} time={formatted_process_time}')
+
     return None
 
 @router.post("/chroma/delete", status_code=status.HTTP_204_NO_CONTENT, tags=["Chroma"])
