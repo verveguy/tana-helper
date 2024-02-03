@@ -26,7 +26,6 @@ pydantic-settings = "^2.0.3"
 pyqt6 = "^6.6.0"
 llama-index = "^0.9.36"
 qdrant-client = "^1.7.0"
-transformers = "^4.36.2"
 pinecone-client = "^3.0.2"
 ollama = "^0.1.5"
 
