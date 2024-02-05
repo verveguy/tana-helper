@@ -98,6 +98,12 @@ See the [Tana Publish page](https://tana.pub/EufhKV4ZMH/tana-helper) for more us
 
 There's also a [Tana template](https://app.tana.inc/?bundle=cVYW2gX8nY.EufhKV4ZMH) that you can load into your Tana workspace with all the Tana commands preconfigured, demo nodes, etc.
 
+## Calendar API stuff
+
+This API wraps a small service, written in Go, that helps Tana get your Calendar for the day. Provides an API you can call from Tana.
+
+The Calendar integration API features are only available on a local Mac. There's no Windows support for calendar integration. Relies on Apple's Calendar.app and associated API to fetch the calendar data. If Calendar.app is configured to synchronize calendars from iCloud, Google and/or Microsoft Office, this will see all of that data.
+
 ## Graph Visualizer!
 
 Inspired by the marketing visualization on the Tana.inc website, `tana-helper` provides a 3D visualization of your Tana workspace.
@@ -128,6 +134,18 @@ For details, see the Tana templates located at [https://app.tana.inc/?bundle=cVY
 
 See [Pinecone README](docs/README_PINECONE.md) for more details.
 
+## LLamaindex support
+
+Beyond upserting/querying a vector database, `tana-helper` now has the start of some functionality built on top of the [llamaindex](https://www.llamaindex.ai/) opensource RAG toolkit. Llamaindex allows you to build a "document index" on top of a vector database (in this case, ChromaD, so everything is stored locally). 
+
+APIs are provided for preloading your entire Tana workspace from a Tana JSON Export file, building a llamaindex for the whole workspace, as well as incrementally "updating" individual Tana notebook nodes within the index.
+
+The index can then be used to answer questions about your own Tana workspace via the `/research` endpoint. The question you pose will be transformed into a number of more specific questions which are then used as embedding queries against the llamaindex. The results of all this retrieval will then be fed to an LLM to process into a response to your original question. 
+
+Results are variable at this point: I'm hopeful that Tana themselves will build this kind of feature into the product at some point. I think the truth is that implementing RAG pipelines in code is far less flexible than having some kind of interactive "RAG chat" capability. The problem is getting it integrated with Tana and having access to your entire workspace...
+
+NOTE: for those of you digging into the code, you'll see there's some initial support for using [Ollama](https://ollama.ai/) locally to let you use LLMs and embeddings other than OpenAI. I've been pretty disappointed with other LLM's so far, which is why I'm not yet making this a more generally "finished" feature. I'm not sure it's worth it...
+
 ## Pushing nodes to inline references support
 
 This is a useful addition to Tana depending on your workflow. Basically, it lets you take notes from say, a meeting, where you've used inline refs to link the note to various concept nodes and then "push" the new note to those concept nodes rather than just relying on the backlinks UI in Tana. (Which I find very limiting and disruptive to my reading flow)
@@ -148,12 +166,8 @@ See the [Tana template](https://app.tana.inc/?bundle=cVYW2gX8nY.l7dQ2eDwJK) for 
 
 ### JSON Proxy helper
 
-Makes it easier to call external services that expect JSON. Let's you proxy requests to the external service via `tana-helper`, converting Tana nodes on the way in to JSON and converting JSON responses back to Tana nodes on the way back.
+Makes it easier to call external services that expect JSON. Lets you proxy requests to the external service via `tana-helper`, converting Tana nodes on the way in to JSON and converting JSON responses back to Tana nodes on the way back.
 
-### Calendar API stuff
-
-The Calendar API previously supported by tana-helper has been moved out to [tana-calendar-helper](https://github.com/verveguy/tana-calendar-helper).
-Why? These features are only available on a local Mac and so it was confusing to have Mac-only features in this service, which is intended to be run on a hosted server supporting team usage. It also let me rewrite the calendar helper in go for portability on different Mac architectures whereas this project is now pythonic.
 
 ## Self bootstrapping into Tana
 

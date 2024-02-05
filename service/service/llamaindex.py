@@ -112,8 +112,13 @@ def create_index(model, observe, index_nodes):
   (service_context, _) = get_llm(model=model, observe=observe)
 
   # create the index; this will embed the documents and nodes and store them in the vector store
-  #TODO: ensure we are upserting by topic id, otherwise we will have duplicates
+  # TODO: ensure we are upserting by topic id, otherwise we will have duplicates
   # and will have to drop the index first
+  # TODO: consider whether we should add documents only, and use the loader (transformation) 
+  # pipeline support to have those expanded into nodes as it goes...
+  # This appears to populate any underlying docstore at the same time.
+  # However, it's unclear how nodes get related to documents internally
+  # for the purpose of updating nodes later.
   index = VectorStoreIndex(index_nodes, service_context=service_context, storage_context=storage_context)
   return index
 
@@ -181,8 +186,6 @@ class WidenNodeWindowPostProcessor(BaseNodePostprocessor):
 
   Fetches additional nodes from the vector store,
   based on the relationships of the nodes.
-
-  NOTE: this is a beta feature.
 
   Args:
     vector_store (BaseVectorStroe): The vector store.

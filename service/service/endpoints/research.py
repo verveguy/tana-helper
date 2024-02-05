@@ -17,7 +17,7 @@ from pydantic import Field, validator
 # that pyinstaller appears to miss
 
 from llama_index.node_parser import SentenceSplitter
-from llama_index.schema import TextNode, NodeRelationship, RelatedNodeInfo, MetadataMode
+from llama_index.schema import TextNode, NodeRelationship, RelatedNodeInfo, MetadataMode, NodeWithScore
 from llama_index.callbacks import CallbackManager, LlamaDebugHandler, OpenInferenceCallbackHandler
 from llama_index.embeddings import OpenAIEmbedding, OllamaEmbedding
 from llama_index.indices.query.query_transform import HyDEQueryTransform
@@ -202,11 +202,26 @@ def llama_ask_custom_pipeline(req: LlamaindexAsk, model:str):
     nodes = q1.run(input=question)
     # nodes = retriever.retrieve(question)
     # logger.info(f'Nodes:\n{nodes}')
-    research = '\n'.join([node.get_content(metadata_mode=MetadataMode.LLM) for node in nodes])
+
+    # clean up the redudant metadata (TANA_TEXT node metadata is less useful here)
+    new_nodes = []
+    if nodes:
+      for node in nodes:
+        new_node = node
+        if node.metadata['category'] == TANA_TEXT:
+          # copy the outer NodeWithScore and the inner TextNode objects
+          new_text_node = TextNode(**node.node.dict())
+          # wipe out the metadata
+          new_text_node.metadata = {}
+          new_node = NodeWithScore(node=new_text_node, score=node.score)
+
+        new_nodes.append(new_node)
+
+    research = '\n'.join([node.get_content(metadata_mode=MetadataMode.LLM) for node in new_nodes])
     logger.info(f'Nodes:\n{research}')
 
     # tailor the summarizer prompt
-    sum_result = summarizer.as_query_component().run_component(nodes=nodes, query_str=question)
+    sum_result = summarizer.as_query_component().run_component(nodes=new_nodes, query_str=question)
     summary = sum_result['output'].response
     logger.info(f'Summary:\n{summary}')
 

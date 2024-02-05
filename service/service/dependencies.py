@@ -103,7 +103,7 @@ class ChromaRequest(EmbeddingRequest, ChromaStoreRequest):
   nodeId: str
 
 
-class MistralRequest(EmbeddingRequest):
+class LlamaRequest(EmbeddingRequest):
   score: Optional[float] = 0.80
   top: Optional[int] = 10
   tags: Optional[str] = ''
@@ -117,7 +117,7 @@ class TanaNodeMetadata(BaseModel):
   title: str
   supertag: Optional[str] = None
   topic_id: str
-  tana_id: str
+  tana_id: Optional[str] = None
   text: Optional[str] = None
 
 class QueueRequest(HelperRequest):
