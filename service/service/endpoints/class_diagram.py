@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import Optional, List
 from service.tana_types import NodeDump, TanaDump, Visualizer
@@ -15,7 +16,7 @@ class Link(BaseModel):
   target: str
   reason: str
 
-class RenderNode(BaseModel):
+class TagNode(BaseModel):
   id: str
   name: Optional[str]
   color: Optional[str] = None
@@ -23,7 +24,7 @@ class RenderNode(BaseModel):
 class DirectedGraph(BaseModel):
   directed: bool = False
   multigraph: bool = False
-  nodes: List[RenderNode] = []
+  nodes: List[TagNode] = []
   links: List[Link] = []
 
 
@@ -76,6 +77,7 @@ async def class_diagram(tana_dump:TanaDump):
 
   # strip the links down to the unique set
   candidate_pairs = set(index.master_pairs)
+
   final_pairs = set()
 
   # also remove redundant bidirectional links
@@ -104,8 +106,33 @@ async def class_diagram(tana_dump:TanaDump):
     node = index.node(node_id)
     # patch up node names
     new_name = patch_node_name(index, node)
-    render_node = RenderNode(id=node.id, name=new_name, color=node.color)
+    render_node = TagNode(id=node.id, name=new_name, color=node.color)
     graph.nodes.append(render_node)
 
   return graph
 
+
+@router.post("/mermaid_classes", response_class=HTMLResponse, tags=["Visualizer"])
+async def mermaid_classes(tana_dump:TanaDump):
+  graph = await class_diagram(tana_dump)
+  # convert graph to mermaid format class diagram
+  mermaid = \
+    "---\n" +\
+    "title: Tana Tag Diagram\n" +\
+    '---\n'
+  
+  mermaid += "classDiagram\n"
+  mermaid += "    direction RL\n"
+    
+  for node in graph.nodes:
+    if node.name:
+      mermaid += f'    class {node.id}["{node.name}"]' + ' {\n'
+      # TODO: add all fields of the tag here
+      mermaid += "    }\n"
+  
+  for link in graph.links:
+    mermaid += f'    {link.target} <|-- {link.source} \n'
+
+  mermaid += "\n"
+
+  return mermaid

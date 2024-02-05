@@ -110,6 +110,7 @@ class NodeIndex(BaseModel):
                             continue
                           if self.valid(child_id):
                             supertag = self.index[child_id]
+                            tag_node.tags.append(supertag.id)
                             # print (f'{tag_name} -> {supertag.props.name}')
                             if self.config.include_tag_tag_links:
                               self.master_pairs.append((tag_id, child_id, IS_TAG_TAG_LINK))
