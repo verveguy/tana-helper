@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from service.dependencies import settings
 from service.endpoints import (calendar, chroma, class_diagram, configure, exec_code, graph_view, 
-                 inlinerefs, jsonify, preload, proxy, research, topics, weaviate, webhooks)
+                 inlinerefs, jsonify, preload, cleanups, proxy, research, topics, weaviate, webhooks)
 from service.logconfig import setup_rich_logger
 from snowflake import SnowflakeGenerator
 
@@ -59,6 +59,7 @@ app.include_router(graph_view.router)
 app.include_router(class_diagram.router)
 app.include_router(topics.router)
 app.include_router(configure.router)
+app.include_router(cleanups.router)
 app.include_router(proxy.router)
 
 app.include_router(chroma.router)
