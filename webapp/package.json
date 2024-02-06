@@ -21,6 +21,7 @@
     "react-dom": "^18.2.0",
     "react-force-graph-2d": "^1.25.0",
     "react-force-graph-3d": "^1.23.0",
+    "react-zoom-pan-pinch": "^3.4.2",
     "web-vitals": "^3.3.2"
   },
   "scripts": {

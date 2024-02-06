@@ -22,6 +22,7 @@ import axios from 'axios';
 import { Container } from "@mui/system";
 import { useWindowSize } from "@react-hook/window-size";
 import { Mermaid } from "./Mermaid";
+import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 
 const drawerWidth = 240;
 
@@ -82,7 +83,6 @@ export default function ClassDiagramWorkspace() {
   const [upload, setUpload] = useState(false);
   const [loading, setLoading] = useState(false);
   const [width, height] = useWindowSize();
-  const fgRef = useRef();
   const [mermaidText, setMermaidText] = useState("classDiagram\n  Animal <|-- Duck\n  Animal <|-- Fish\n  Animal <|-- Zebra\n  Animal : +int age\n");
 
   const handleDrawerOpen = () => {
@@ -179,14 +179,16 @@ export default function ClassDiagramWorkspace() {
       </Drawer>
       <Main open={open}>
         <DrawerHeader />
-        <Container sx={{ display: 'flex', width: '100%', height: '100%', justifyContent: 'center' }}>
+        <Container sx={{ display: 'flex', width: '100%', height: '5000', justifyContent: 'center' }}>
           {loading
             ?
             <CircularProgress />
-            : <Mermaid diagram={mermaidText} name="mermaid"/>
-            //<div  width={width - 50 - (open ? drawerWidth : 0)}
-               //     height={height - 115}>
-            //</div>
+            :
+            <TransformWrapper>
+              <TransformComponent>
+                <Mermaid diagram={mermaidText} id="mermaid" />
+              </TransformComponent>
+            </TransformWrapper>
           }
         </Container>
       </Main>

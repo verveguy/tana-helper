@@ -3,10 +3,10 @@ import mermaid from "mermaid";
 
 export interface MermaidProps {
   diagram: string;
-  name: string;
+  id: string;
 }
 
-export const Mermaid: React.FC<MermaidProps> = ({ diagram, name }) => {
+export const Mermaid: React.FC<MermaidProps> = ({ diagram, id }) => {
   const ref = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -16,13 +16,18 @@ export const Mermaid: React.FC<MermaidProps> = ({ diagram, name }) => {
       theme: "dark",
       logLevel: 5
     });
-    mermaid.contentLoaded();
+    // mermaid.contentLoaded();
   }, []);
+
+  useEffect(() => {
+    document.getElementById(id)?.removeAttribute("data-processed");
+    mermaid.contentLoaded();
+  }, [diagram]);
 
   if (!diagram) return null;
 
   return (
-    <div className="mermaid" key={name}>
+    <div className="mermaid" id={id}>
       {diagram}
     </div>
   );
