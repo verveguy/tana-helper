@@ -1,7 +1,7 @@
 from fastapi import APIRouter, status, Request
 from fastapi.responses import HTMLResponse
 from typing import Dict, List, Optional
-from service.dependencies import TANA_INDEX, ChromaStoreRequest, TanaNodeMetadata, settings, QueueRequest, ChromaRequest, get_embedding, TANA_NAMESPACE, TANA_NODE, TanaInputAPIClient, SuperTag, Node, AddToNodeRequest
+from service.dependencies import ChromaStoreRequest, TanaNodeMetadata, settings, QueueRequest, ChromaRequest, get_embedding, TANA_NODE, TanaInputAPIClient, SuperTag, Node, AddToNodeRequest
 from logging import getLogger
 from ratelimit import limits, RateLimitException, sleep_and_retry
 from functools import lru_cache
@@ -43,7 +43,7 @@ def get_chroma():
 def get_collection():
   chroma = get_chroma()
   # use cosine rather than l2 (should test this)
-  collection = chroma.get_or_create_collection(name=TANA_INDEX, metadata={"hnsw:space": "cosine"})
+  collection = chroma.get_or_create_collection(name=settings.tana_index, metadata={"hnsw:space": "cosine"})
   return collection
 
 def get_queue_collection():

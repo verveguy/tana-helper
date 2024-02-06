@@ -14,31 +14,27 @@ from dotenv import load_dotenv
 logger = getLogger()
 
 # Load environment variables from .env file
-load_dotenv()
+# load_dotenv()
 
 class Settings(BaseSettings):
-  model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8')
-  openai_api_key: str = os.getenv("OPENAI_API_KEY") or "OPENAI_API_KEY NOT SET"
-  tana_api_token: str = os.getenv("TANA_API_TOKEN") or "TANA_API_TOKEN NOT SET"
+  model_config = SettingsConfigDict( env_file='.env', env_file_encoding='utf-8')
+  openai_api_key: str = "OPENAI_API_KEY NOT SET"
+  tana_api_token: str = "TANA_API_TOKEN NOT SET"
   production: bool = False
   logger_file: str = 'tana-handler.log'
   template_path: str = '/tmp/tana_helper/webhooks'
   temp_files: str = '/tmp/tana_helper/tmp'
   export_path: str = '/tmp/tana_helper/export'
+  tana_environment: str = "us-west4-gcp-free"
+  tana_namespace: str = "tana-namespace"
+  tana_index:str = "tana-helper"
 
 # create global settings 
 # TODO: make settings per-request context, not gobal
 settings = Settings()
 
-# pinecone specific setting from .env file
-# NOTE: there's no API level config for this yet
-TANA_ENVIRONMENT = os.getenv("PINECONE_ENVIRONMENT") or "us-west4-gcp-free"
-
-TANA_NAMESPACE = "tana-namespace"
 TANA_TEXT = "tana-text"
 TANA_NODE = "tana-node"
-TANA_INDEX = "tana-helper"
-
 
 class CalendarRequest(BaseModel):
   me: Optional[str] = None
@@ -80,8 +76,8 @@ class EmbeddingRequest(HelperRequest, OpenAIRequest):
 
 class PineconeRequest(EmbeddingRequest):
   pinecone: str
-  environment: Optional[str] = TANA_ENVIRONMENT
-  index: Optional[str] = TANA_INDEX
+  environment: Optional[str] = settings.tana_environment
+  index: Optional[str] = settings.tana_index
   score: Optional[float] = 0.80
   top: Optional[int] = 10
   tags: Optional[str] = ''
@@ -124,8 +120,8 @@ class QueueRequest(HelperRequest):
   pass
 
 class WeaviateRequest(EmbeddingRequest):
-  environment: Optional[str] = TANA_ENVIRONMENT
-  index: Optional[str] = TANA_INDEX
+  environment: Optional[str] = settings.tana_environment
+  index: Optional[str] = settings.tana_index
   score: Optional[float] = 0.80
   top: Optional[int] = 10
   tags: Optional[str] = ''

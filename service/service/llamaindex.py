@@ -32,12 +32,14 @@ from llama_index.vector_stores.utils import (
   metadata_dict_to_node,
   node_to_metadata_dict,
 )
+from service.dependencies import settings
 
 from service.endpoints.chroma import get_collection, get_tana_nodes_by_id
 from service.endpoints.topics import tana_node_ids_from_text
 
 
 logger = getLogger()
+
 
 minutes = 1000 * 60
 
@@ -60,8 +62,8 @@ openai_model = "gpt-4-1106-preview"
 def get_llm(model:str="openai", debug=False, observe=False):
   if model == "openai":
     # TODO: also allow which openAI model to be parameterized?
-    llm = OpenAI(model=openai_model, request_timeout=(5 * minutes), temperature=0)
-    embed_model = OpenAIEmbedding(embed_batch_size=250)
+    llm = OpenAI(api_key=settings.openai_api_key, model=openai_model, request_timeout=(5 * minutes), temperature=0)
+    embed_model = OpenAIEmbedding(api_key=settings.openai_api_key, embed_batch_size=250)
   else:
     # assume the model is via ollama
     # TODO: try catch errors here
