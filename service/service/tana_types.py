@@ -62,3 +62,31 @@ class TanaDump(BaseModel):
 
   visualize: Optional[Visualizer] = None
 
+
+class TanaField(BaseModel):
+  field_id: str
+  name: str
+  value_id: str
+  value: str
+  #tag_id: str = ''
+
+class TanaTag(BaseModel):
+  id: str
+  name: str
+  description: Optional[str] = None
+  color: Optional[str] = None
+
+class TanaDocument(BaseModel):
+  id: str # the tana node id
+  name: str
+  description: Optional[str]
+  tags: List[str] = []
+  fields: Optional[List[TanaField]]
+  # TODO: consider whether we should preserve more node structure here
+  content: list[tuple[str|None, bool, str]] = []
+
+
+class GraphLink(BaseModel):
+  source: str
+  target: str
+  reason: str

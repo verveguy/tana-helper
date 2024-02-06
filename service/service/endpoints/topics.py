@@ -6,67 +6,17 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 from service.dependencies import TANA_NODE, TanaNodeMetadata
 
-from service.tana_types import NodeDump, TanaDump, Visualizer
-from service.tanaparser import IS_CHILD_CONTENT_LINK, IS_TAG_LINK, NodeIndex, prune_reference_nodes
+from service.tana_types import GraphLink, NodeDump, TanaDocument, TanaDump, TanaField, TanaTag, Visualizer
+from service.tanaparser import IS_CHILD_CONTENT_LINK, IS_TAG_LINK, NodeIndex, patch_node_name, prune_reference_nodes
 
 router = APIRouter()
 
 logger = getLogger()
 
-class Link(BaseModel):
-  source: str
-  target: str
-  reason: str
-
-class TanaField(BaseModel):
-  field_id: str
-  name: str
-  value_id: str
-  value: str
-  #tag_id: str = ''
-
-class TanaTag(BaseModel):
-  id: str
-  name: str
-  description: Optional[str]
-  color: Optional[str]
-
-class TanaDocument(BaseModel):
-  id: str # the tana node id
-  name: str
-  description: Optional[str]
-  tags: List[str] = []
-  fields: Optional[List[TanaField]]
-  # TODO: consider whether we should preserve more node structure here
-  content: list[tuple[str|None, bool, str]] = []
-
 class DocumentDump(BaseModel):
   documents: List[TanaDocument] = []
   tags: List[TanaTag] = [] 
-  links: List[Link] = []
-
-
-# capture a link if both nodes are in the index
-def add_linkage(index:NodeIndex, links:List, source_id:str, target_id:str, reason="unknown"):
-  if index.valid(source_id) and index.valid(target_id):
-    link = Link(source=source_id, target=target_id, reason=reason)
-    links.append(link)
-
-# expand inline refs in node names
-def patch_node_name(index:NodeIndex, node_id:str) -> str:
-  # replace <span .. inline refs with actual node names
-  # this is to facilitate full text search of the graph
-  def subfunc(matchobj):
-    ref_id = matchobj.group(1)
-    if index.valid(ref_id):
-      frag = index.node(ref_id).props.name
-      return f'[[{frag}^{ref_id}]]'
-    return ref_id
-
-  name = index.node(node_id).props.name
-  if name and '<span' in name:
-      name = re.sub('<span data-inlineref-node="([^"]*)"></span>', subfunc, name)
-  return name
+  links: List[GraphLink] = []
 
 
 @router.post("/topics", tags=["Extractor"])

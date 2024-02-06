@@ -2,7 +2,7 @@ from fastapi import APIRouter, status, Request
 from fastapi.responses import HTMLResponse
 from typing import Optional
 import weaviate
-from service.dependencies import WeaviateRequest, get_embedding, TANA_NAMESPACE, TANA_NODE
+from service.dependencies import WeaviateRequest, get_embedding, TANA_NODE
 from logging import getLogger
 from ratelimit import limits, RateLimitException, sleep_and_retry
 from functools import lru_cache

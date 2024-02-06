@@ -2,8 +2,8 @@ from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import Optional, List
-from service.tana_types import NodeDump, TanaDump, Visualizer
-from service.tanaparser import NodeIndex
+from service.tana_types import GraphLink, NodeDump, TanaDump, TanaTag, Visualizer
+from service.tanaparser import NodeIndex, add_linkage, patch_node_name
 from logging import getLogger
 import re
 
@@ -11,45 +11,11 @@ router = APIRouter()
 
 logger = getLogger()
 
-class Link(BaseModel):
-  source: str
-  target: str
-  reason: str
-
-class TagNode(BaseModel):
-  id: str
-  name: Optional[str]
-  color: Optional[str] = None
-
-class DirectedGraph(BaseModel):
+class ClassGraph(BaseModel):
   directed: bool = False
   multigraph: bool = False
-  nodes: List[TagNode] = []
-  links: List[Link] = []
-
-
-# capture a link if both nodes are in the index
-def add_linkage(index:NodeIndex, links:List, source_id:str, target_id:str, reason="unknown"):
-  if index.valid(source_id) and index.valid(target_id):
-    link = Link(source=source_id, target=target_id, reason=reason)
-    links.append(link)
-
-# expand inline refs in node names
-def patch_node_name(index:NodeIndex, node:NodeDump):
-  # replace <span .. inline refs with actual node names
-  # this is to facilitate full text search of the graph
-  def subfunc(matchobj):
-    ref_id = matchobj.group(1)
-    if index.valid(ref_id):
-      frag = index.node(ref_id).props.name
-      return f'[[{frag}]]'
-    return ref_id
-
-  name = node.props.name
-  if name and '<span' in name:
-    name = re.sub('<span data-inlineref-node="([^"]*)"></span>', subfunc, name)
-  return name
-
+  nodes: List[TanaTag] = []
+  links: List[GraphLink] = []
 
 @router.post("/class_diagram", tags=["Visualizer"])
 async def class_diagram(tana_dump:TanaDump):
@@ -89,7 +55,7 @@ async def class_diagram(tana_dump:TanaDump):
     add_linkage(index, links, pair[0], pair[1], pair[2])
 
   # build the return structure...
-  graph = DirectedGraph()
+  graph = ClassGraph()
 
   count = 0
   node_ids = []
@@ -105,8 +71,8 @@ async def class_diagram(tana_dump:TanaDump):
   for node_id in node_ids:
     node = index.node(node_id)
     # patch up node names
-    new_name = patch_node_name(index, node)
-    render_node = TagNode(id=node.id, name=new_name, color=node.color)
+    new_name = patch_node_name(index, node_id)
+    render_node = TanaTag(id=node.id, name=new_name, color=node.color)
     graph.nodes.append(render_node)
 
   return graph

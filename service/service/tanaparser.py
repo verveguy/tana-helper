@@ -1,7 +1,7 @@
 import re
 from pydantic import BaseModel
 from typing import List
-from service.tana_types import NodeDump, TanaDump, Visualizer
+from service.tana_types import GraphLink, NodeDump, TanaDump, Visualizer
 from itertools import combinations
 from logging import getLogger
 
@@ -312,3 +312,27 @@ def prune_reference_nodes(context:str) -> str:
       result += line + '\n'
 
   return result
+
+
+# expand inline refs in node names
+def patch_node_name(index:NodeIndex, node_id:str) -> str:
+  # replace <span .. inline refs with actual node names
+  # this is to facilitate full text search of the graph
+  def subfunc(matchobj):
+    ref_id = matchobj.group(1)
+    if index.valid(ref_id):
+      frag = index.node(ref_id).props.name
+      return f'[[{frag}^{ref_id}]]'
+    return ref_id
+
+  name = index.node(node_id).props.name
+  if name and '<span' in name:
+      name = re.sub('<span data-inlineref-node="([^"]*)"></span>', subfunc, name)
+  return name
+
+
+# capture a link if both nodes are in the index
+def add_linkage(index:NodeIndex, links:List, source_id:str, target_id:str, reason="unknown"):
+  if index.valid(source_id) and index.valid(target_id):
+    link = GraphLink(source=source_id, target=target_id, reason=reason)
+    links.append(link)

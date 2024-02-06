@@ -1,19 +1,14 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import Optional, List
-from service.tana_types import NodeDump, TanaDump, Visualizer
-from service.tanaparser import NodeIndex
+from service.tana_types import GraphLink, NodeDump, TanaDump, Visualizer
+from service.tanaparser import NodeIndex, add_linkage, patch_node_name
 from logging import getLogger
 import re
 
 router = APIRouter()
 
 logger = getLogger()
-
-class Link(BaseModel):
-  source: str
-  target: str
-  reason: str
 
 class RenderNode(BaseModel):
   id: str
@@ -24,30 +19,7 @@ class DirectedGraph(BaseModel):
   directed: bool = False
   multigraph: bool = False
   nodes: List[RenderNode] = []
-  links: List[Link] = []
-
-
-# capture a link if both nodes are in the index
-def add_linkage(index:NodeIndex, links:List, source_id:str, target_id:str, reason="unknown"):
-  if index.valid(source_id) and index.valid(target_id):
-    link = Link(source=source_id, target=target_id, reason=reason)
-    links.append(link)
-
-# expand inline refs in node names
-def patch_node_name(index:NodeIndex, node:NodeDump):
-  # replace <span .. inline refs with actual node names
-  # this is to facilitate full text search of the graph
-  def subfunc(matchobj):
-    ref_id = matchobj.group(1)
-    if index.valid(ref_id):
-      frag = index.node(ref_id).props.name
-      return f'[[{frag}]]'
-    return ref_id
-
-  name = node.props.name
-  if name and '<span' in name:
-    name = re.sub('<span data-inlineref-node="([^"]*)"></span>', subfunc, name)
-  return name
+  links: List[GraphLink] = []
 
 
 @router.post("/graph", tags=["Visualizer"])
@@ -100,7 +72,7 @@ async def graph(tana_dump:TanaDump):
   for node_id in node_ids:
     node = index.node(node_id)
     # patch up node names
-    new_name = patch_node_name(index, node)
+    new_name = patch_node_name(index, node_id)
     render_node = RenderNode(id=node.id, name=new_name, color=node.color)
     graph.nodes.append(render_node)
 
