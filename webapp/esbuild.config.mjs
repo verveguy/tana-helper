@@ -5,13 +5,14 @@ const res = await build({
   entryPoints: ['src/Graph.tsx', 'src/Configure.tsx', 'src/ClassDiagram.tsx'],
   platform: 'browser',
   bundle: true,
-  minify: true,
-  format: 'cjs',
+  // minify: true,
+  minify: false,
+  format: 'iife',
   write: true,
   sourcemap: true,
   outdir: './dist',
   jsx: 'automatic',
-  // jsxDev: true,
+  jsxDev: true,
   // external: ['react', 'react-dom'],
   plugins: [
     copy({
