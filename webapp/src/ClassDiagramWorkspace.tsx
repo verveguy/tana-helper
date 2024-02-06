@@ -179,7 +179,7 @@ export default function ClassDiagramWorkspace() {
       </Drawer>
       <Main open={open}>
         <DrawerHeader />
-        <Container sx={{ display: 'flex', width: '100%', height: '100%', justifyContent: 'center', backgroundColor: 'white' }}>
+        <Container sx={{ display: 'flex', width: '100%', height: '100%', justifyContent: 'center' }}>
           {loading
             ?
             <CircularProgress />

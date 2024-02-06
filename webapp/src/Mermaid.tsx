@@ -13,20 +13,17 @@ export const Mermaid: React.FC<MermaidProps> = ({ diagram, name }) => {
     mermaid.initialize({
       startOnLoad: true,
       securityLevel: "loose",
-      theme: "forest",
+      theme: "dark",
       logLevel: 5
     });
     mermaid.contentLoaded();
   }, []);
 
   if (!diagram) return null;
-  
+
   return (
-    <div>
-      <h2>This is it</h2>
-      <div className="mermaid" key={name}>
-        {diagram}
-      </div>
+    <div className="mermaid" key={name}>
+      {diagram}
     </div>
   );
 };
