@@ -14,6 +14,7 @@ logger = getLogger()
 
 @router.post("/cleanup_call_summary", response_class=HTMLResponse, tags=["Cleanup"])
 async def cleanup_call_summary(req:Request, body:str=Body(...)):
+  """Cleanup a Krisp call summary after cut/paste into Tana"""
   tana_format = bytes(body, "utf-8").decode("unicode_escape")
 
   output = ""
