@@ -187,7 +187,7 @@ export default function ClassDiagramWorkspace() {
             :
             // <TransformWrapper>
             //   <TransformComponent>
-                <Mermaid diagram={mermaidText} id="mermaid" style={{width:'100%', height:'100%', backgroundColor:'blue'}}/>
+                <Mermaid diagram={mermaidText} id="mermaid" style={{width:'100%', height:'100%'}}/>
             //   </TransformComponent>
             // </TransformWrapper>
           }
