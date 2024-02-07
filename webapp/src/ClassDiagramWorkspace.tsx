@@ -23,6 +23,7 @@ import { Container } from "@mui/system";
 import { useWindowSize } from "@react-hook/window-size";
 import { Mermaid } from "./Mermaid";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
+import './ClassDiagram.css';
 
 const drawerWidth = 240;
 
@@ -179,19 +180,20 @@ export default function ClassDiagramWorkspace() {
       </Drawer>
       <Main open={open}>
         <DrawerHeader />
-        <Container sx={{ display: 'flex', width: '100%', height: '5000', justifyContent: 'center' }}>
+        <Container sx={{ display: 'flex', width: '100%', height: '100%', justifyContent: 'center' }}>
           {loading
             ?
             <CircularProgress />
             :
-            <TransformWrapper>
-              <TransformComponent>
-                <Mermaid diagram={mermaidText} id="mermaid" />
-              </TransformComponent>
-            </TransformWrapper>
+            // <TransformWrapper>
+            //   <TransformComponent>
+                <Mermaid diagram={mermaidText} id="mermaid" style={{width:'100%', height:'100%', backgroundColor:'blue'}}/>
+            //   </TransformComponent>
+            // </TransformWrapper>
           }
         </Container>
       </Main>
     </Box>
   );
 }
+

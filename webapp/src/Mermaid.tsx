@@ -4,9 +4,10 @@ import mermaid from "mermaid";
 export interface MermaidProps {
   diagram: string;
   id: string;
+  style?: {};
 }
 
-export const Mermaid: React.FC<MermaidProps> = ({ diagram, id }) => {
+export const Mermaid: React.FC<MermaidProps> = ({ diagram, id, style }) => {
   const ref = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -27,7 +28,7 @@ export const Mermaid: React.FC<MermaidProps> = ({ diagram, id }) => {
   if (!diagram) return null;
 
   return (
-    <div className="mermaid" id={id}>
+    <div className="mermaid" id={id} style={style} >
       {diagram}
     </div>
   );
