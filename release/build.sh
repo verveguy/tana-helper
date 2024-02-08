@@ -20,7 +20,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 
     OS_VERSION=$(sw_vers -productVersion | awk -F '.' '{print $1 "." $2}')
     ARCH=$(uname -m)
-    NAME="Tana Helper ($OS_VERSION-$ARCH)"
+    NAME="TanaHelper-($OS_VERSION-$ARCH)"
     
     mkdir -p "dist/$NAME.app"
     ditto '../service/dist/Tana Helper.app' "dist/$NAME.app"
@@ -28,7 +28,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 elif [[ "$OSTYPE" == "msys"* ]]; then
     OS_VERSION="11"
     ARCH="win"
-    NAME="Tana Helper ($OS_VERSION-$ARCH)"
+    NAME="TanaHelper-($OS_VERSION-$ARCH)"
     mkdir -p "dist"
     powershell Compress-Archive ../service/dist/tanahelper/ "dist/TanaHelper-11-win.zip"
     echo "Windows .zip done"

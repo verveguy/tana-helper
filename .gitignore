@@ -122,3 +122,4 @@ release/universal/builds
 release/builds
 service/data
 service/pkgtree
+release/notarization_report.json

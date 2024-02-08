@@ -13,7 +13,7 @@ from PyInstaller.utils.hooks import collect_submodules
 from PyInstaller.utils.hooks import collect_all
 from PyInstaller.utils.hooks import copy_metadata
 
-title = 'Tana Helper'
+title = 'TanaHelper'
 name = 'tanahelper'
 
 start_datas = []
