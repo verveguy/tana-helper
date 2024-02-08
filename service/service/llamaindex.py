@@ -54,7 +54,7 @@ def get_chroma_vector_store():
 def get_vector_store():
   return get_chroma_vector_store()
 
-
+#TODO: move this into settings
 openai_model = "gpt-4-1106-preview"
 
 # get the LLM 
