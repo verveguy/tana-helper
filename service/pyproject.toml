@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "tana-helper"
-version = "0.2.0"
+version = "0.1.1"
 description = "Small helper service for Tana to add various extensions via MakeAPI calls"
 authors = ["verveguy <bpjadam@gmail.com>"]
 license = "MIT"
@@ -24,7 +24,10 @@ chromadb = "^0.4.15"
 weaviate-client = "^3.25.1"
 pydantic-settings = "^2.0.3"
 pyqt6 = "^6.6.0"
+llama-index = "^0.9.36"
+qdrant-client = "^1.7.0"
 pinecone-client = "^3.0.2"
+ollama = "^0.1.5"
 
 [tool.poetry.group.dev.dependencies]
 pyinstaller = "6.2.0" # keep this old deliberately to avoid virus false positives
