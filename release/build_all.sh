@@ -27,6 +27,10 @@ trap error ERR
 
 start=$(date +%s)
 
+# load .env file
+set -a
+source .env
+set +a
 
 NAME='TanaHelper'
 BASE="dist/dmg/$NAME.app"
@@ -241,7 +245,10 @@ echo_blue "Completed Universal .app build"
 
 # Codesign the resulting app bundle
 echo_blue "Codesigning the resulting .app bundle"
-codesign --sign "Developer ID Application: Brett Adam (264JVTH455)" "$BASE" --force
+codesign --deep --force --options=runtime --entitlements ./entitlements.plist --sign "AF8D80217A4FEB07B4D853648FD1790FCE81FB9F" --timestamp "$BASE"
+
+echo_blue "Verifying deep codesigning of .app bundle"
+codesign --verbose=4 --display --deep --strict "$BASE"
 
 # Create the DMG.
 echo_blue "Creating DMG for distribution"
@@ -257,7 +264,21 @@ create-dmg \
   "dist/$NAME.dmg" \
   "dist/dmg/"
 
-echo_blue "Mac DMG built"
+echo_blue "Codesigning the .dmg"
+
+codesign --verbose --deep --force --options=runtime --entitlements ./entitlements.plist --sign "AF8D80217A4FEB07B4D853648FD1790FCE81FB9F" --timestamp "dist/$NAME.dmg"
+
+echo_blue "Notarizing the .dmg"
+python notarize.py "dist/$NAME.dmg"
+
+echo_blue "Verifying deep codesigning of .dmg"
+codesign --verbose=4 --display --deep --strict "dist/$NAME.dmg"
+
+echo_blue "spctl assess .app bundle"
+spctl --assess --verbose "$BASE"
+
+# ALL DONE
+echo_blue "Mac DMG built, signed, notarized and verified"
 echo ""
 
 # and wait for the Windows build if it's still not done
