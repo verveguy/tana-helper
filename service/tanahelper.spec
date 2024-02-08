@@ -40,6 +40,7 @@ if plat == 'Windows':
     start_datas += [('.venv/lib/site-packages/llama_index/VERSION', 'llama_index/')]
 else:
     start_datas += [('.venv/lib/python3.11/site-packages/llama_index/VERSION', 'llama_index/')]
+    start_datas += [('.venv/lib/python3.11/site-packages/llama_index/_static', 'llama_index/_static')]
 
 for coll in ['transformers', 'chromadb']:
     stuff = collect_all(coll)
