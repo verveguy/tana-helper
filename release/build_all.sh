@@ -36,12 +36,12 @@ NAME='TanaHelper'
 BASE="dist/dmg/$NAME.app"
 
 # set up the names of the two builds
-# pattern is (OS_REV-ARCH).app 
+# pattern is TanaHelper-OS_REV-ARCH.app 
 # where OS_REV is the OS version and ARCH is the architecture
 # of the build machine
-ARM64_NAME="$NAME-(12.6-arm64).app"
+ARM64_NAME="$NAME-12.6-arm64.app"
 ARM64="builds/$ARM64_NAME"
-X86_64_NAME="$NAME-(12.7-x86_64).app"
+X86_64_NAME="$NAME-12.7-x86_64.app"
 X86_64="builds/$X86_64_NAME"
 
 
