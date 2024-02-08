@@ -30,6 +30,6 @@ elif [[ "$OSTYPE" == "msys"* ]]; then
     ARCH="win"
     NAME="TanaHelper-$OS_VERSION-$ARCH"
     mkdir -p "dist"
-    powershell Compress-Archive ../service/dist/tanahelper/ "$NAME.zip"
+    powershell Compress-Archive ../service/dist/tanahelper/ "dist/$NAME.zip"
     echo "Windows .zip done"
 fi
