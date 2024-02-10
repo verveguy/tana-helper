@@ -26,12 +26,12 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     ditto '../service/dist/TanaHelper.app' "dist/$NAME.app"
     ditto '../service/dist/TanaHelperService.app' "dist/$NAME.app"
     echo "Mac .app bundles done"
-    
+
 elif [[ "$OSTYPE" == "msys"* ]]; then
     OS_VERSION="11"
     ARCH="win"
     NAME="TanaHelper-$OS_VERSION-$ARCH"
     mkdir -p "dist"
-    powershell Compress-Archive ../service/dist/tanahelper/ "dist/$NAME.zip"
+    powershell Compress-Archive ../service/dist/tanahelpermenu/ "dist/$NAME.zip"
     echo "Windows .zip done"
 fi
