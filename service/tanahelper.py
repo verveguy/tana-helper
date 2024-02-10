@@ -24,7 +24,10 @@ def start_service():
     # which OS are we on?
     plat = platform.system()
     if plat == 'Darwin':
-        cmd = os.path.join(basedir, '..', 'MacOS', 'tanahelperservice')
+        cmd = os.path.join(basedir, '..', 'MacOS', 
+                           'TanaHelperService.app', 
+                           'Contents', 'MacOS', 
+                           'tanahelperservice')
         pid = subprocess.Popen(['/usr/bin/open', '-W', cmd]).pid
     elif plat == 'Windows':
         cmd = os.path.join(basedir, '..', 'tanahelperservice.exe')
