@@ -33,7 +33,6 @@ source .env
 set +a
 
 NAME='TanaHelper'
-BASE="dist/dmg/$NAME.app"
 
 # set up the names of the two builds
 # pattern is TanaHelper-OS_REV-ARCH.app 
@@ -235,20 +234,44 @@ lipo_files () {
   nest=$oldnest
 }
 
+# BUILD Mac Service.app first
 # use arm64 build as our "primary" and recurse that structure
+BASE="dist/dmg/$NAMEService.app"
 lipo_files "$ARM64" "Contents" "" > builds/lipo.log 2>&1 &
 lipopid=$!
 
 # show process spinner
 waitalljobs $lipopid
-echo_blue "Completed Universal .app build"
+echo_blue "Completed Universal Service.app build"
 
 # Codesign the resulting app bundle
+echo_blue "Codesigning the resulting Service.app bundle"
+codesign --deep --force --options=runtime --entitlements ./entitlements.plist --sign "AF8D80217A4FEB07B4D853648FD1790FCE81FB9F" --timestamp "$BASE"
+
+echo_blue "Verifying deep codesigning of Service.app bundle"
+codesign --verbose=4 --display --deep --strict "$BASE"
+
+# BUild Mac Helper.app next
+# use arm64 build as our "primary" and recurse that structure
+BASE="dist/dmg/$NAME.app"
+lipo_files "$ARM64" "Contents" "" > builds/lipo.log 2>&1 &
+lipopid=$!
+
+# show process spinner
+waitalljobs $lipopid
+echo_blue "Completed Universal Helper.app build"
+
+# Place Service.app inside Helper.app package
+echo_blue "Placing Service.app inside Helper.app package"
+ditto "dist/dmg/$NAMEService.app" "dist/dmg/$NAME.app/Contents/MacOS/$NAMEService.app"
+
+# Codesign the resulting combined app bundle
 echo_blue "Codesigning the resulting .app bundle"
 codesign --deep --force --options=runtime --entitlements ./entitlements.plist --sign "AF8D80217A4FEB07B4D853648FD1790FCE81FB9F" --timestamp "$BASE"
 
 echo_blue "Verifying deep codesigning of .app bundle"
 codesign --verbose=4 --display --deep --strict "$BASE"
+
 
 # Create the DMG.
 echo_blue "Creating DMG for distribution"

@@ -24,7 +24,9 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     
     mkdir -p "dist/$NAME.app"
     ditto '../service/dist/TanaHelper.app' "dist/$NAME.app"
-    echo "Mac .app bundle done"
+    ditto '../service/dist/TanaHelperService.app' "dist/$NAME.app"
+    echo "Mac .app bundles done"
+    
 elif [[ "$OSTYPE" == "msys"* ]]; then
     OS_VERSION="11"
     ARCH="win"
