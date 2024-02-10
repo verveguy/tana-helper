@@ -236,7 +236,7 @@ lipo_files () {
 
 # BUILD Mac Service.app first
 # use arm64 build as our "primary" and recurse that structure
-BASE="dist/dmg/$NAMEService.app"
+BASE="dist/dmg/${NAME}Service.app"
 lipo_files "$ARM64" "Contents" "" > builds/lipo.log 2>&1 &
 lipopid=$!
 
