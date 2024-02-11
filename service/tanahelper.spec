@@ -78,7 +78,7 @@ service_exe = EXE(
     service_a.scripts,
     [],
     exclude_binaries=True,
-    name='start',
+    name=service_name,
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
