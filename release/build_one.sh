@@ -44,10 +44,6 @@ ARM64="builds/$ARM64_NAME"
 SVCARM64_NAME="$SVCNAME-12.6-arm64.app"
 SVCARM64="builds/$SVCARM64_NAME"
 
-X86_64_NAME="$NAME-12.7-x86_64.app"
-X86_64="builds/$X86_64_NAME"
-SVCX86_64_NAME="$SVCNAME-12.7-x86_64.app"
-SVCX86_64="builds/$SVCX86_64_NAME"
 
 # ANSI color codes
 BLUE='\033[0;34m'
@@ -126,11 +122,11 @@ rm -rf builds
 rm -rf dist
 mkdir -p builds
 
-echo_blue "Updating remote git repos"
+# echo_blue "Updating remote git repos"
 
-git push Monterey-x86
 git push Monterey-arm
-git push windows-x86
+# git push Monterey-x86
+# git push windows-x86
 
 echo_blue "Starting parallel builds"
 
@@ -166,16 +162,17 @@ remote_build() {
 
 # Parallelize building the three architectures
 
-remote_build "Monterey-x86" "x86_64" &
-pid1=$!
 remote_build "Monterey-arm" "arm64" &
-pid2=$!
-remote_build "windows-x86" "win" &
-winpid=$!
+pid1=$!
+# remote_build "Monterey-x86" "x86_64" &
+# pid2=$!
+# remote_build "windows-x86" "win" &
+# winpid=$!
 
 # wait for all builds to complete
 # wait_for_process_completion $pid1 $pid2 #$pid3
-waitalljobs $pid1 $pid2 $winpid
+# waitalljobs $pid1 $pid2 $winpid
+waitalljobs $pid1 
 
 # Mac specific build of Universal bindary
 
@@ -243,12 +240,15 @@ lipo_files () {
 # use arm64 build as our "primary" and recurse that structure
 BASE="dist/dmg/${SVCNAME}.app"
 SOURCE1="$SVCARM64"
-SOURCE2="$SVCX86_64"
-lipo_files "$SVCARM64" "Contents" "" > builds/lipo.log 2>&1 &
-lipopid=$!
+# SOURCE2="$SVCX86_64"
+# lipo_files "$SVCARM64" "Contents" "" > builds/lipo.log 2>&1 &
+# lipopid=$!
+
+# copy rather than lipo
+ditto "$SOURCE1" "$BASE"
 
 # show process spinner
-waitalljobs $lipopid
+# waitalljobs $lipopid
 echo_blue "Completed Universal Service.app build"
 
 # Codesign the resulting app bundle
@@ -262,12 +262,14 @@ codesign --verbose=4 --display --deep --strict "$BASE"
 # use arm64 build as our "primary" and recurse that structure
 BASE="dist/dmg/${NAME}.app"
 SOURCE1="$ARM64"
-SOURCE2="$X86_64"
-lipo_files "$ARM64" "Contents" "" > builds/lipo.log 2>&1 &
-lipopid=$!
+# SOURCE2="$X86_64"
+# lipo_files "$ARM64" "Contents" "" > builds/lipo.log 2>&1 &
+# lipopid=$!
+
+ditto "$SOURCE1" "$BASE"
 
 # show process spinner
-waitalljobs $lipopid
+# waitalljobs $lipopid
 echo_blue "Completed Universal Helper.app build"
 
 # Place Service.app inside Helper.app package
