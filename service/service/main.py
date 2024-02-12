@@ -16,10 +16,11 @@ from snowflake import SnowflakeGenerator
 
 def get_app() -> FastAPI:
   app = FastAPI(
-    description="Tana Helper", version="0.0.2",
+    description="Tana Helper", version="0.2.0",
     # TODO: get servers from passed in cmd line / env var
     servers=[
-      {"url": "https://verveguy.ngrok.app", "description": "Personal laptop"},
+      {"url": "http://localhost:8000", "description": "Local loopback"},
+      {"url": "https://verveguy.ngrok.app", "description": "ngrok test"},
     ])
   setup_rich_logger()
   return app
@@ -120,23 +121,16 @@ async def log_entry_exit(request: Request, call_next):
   return response
 
 
-@app.get("/usage", response_class=HTMLResponse)
-async def usage():
-  return """<html>
-  Tana-helper service is running.
-  See the Tana Template at <a href="https://app.tana.inc/?bundle=cVYW2gX8nY.G3v4049e-A">https://app.tana.inc/?bundle=cVYW2gX8nY.G3v4049e-A</a>
-  </html>
-  """
-
 # fiddle with the CWD to satsify double-clickable .app
 # context
 basedir = os.path.dirname(__file__)
-logger.info(f"Install dir = {basedir}")
+#logger.info(f"Install dir = {basedir}")
 cwd = os.getcwd()
-logger.info(f"Current working dir = {cwd}")
+#logger.info(f"Current working dir = {cwd}")
 os.chdir(basedir)
 cwd = os.getcwd()
-logger.info(f"Setting cwd = {cwd}")
+#logger.info(f"Setting cwd = {cwd}")
+
 
 app.mount("/static", StaticFiles(directory="dist"), name="static")
 
@@ -148,6 +142,7 @@ async def favicon():
 
 
 @app.get("/", response_class=HTMLResponse, tags=["Usage"])
+@app.get("/usage", response_class=HTMLResponse, tags=["Usage"])
 async def root():
   return """
 <div>
@@ -163,9 +158,10 @@ There's also a <a href="https://app.tana.inc/?bundle=cVYW2gX8nY.EufhKV4ZMH">Tana
 
 <h2>UI Apps</h2>
 <ul>
-<li><a href="/redoc">Tana Helper API Documentation</a></li>
-<li><a href="/ui/graph">Workspace Visualizer</a></li>
-<li><a href="/ui/classdiagram">Tana Tag Hierarchy Diagram</a></li>
+<li><a href="/redoc">Tana Helper API documentation</a></li>
+<li><a href="/doc">Tana Helper API test bench</a></li>
+<li><a href="/ui/graph">Workspace visualizer</a></li>
+<li><a href="/ui/classdiagram">Tana tag hierarchy diagram</a></li>
 </ul>
 </p>
 </div>
@@ -191,3 +187,9 @@ async def app_ui(app_file:str):
 
 </html>
   """
+
+
+
+# TODO: find out the actual configured port at runtime
+logger.info("Tana Helper running on port 8000")
+logger.info("Try opening http://localhost:8000/")

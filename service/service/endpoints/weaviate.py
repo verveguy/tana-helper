@@ -75,7 +75,7 @@ def find_by_node_id(client, node_id):
 # see https://github.com/tiangolo/fastapi/discussions/6347
 lock = asyncio.Lock()
 
-@router.post("/weaviate/upsert", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/weaviate/upsert", status_code=status.HTTP_204_NO_CONTENT, tags = ['Weaviate'])
 async def weaviate_upsert(request: Request, req: WeaviateRequest):
   async with lock:
     start_time = time.time()
@@ -118,7 +118,7 @@ async def weaviate_upsert(request: Request, req: WeaviateRequest):
     logger.info(f'DONE txid={request.headers["x-request-id"]} time={formatted_process_time}')
     return None
 
-@router.post("/weaviate/delete", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/weaviate/delete", status_code=status.HTTP_204_NO_CONTENT, tags = ['Weaviate'])
 def weaviate_delete(req: WeaviateRequest):  
   client = get_weaviate(req.environment)
   nodes = find_by_node_id(client, req.nodeId)
@@ -170,7 +170,7 @@ def get_tana_nodes_for_query(req: WeaviateRequest, send_text: Optional[bool] = F
     docs = [ {'sources': '[[^'+match['nodeId']+']]', 'answer': match['content']} for match in best]
     return docs
 
-@router.post("/weaviate/query", response_class=HTMLResponse)
+@router.post("/weaviate/query", response_class=HTMLResponse, tags = ['Weaviate'])
 def weaviate_query(req: WeaviateRequest, send_text: Optional[bool] = False):  
   ids = get_tana_nodes_for_query(req)
   if len(ids) == 0:
@@ -180,7 +180,7 @@ def weaviate_query(req: WeaviateRequest, send_text: Optional[bool] = False):
   return tana_result
 
 
-@router.post("/weaviate/purge", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/weaviate/purge", status_code=status.HTTP_204_NO_CONTENT, tags = ['Weaviate'])
 def weaviate_purge(req: WeaviateRequest):
   client = get_weaviate(req.environment)
   client.schema.delete_class("TanaNode")
