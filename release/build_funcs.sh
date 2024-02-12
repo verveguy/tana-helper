@@ -181,6 +181,10 @@ codesign_app() {
   codesign --verbose=4 --display --deep --strict "$BASE"
 }
 
+
+# TODO: Figure out how to use codesign and notarize options of create-dmg
+# to avoid having to do this in two steps and with external notarize.py script
+
 create_dmg() {
   local NAME=$1
 
@@ -194,8 +198,14 @@ create_dmg() {
     --icon "$NAME.app" 175 120 \
     --hide-extension "$NAME.app" \
     --app-drop-link 425 120 \
+    --no-internet-enable \
     "dist/$NAME.dmg" \
     "dist/dmg/"
+
+    # --codesign <signature>
+    #   codesign the disk image with the specified signature
+    # --notarize <credentials>
+    #   notarize the disk image (waits and staples) with the keychain stored credentials
 }
 
 notarize_dmg() {
@@ -210,5 +220,5 @@ assess() {
 
   # Verify the .app bundle
   echo_blue "spctl assess $BASE"
-  spctl --assess --verbose "$BASE"
+  spctl --ignore-cache --assess --verbose "$BASE"
 }

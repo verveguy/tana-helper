@@ -32,3 +32,19 @@ Build all the remotes and merge the outputs using `build_all.sh`
 Note that the local machine is NOT assumed to be a build machine since the use-case
 for multi-arch builds is typically to use an older MacOS as the base OS 
 
+## Build problems
+
+Operation not permitted during create_dmg phase: Terminal and VSCode need "Allow full filesystem access" permission. (via system settings app)
+
+# TODO
+Looks like notarization may still cause some pain. 
+Currently, we build the DMG and then notarize that, expecting that the whole thing will be notarized properly
+However, the ticket we get back is only stapled to the DMG. 
+
+We may need to staple it to the .app bundles inside the DMG as well.
+(So they can be copied off the DMG and then run)
+
+See this [blog posting on notarization](https://deciphertools.com/blog/notarizing-dmg/)
+
+Check this with 
+`xcrun stapler validate`
