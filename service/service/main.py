@@ -120,7 +120,6 @@ async def log_entry_exit(request: Request, call_next):
   return response
 
 
-@app.get("/", response_class=HTMLResponse, tags=["Usage"])
 @app.get("/usage", response_class=HTMLResponse)
 async def usage():
   return """<html>
@@ -147,6 +146,30 @@ favicon_path = os.path.join(basedir,'dist','assets','favicon.ico')
 async def favicon():
   return FileResponse(favicon_path)
 
+
+@app.get("/", response_class=HTMLResponse, tags=["Usage"])
+async def root():
+  return """
+<div>
+<h1>About Tana Helper</h1>
+<p>
+Simple API service that provides a variety useful API services to complement your daily use of Tana.
+
+Most payloads are in JSON. Most results are in Tana paste format.
+
+See the <a href="https://tana.pub/EufhKV4ZMH/tana-helper">Tana Publish page</a> for more usage information and examples.
+
+There's also a <a href="https://app.tana.inc/?bundle=cVYW2gX8nY.EufhKV4ZMH">Tana template</a> that you can load into your Tana workspace with all the Tana commands preconfigured, demo nodes, etc.
+
+<h2>UI Apps</h2>
+<ul>
+<li><a href="/redoc">Tana Helper API Documentation</a></li>
+<li><a href="/ui/graph">Workspace Visualizer</a></li>
+<li><a href="/ui/classdiagram">Tana Tag Hierarchy Diagram</a></li>
+</ul>
+</p>
+</div>
+"""
 
 # expose our various Webapps on /ui/{app_name}
 @app.get("/ui/{app_file}", response_class=HTMLResponse, tags=["Visualizer"])
