@@ -18,16 +18,17 @@ logger = getLogger()
 
 class Settings(BaseSettings):
   model_config = SettingsConfigDict( env_file='.env', env_file_encoding='utf-8')
+  production: bool = False
   openai_api_key: str = "OPENAI_API_KEY NOT SET"
   tana_api_token: str = "TANA_API_TOKEN NOT SET"
-  production: bool = False
   logger_file: str = 'tana-handler.log'
-  template_path: str = '/tmp/tana_helper/webhooks'
+  webhook_template_path: str = '/tmp/tana_helper/webhooks'
   temp_files: str = '/tmp/tana_helper/tmp'
   export_path: str = '/tmp/tana_helper/export'
   tana_environment: str = "us-west4-gcp-free"
   tana_namespace: str = "tana-namespace"
   tana_index:str = "tana-helper"
+  templates:object = None
 
 # create global settings 
 # TODO: make settings per-request context, not gobal

@@ -14,7 +14,7 @@ router = APIRouter()
 
 logger = getLogger()
 
-path = settings.template_path
+path = settings.webhook_template_path
 
 environment = Environment(loader=FileSystemLoader(path))
 # pattern to strip URLs out of incoming 
