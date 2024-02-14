@@ -11,5 +11,12 @@
       "url": "http://localhost:8000/ui/graph",
       "webRoot": "${workspaceFolder}"
     },
+    {
+      "name": "Launch Logs",
+      "request": "launch",
+      "type": "chrome",
+      "url": "http://localhost:8000/ui/logs",
+      "webRoot": "${workspaceFolder}"
+    },
   ]
 }

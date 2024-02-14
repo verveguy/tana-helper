@@ -1,20 +1,26 @@
+import asyncio
 import os
+from pathlib import Path
 import platform
 import time
 from logging import getLogger
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 from service.dependencies import settings
 from service.endpoints import (calendar, chroma, class_diagram, configure, exec_code, graph_view, 
-                 inlinerefs, jsonify, preload, cleanups, proxy, research, topics, weaviate, webhooks)
-from service.logconfig import setup_rich_logger
+                 inlinerefs, jsonify, logmonitor, preload, cleanups, proxy, research, topics, weaviate, webhooks)
+from service.logconfig import get_logger_config, setup_rich_logger
 from snowflake import SnowflakeGenerator
 
+log_filename = None
+
 def get_app() -> FastAPI:
+  global log_filename
   app = FastAPI(
     description="Tana Helper", version="0.2.0",
     # TODO: get servers from passed in cmd line / env var
@@ -22,7 +28,7 @@ def get_app() -> FastAPI:
       {"url": "http://localhost:8000", "description": "Local loopback"},
       {"url": "https://verveguy.ngrok.app", "description": "ngrok test"},
     ])
-  setup_rich_logger()
+  log_filename = setup_rich_logger()
   return app
 
 app = get_app()
@@ -67,9 +73,12 @@ app.include_router(chroma.router)
 app.include_router(preload.router)
 app.include_router(research.router)
 
+app.include_router(logmonitor.router)
+
 app.include_router(weaviate.router)
-# TODO: uprgade pinecone code
+# TODO: upgrade pinecone code
 # app.include_router(pinecone.router)
+
 
 # async helpers to get the body during middleware evaluation
 # useful for debugging in the layer _prior_ to pydantic validation
@@ -77,7 +86,7 @@ async def set_body(request: Request, body: bytes):
   async def receive():
     return {"type": "http.request", "body": body}
   request._receive = receive
- 
+
 async def get_body(request: Request) -> bytes:
   body = await request.body()
   await set_body(request, body)
@@ -124,48 +133,31 @@ async def log_entry_exit(request: Request, call_next):
 # fiddle with the CWD to satsify double-clickable .app
 # context
 basedir = os.path.dirname(__file__)
-#logger.info(f"Install dir = {basedir}")
+# logger.info(f"Install dir = {basedir}")
 cwd = os.getcwd()
-#logger.info(f"Current working dir = {cwd}")
+# logger.info(f"Current working dir = {cwd}")
 os.chdir(basedir)
 cwd = os.getcwd()
-#logger.info(f"Setting cwd = {cwd}")
+# logger.info(f"Setting cwd = {cwd}")
 
 
+# for local file serving (favicon, etc)
 app.mount("/static", StaticFiles(directory="dist"), name="static")
 
-favicon_path = os.path.join(basedir,'dist','assets','favicon.ico')
+# for HTML template responses
+settings.templates = Jinja2Templates(directory=os.path.join(basedir,'dist','templates'))
 
 @app.get('/favicon.ico', include_in_schema=False)
 async def favicon():
+  favicon_path = os.path.join(basedir,'dist','assets','favicon.ico')
   return FileResponse(favicon_path)
 
 
 @app.get("/", response_class=HTMLResponse, tags=["Usage"])
 @app.get("/usage", response_class=HTMLResponse, tags=["Usage"])
-async def root():
-  return """
-<div>
-<h1>About Tana Helper</h1>
-<p>
-Simple API service that provides a variety useful API services to complement your daily use of Tana.
-
-Most payloads are in JSON. Most results are in Tana paste format.
-
-See the <a href="https://tana.pub/EufhKV4ZMH/tana-helper">Tana Publish page</a> for more usage information and examples.
-
-There's also a <a href="https://app.tana.inc/?bundle=cVYW2gX8nY.EufhKV4ZMH">Tana template</a> that you can load into your Tana workspace with all the Tana commands preconfigured, demo nodes, etc.
-
-<h2>UI Apps</h2>
-<ul>
-<li><a href="/redoc">Tana Helper API documentation</a></li>
-<li><a href="/doc">Tana Helper API test bench</a></li>
-<li><a href="/ui/graph">Workspace visualizer</a></li>
-<li><a href="/ui/classdiagram">Tana tag hierarchy diagram</a></li>
-</ul>
-</p>
-</div>
-"""
+async def root(request: Request):
+  context = {"title": "Tana Helper"}
+  return settings.templates.TemplateResponse("index.html", {"request": request, "context": context})
 
 # expose our various Webapps on /ui/{app_name}
 @app.get("/ui/{app_file}", response_class=HTMLResponse, tags=["Visualizer"])
@@ -176,18 +168,19 @@ async def app_ui(app_file:str):
 <html lang="en">
 
 <head>
-  <title>Tana Graph Viewer</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" type="text/css" href="/static/{app_file.capitalize()}.css"/>
   <script defer="defer" src="/static/{app_file.capitalize()}.js" ></script>
 </head>
 
 <body>
   <noscript>You need to enable JavaScript to run this app.</noscript>
-  <div id="root"></div>
+  <div id="root" style="height:100%"></div>
 </body>
 
 </html>
   """
-
 
 
 # TODO: find out the actual configured port at runtime

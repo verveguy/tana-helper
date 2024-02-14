@@ -92,3 +92,5 @@ def setup_rich_logger():
     datefmt=logger_config.date_format,
     handlers=logger_config.handlers,
   )
+  # return path to log file
+  return logger_config.handlers[1].baseFilename
