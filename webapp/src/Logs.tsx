@@ -3,12 +3,14 @@
 
   Built as a React app
 */
-import React from 'react';
+import React, { StrictMode } from 'react';
 import { createRoot } from "react-dom/client";
 import { GlobalStyles } from "@mui/material";
 import CssBaseline from '@mui/material/CssBaseline';
 import TanaHelperLogViewer from "./TanaHelperLogViewer";
 import { ThemeProvider, createTheme } from '@mui/material/styles';
+
+import './Logs.css';
 
 // import reportWebVitals from "./reportWebVitals";
 
@@ -24,9 +26,11 @@ const darkTheme = createTheme({
 });
 
 root.render(
-  <ThemeProvider theme={darkTheme}>
-    <TanaHelperLogViewer />
-  </ThemeProvider>
+  // <StrictMode>
+    <ThemeProvider theme={darkTheme}>
+      <TanaHelperLogViewer />
+    </ThemeProvider>
+  // </StrictMode>
 );
 
 // reportWebVitals();

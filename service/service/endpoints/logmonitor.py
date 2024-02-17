@@ -10,9 +10,8 @@ from service.dependencies import settings
 router = APIRouter()
 
 # log streaming
-log_config = get_logger_config()
-log_file = log_config.logger_file
-log_filename = log_config.handlers[1].baseFilename
+log_config, log_filename = get_logger_config()
+# log_file = log_config.logger_file
 
 @router.websocket("/ws/log")
 async def websocket_endpoint_log(websocket: WebSocket) -> None:

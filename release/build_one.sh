@@ -76,6 +76,8 @@ codesign_app "$APP"
 # Create the DMG.
 echo_blue "Creating DMG for distribution"
 
+read -p "Continue?"
+
 create_dmg "$NAME"
 
 echo_blue "Codesigning the .dmg"

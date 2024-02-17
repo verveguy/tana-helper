@@ -1,3 +1,4 @@
+import os
 import fastapi
 import asyncio
 import anyio
@@ -33,43 +34,64 @@ def get_logger_config():
   environment, or use the production log configuration.
   """
 
+  logger_config = None
   if not settings.production:
     from rich.logging import RichHandler
+    from rich.console import Console
     output_file_handler = logging.FileHandler(LOGGER_FILE)
     handler_format = logging.Formatter(
       LOGGER_FORMAT, datefmt=DATE_FORMAT)
     output_file_handler.setFormatter(handler_format)
 
-    return LoggerConfig(
+    rich_props = {
+      'rich_tracebacks': True,
+      'tracebacks_show_locals': False,
+      'show_time': False,
+      'tracebacks_suppress': [fastapi, uvicorn, asyncio, anyio, starlette, h11]
+    }
+
+    rich_handler = RichHandler(
+      **rich_props
+    )
+
+    rich_log_file = open(LOGGER_FILE, "wt")
+    rich_file_handler = RichHandler(
+      console=Console(file=rich_log_file, force_terminal=True),
+      **rich_props
+    )
+ 
+    logger_config = LoggerConfig(
       handlers=[
-        RichHandler(
-            rich_tracebacks=True,
-            tracebacks_show_locals=False,
-            show_time=False,
-            tracebacks_suppress=[fastapi, uvicorn, asyncio, anyio, starlette, h11]
-        ),
-        output_file_handler
+        rich_handler,
+        # output_file_handler,
+        rich_file_handler
       ],
       format=LOGGER_FORMAT, # changed from None
       date_format=DATE_FORMAT,
       logger_file=LOGGER_FILE,
     )
 
-  output_file_handler = logging.FileHandler(LOGGER_FILE)
-  handler_format = logging.Formatter(
-    LOGGER_FORMAT, datefmt=DATE_FORMAT)
-  output_file_handler.setFormatter(handler_format)
+    return logger_config, os.path.abspath(rich_log_file.name)
 
-  # Stdout
-  stdout_handler = logging.StreamHandler(sys.stdout)
-  stdout_handler.setFormatter(handler_format)
+  else:
+    output_file_handler = logging.FileHandler(LOGGER_FILE)
+    handler_format = logging.Formatter(
+      LOGGER_FORMAT, datefmt=DATE_FORMAT)
+    output_file_handler.setFormatter(handler_format)
 
-  return LoggerConfig(
-    handlers=[output_file_handler, stdout_handler],
-    format="%(levelname)s: %(asctime)s %(threadName)s \t%(message)s",
-    date_format="%d-%b-%y %H:%M:%S",
-    logger_file=LOGGER_FILE,
-  )
+    # Stdout
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setFormatter(handler_format)
+
+    logger_config = LoggerConfig(
+      handlers=[output_file_handler, stdout_handler],
+      format="%(levelname)s: %(asctime)s %(threadName)s \t%(message)s",
+      date_format="%d-%b-%y %H:%M:%S",
+      logger_file=LOGGER_FILE,
+    )
+
+    return logger_config, LOGGER_FILE
+
 
 def setup_rich_logger():
   """Cycles through uvicorn root loggers to
@@ -84,7 +106,7 @@ def setup_rich_logger():
     logging.getLogger(name).handlers = []
     logging.getLogger(name).propagate = True
 
-  logger_config = get_logger_config()  # get Rich logging config
+  logger_config, log_file_name = get_logger_config()  # get Rich logging config
 
   logging.basicConfig(
     level=logger_config.level,
@@ -93,4 +115,4 @@ def setup_rich_logger():
     handlers=logger_config.handlers,
   )
   # return path to log file
-  return logger_config.handlers[1].baseFilename
+  return log_file_name
