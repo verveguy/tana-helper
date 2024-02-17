@@ -54,9 +54,14 @@ def get_logger_config():
       **rich_props
     )
 
+    # TODO: turns this into a log stream, rather than a file
+    # so we can pass raw logs to websocket monitor in logmonitor.py
+    # TODO: Can Rich format log lines without a Console width or do we
+    # need to glue all of this together somehow and pass width back to this 
+    # layer?
     rich_log_file = open(LOGGER_FILE, "wt")
     rich_file_handler = RichHandler(
-      console=Console(file=rich_log_file, force_terminal=True),
+      console=Console(file=rich_log_file, force_terminal=True, soft_wrap=True, width=160),
       **rich_props
     )
  

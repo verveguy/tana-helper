@@ -13,6 +13,13 @@ router = APIRouter()
 log_config, log_filename = get_logger_config()
 # log_file = log_config.logger_file
 
+# TODO: rework this to use the logging stream instead of reading the file
+# also don't capture rendered logs - capture raw logs and then 
+# render them via Rich Console here ... 
+# This will allow us to resize the virtual Console based on the actual client
+# console size - we will need to pass this information over the websocket
+# and also support re-rendering the whole log, etc. etc.
+
 @router.websocket("/ws/log")
 async def websocket_endpoint_log(websocket: WebSocket) -> None:
   """WebSocket endpoint for client connections
