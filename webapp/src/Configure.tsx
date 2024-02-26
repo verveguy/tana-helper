@@ -1,22 +1,35 @@
 /*
-  Configuration UI for tana-helper
+  This is a React based app which is the Configuration page
+  for tana-helper
 
-  Built as a React app
+  Right now, it lets you configure schemas for webhooks
+  
 */
 
-import React from "react";
-import { createRoot } from "react-dom/client";
-// import reportWebVitals from "./reportWebVitals";
-import ConfigurationPanel from "./ConfigurationPanel";
+import React, { useEffect, useState } from "react";
+import { FormControlLabel, FormGroup, Switch, TextField } from "@mui/material";
+import axios from 'axios';
 
-const rootElement = document.getElementById("root");
-if (!rootElement) throw new Error('Failed to find the root element');
+const Configure = () => {
 
-const root = createRoot(rootElement);
-root.render(
-  <React.StrictMode>
-    <ConfigurationPanel />
-  </React.StrictMode>
-);
+  const [schemas, setSchemas] = useState([]);
 
-// reportWebVitals();
+  useEffect(() => {
+    axios.get('/schema')
+      .then(response => {
+        setSchemas(response.data);
+      })
+      .catch(error => {
+        console.error(error);
+      });
+  }, []);
+
+  return (
+    <ul>
+      {schemas.map(schema => (
+        <li key={schema}>{schema}</li>
+      ))}
+    </ul>
+  );
+}
+export default Configure;

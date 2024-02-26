@@ -3,10 +3,7 @@ import { build } from 'esbuild'
 
 const res = await build({
   entryPoints: [
-    'src/Graph.tsx',
-    'src/Configure.tsx',
-    'src/ClassDiagram.tsx',
-    'src/Logs.tsx'
+    'src/Root.tsx',
   ],
 
   platform: 'browser',

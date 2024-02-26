@@ -61,7 +61,7 @@ def get_logger_config():
     # layer?
     rich_log_file = open(LOGGER_FILE, "wt")
     rich_file_handler = RichHandler(
-      console=Console(file=rich_log_file, force_terminal=True, soft_wrap=True, width=160),
+      console=Console(file=rich_log_file, force_terminal=True, soft_wrap=True, width=100),
       **rich_props
     )
  

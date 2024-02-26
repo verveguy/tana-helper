@@ -153,14 +153,8 @@ async def favicon():
   return FileResponse(favicon_path)
 
 
-@app.get("/", response_class=HTMLResponse, tags=["Usage"])
-@app.get("/usage", response_class=HTMLResponse, tags=["Usage"])
-async def root(request: Request):
-  context = {"title": "Tana Helper"}
-  return settings.templates.TemplateResponse("index.html", {"request": request, "context": context})
-
 # expose our various Webapps on /ui/{app_name}
-@app.get("/ui/{app_file}", response_class=HTMLResponse, tags=["Visualizer"])
+@app.get("/testui/{app_file}", response_class=HTMLResponse, tags=["UI"])
 async def app_ui(app_file:str):
   # return a completely generic index.html that assumes the app is
   # available on App_file.js (note initial cap)
@@ -170,7 +164,7 @@ async def app_ui(app_file:str):
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" type="text/css" href="/static/{app_file.capitalize()}.css"/>
+  <link href="/static/{app_file.capitalize()}.css" rel="stylesheet">
   <script defer="defer" src="/static/{app_file.capitalize()}.js" ></script>
 </head>
 
@@ -182,6 +176,12 @@ async def app_ui(app_file:str):
 </html>
   """
 
+@app.get("/", response_class=HTMLResponse, tags=["UI"])
+@app.get("/ui", response_class=HTMLResponse, tags=["UI"])
+async def new_app_ui():
+  # return a completely generic index.html that assumes the app is
+  # available on App_file.js (note initial cap)
+  return await app_ui('root')
 
 # TODO: find out the actual configured port at runtime
 logger.info("Tana Helper running on port 8000")

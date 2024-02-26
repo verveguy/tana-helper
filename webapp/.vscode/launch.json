@@ -5,17 +5,10 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Launch Graph",
+      "name": "Launch UI",
       "request": "launch",
       "type": "chrome",
-      "url": "http://localhost:8000/ui/graph",
-      "webRoot": "${workspaceFolder}"
-    },
-    {
-      "name": "Launch Logs",
-      "request": "launch",
-      "type": "chrome",
-      "url": "http://localhost:8000/ui/logs",
+      "url": "http://localhost:8000/ui",
       "webRoot": "${workspaceFolder}"
     },
   ]
