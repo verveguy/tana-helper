@@ -16,7 +16,7 @@ import Typography from '@mui/material/Typography';
 import { styled, useTheme } from '@mui/material/styles';
 import React, { useMemo, useRef } from "react";
 
-import { BrowserRouter, NavLink, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Link, NavLink, Route, Routes } from "react-router-dom";
 import ClassDiagram from "./components/ClassDiagram";
 import Configure from "./Configure";
 import Home from "./Home";
@@ -27,9 +27,10 @@ import { VisualizerContext, VisualizerContextProvider } from './VisualizerContex
 import ClassDiagramControls from './ClassDiagramControls';
 
 import './MainUI.css';
+import { Button, Paper } from '@mui/material';
 
 // TODO: can this be dynamic based on content?
-const drawerWidth = 180;
+const drawerWidth = 150;
 
 const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })<{
   open?: boolean;
@@ -98,7 +99,7 @@ export default function MainUI() {
     // <VisualizerContext.Provider value={contextValue}>
     <VisualizerContextProvider>
       <BrowserRouter>
-        <Box sx={{ display: 'flex' }} style={{height: '100%'}}>
+        <Box sx={{ display: 'flex' }} style={{ height: '100%' }}>
           <AppBar position="fixed" open={open}>
             <Toolbar>
               <IconButton
@@ -134,7 +135,7 @@ export default function MainUI() {
               </IconButton>
             </DrawerHeader>
             <Divider />
-            <List>
+            {/* <List>
               {[
                 ['Home', '/ui'],
                 ['Configure', '/ui/configure'],
@@ -148,20 +149,39 @@ export default function MainUI() {
                   </ListItemButton>
                 </ListItem>
               ))}
-            </List>
+            </List> */}
+            <div className='nav-controls'>
+              <Paper elevation={0}>
+                <List aria-label="main mailbox folders">
+                  {[
+                    ['Home', '/ui'],
+                    ['Logs', '/ui/logs'],
+                    ['Class Diagram', '/ui/classdiagram'],
+                    ['Visualizer', '/ui/visualizer'],
+                    ['Configure', '/ui/configure'],
+                  ].map(([text, link], index) => (
+                    <li><ListItem button component={Link} to={link}>
+                      <ListItemText primary={text} />
+                      {/* <Button component={Link} to={link}>{text}</Button> */}
+                    </ListItem>
+                    </li>
+                  ))}
+                </List>
+              </Paper>
+            </div>
             <Divider />
             <div id="controls">
               <Routes>
-                <Route path="/ui" element={<div/>}/>
-                <Route path="/ui/configure" element={<div/>}/>
-                <Route path="/ui/logs" element={<div/>}/>
-                <Route path="/ui/classdiagram" element={<ClassDiagramControls />}/>
+                <Route path="/ui" element={<div />} />
+                <Route path="/ui/configure" element={<div />} />
+                <Route path="/ui/logs" element={<div />} />
+                <Route path="/ui/classdiagram" element={<ClassDiagramControls />} />
                 <Route path="/ui/visualizer" element={<VisualizerControls />} />
               </Routes>
             </div>
           </Drawer>
           {/* TODO: Adjust width here on Main component*/}
-          <Main open={open} style={{height: '100%', display: 'flex', flexDirection: 'column'}}>
+          <Main open={open} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             {/* <DrawerHeader style={{height: 'auto'}}/> */}
             <DrawerHeader />
             <div className="content">

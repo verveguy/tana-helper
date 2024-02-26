@@ -14,7 +14,7 @@ export default function Home() {
 
   return (
     <div className='home-container'>
-      <iframe src="https://tana.pub/EufhKV4ZMH/tana-helper" width='100%' height='100%' ></iframe>
+      <iframe className = 'tana-publish' src="https://tana.pub/EufhKV4ZMH/tana-helper" />
     </div>
   );
 }

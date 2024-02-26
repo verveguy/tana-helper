@@ -10,14 +10,15 @@
   transform: translate(-50%, -50%);
 }
 
-.abs-container {
-  position: absolute;
-  height: inherit;
-}
-
 .graph-container {
   height: 100%;
   width: 100%;
   padding: 0px;
   overflow: hidden;
+}
+
+/* This one is needed to house the fixed-size graph */
+.abs-container {
+  position: absolute;
+  height: inherit;
 }

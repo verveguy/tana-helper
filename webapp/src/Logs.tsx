@@ -12,13 +12,14 @@ import { FitAddon } from 'xterm-addon-fit';
 import 'xterm/css/xterm.css';
 /* This CSS might be unecessary ... see https://github.com/xtermjs/xterm.js/issues/3564 */
 import './Logs.css';
-import useWindowSize from "./components/utils";
+import useWindowSize, { useDimensions } from "./components/utils";
 
 let terminal;
 let fitAddon;
 
 export default function Logs() {
-  const { windowWidth, windowHeight } = useWindowSize();
+  const containerRef = useRef(null);
+  const dimensions = useDimensions(containerRef);
   const term_ref = useRef(null);
   let ws_log;
 
@@ -42,22 +43,26 @@ export default function Logs() {
         console.log("Got more data")
         terminal.write(event.data + '\r')
       };
-      console.log("Aded handler")
+      console.log("Added handler")
     }
 
-    return (() => {ws_log.close(); console.log("Closed websocket")})
+    return (() => { ws_log.close(); console.log("Closed websocket") })
   }, [term_ref]);
 
-  // Whenever size changes, fit the terminal to the new height
+  // Whenever size changes, change the rows/columns of our terminal
   useEffect(() => {
-    if (windowHeight === undefined || windowWidth == undefined) return;
-    console.log("Refit terminal to new height", windowHeight)
+    if (!dimensions || dimensions.height === undefined || dimensions.width == undefined) return;
+    console.log("Refit terminal to new size", dimensions);
     fitAddon.fit();
-  }, [windowHeight, windowWidth]);
+  }, [dimensions]);
+
 
   return (
-    <div className="terminal-container">
-      <div id="terminal" ref={term_ref} />
+    <div className="terminal-container" ref={containerRef}>
+      <div className="log-container" style={{ width: dimensions.width, height: dimensions.height }}>
+        <div id="terminal" ref={term_ref}
+           />
+      </div>
     </div>
   );
 }

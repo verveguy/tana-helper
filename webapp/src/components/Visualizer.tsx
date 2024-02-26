@@ -13,27 +13,13 @@ import { Container } from "@mui/system";
 import { VisualizerContext } from "../VisualizerContext";
 import ForceGraph3D from 'react-force-graph-3d';
 import './Visualizer.css';
-import useWindowSize from "./utils";
+import { useDimensions } from "./utils";
 
 export default function Visualizer(props: any) {
-  // const [open, setOpen] = useState(true);
-  const { windowWidth, windowHeight } = useWindowSize();
-  const containerRef = useRef();
-  const [dimensions, setDimensions] = useState({
-    width: 0,
-    height: 0,
-  });
+  const containerRef = useRef(null);
+  const dimensions = useDimensions(containerRef);
   const { graphData, loading } = useContext(VisualizerContext)
-  const fgRef = useRef();
-
-  useEffect(() => {
-    if (containerRef.current) {
-      setDimensions({
-        width: containerRef.current.offsetWidth,
-        height: containerRef.current.offsetHeight,
-      });
-    }
-  }, [containerRef, windowWidth, windowHeight]); // if any of these change...
+  const fgRef = useRef(null);  
 
   // TODO: rework this to be cleaner React.
   // See example:

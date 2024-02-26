@@ -1,9 +1,13 @@
 
-.contentSS {
-  height: 100%;
-  width: 100%;
-}
-
 .content {
   flex: 1 1 auto;
+}
+
+.nav-controls {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: nowrap;
+  padding: 5px;
 }
