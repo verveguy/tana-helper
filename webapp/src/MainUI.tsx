@@ -14,7 +14,7 @@ import Typography from '@mui/material/Typography';
 import { styled, useTheme } from '@mui/material/styles';
 import React, { ReactNode } from "react";
 
-import { Link, Route, Routes, useLocation } from "react-router-dom";
+import { Link, NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import ClassDiagramControls from './ClassDiagramControls';
 import Configure from "./Configure";
 import Home from "./Home";
@@ -30,7 +30,9 @@ import './MainUI.css';
 // Title, link, view, controls
 // TODO: make these into some kind of JSX children
 interface MainUIProps {
-  routes: [string, string, ReactNode, ReactNode][];
+  navigation: ReactNode[];
+  controls: ReactNode[];
+  contents: ReactNode[];
 }
 
 // TODO: can this be dynamic based on content?
@@ -87,10 +89,10 @@ const DrawerHeader = styled('div')(({ theme }) => ({
 }));
 
 
-export default function MainUI(props:MainUIProps) {
-  const { routes } = props;
+export default function MainUI(props: MainUIProps) {
+  const { controls, contents, navigation } = props;
   const theme = useTheme();
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = React.useState(true);
   const location = useLocation();
 
   const handleDrawerOpen = () => {
@@ -140,25 +142,14 @@ export default function MainUI(props:MainUIProps) {
         </DrawerHeader>
         <Divider />
         <div className='nav-controls'>
-          <Paper elevation={0}>
-            <List aria-label="main mailbox folders">
-              {routes.map(([text, link, view, controls ], index) => (
-                <li>
-                  <ListItemButton component={Link} to={link} selected={location.pathname == link}>
-                    <ListItemText primary={text} />
-                  </ListItemButton>
-                </li>
-              ))}
+            <List aria-label="main panels" sx={{width:'100%'}}>
+              {navigation}
             </List>
-          </Paper>
         </div>
         <Divider />
         <div id="controls">
           <Routes>
-          {routes.map(([text, link, view, controls ], index) => (
-            <Route path={link} element={controls} />
-
-          ))}
+            {controls}
           </Routes>
         </div>
       </Drawer>
@@ -168,10 +159,7 @@ export default function MainUI(props:MainUIProps) {
         <DrawerHeader />
         <div className="content">
           <Routes>
-          {routes.map(([text, link, view, controls ], index) => (
-            <Route path={link} element={view} />
-
-          ))}
+            {contents}
           </Routes>
         </div>
       </Main>

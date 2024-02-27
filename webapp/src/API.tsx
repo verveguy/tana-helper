@@ -1,6 +1,7 @@
 import React, { Component, useEffect } from "react";
-import './Home.css'
+import 'rapidoc';
 
+/* This component simply redirects us to a different site */
 export default function API() {
 
   useEffect(() => {
@@ -14,7 +15,7 @@ export default function API() {
 
   return (
     <div className='home-container'>
-      <iframe className = 'tana-publish' src="/rapidoc" />
+      <rapi-doc spec-url="/openapi.json" />
     </div>
   );
 }

@@ -16,18 +16,15 @@ from service.endpoints import (calendar, chroma, class_diagram, configure, exec_
                  inlinerefs, jsonify, logmonitor, api_docs, preload, cleanups, proxy, research, topics, weaviate, webhooks)
 from service.logconfig import get_logger_config, setup_rich_logger
 from snowflake import SnowflakeGenerator
+from service.endpoints.api_docs import get_api_metadata
 
 log_filename = None
 
 def get_app() -> FastAPI:
   global log_filename
   app = FastAPI(
-    description="Tana Helper", version="0.2.0",
-    # TODO: get servers from passed in cmd line / env var
-    servers=[
-      {"url": "http://localhost:8000", "description": "Local loopback"},
-      {"url": "https://verveguy.ngrok.app", "description": "ngrok test"},
-    ])
+    **get_api_metadata(),
+    )
   log_filename = setup_rich_logger()
   return app
 
@@ -180,6 +177,12 @@ async def app_ui(app_file:str):
 @app.get("/", response_class=HTMLResponse, tags=["UI"])
 @app.get("/ui", response_class=HTMLResponse, tags=["UI"])
 async def new_app_ui():
+  # return a completely generic index.html that assumes the app is
+  # available on App_file.js (note initial cap)
+  return await app_ui('root')
+
+@app.get("/ui/{full_path:path}", response_class=HTMLResponse, tags=["UI"])
+async def new_app_ui_path(full_path:str):
   # return a completely generic index.html that assumes the app is
   # available on App_file.js (note initial cap)
   return await app_ui('root')
