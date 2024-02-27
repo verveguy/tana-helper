@@ -15,7 +15,7 @@ import ForceGraph3D from 'react-force-graph-3d';
 import './Visualizer.css';
 import { useDimensions } from "./utils";
 
-export default function Visualizer(props: any) {
+export default function Visualizer() {
   const containerRef = useRef(null);
   const dimensions = useDimensions(containerRef);
   const { graphData, loading } = useContext(VisualizerContext)

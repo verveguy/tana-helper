@@ -7,7 +7,6 @@ export const VisualizerContext = createContext({
   mermaidText: "", setMermaidText: undefined,
 });
 
-
 export function VisualizerContextProvider({ children }) {
   const [graphData, setGraphData] = useState();
   const [mermaidText, setMermaidText] = useState();

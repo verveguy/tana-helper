@@ -3,31 +3,35 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import MenuIcon from '@mui/icons-material/Menu';
 import MuiAppBar, { AppBarProps as MuiAppBarProps } from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
-import CssBaseline from '@mui/material/CssBaseline';
 import Divider from '@mui/material/Divider';
 import Drawer from '@mui/material/Drawer';
 import IconButton from '@mui/material/IconButton';
 import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import { styled, useTheme } from '@mui/material/styles';
-import React, { useMemo, useRef } from "react";
+import React, { ReactNode } from "react";
 
-import { BrowserRouter, Link, NavLink, Route, Routes } from "react-router-dom";
-import ClassDiagram from "./components/ClassDiagram";
+import { Link, Route, Routes, useLocation } from "react-router-dom";
+import ClassDiagramControls from './ClassDiagramControls';
 import Configure from "./Configure";
 import Home from "./Home";
 import Logs from "./Logs";
-import Visualizer from "./components/Visualizer";
 import VisualizerControls from './VisualizerControls';
-import { VisualizerContext, VisualizerContextProvider } from './VisualizerContext';
-import ClassDiagramControls from './ClassDiagramControls';
+import ClassDiagram from "./components/ClassDiagram";
+import Visualizer from "./components/Visualizer";
 
+import { Paper } from '@mui/material';
 import './MainUI.css';
-import { Button, Paper } from '@mui/material';
+
+// pass in the routes here
+// Title, link, view, controls
+// TODO: make these into some kind of JSX children
+interface MainUIProps {
+  routes: [string, string, ReactNode, ReactNode][];
+}
 
 // TODO: can this be dynamic based on content?
 const drawerWidth = 150;
@@ -83,9 +87,11 @@ const DrawerHeader = styled('div')(({ theme }) => ({
 }));
 
 
-export default function MainUI() {
+export default function MainUI(props:MainUIProps) {
+  const { routes } = props;
   const theme = useTheme();
   const [open, setOpen] = React.useState(false);
+  const location = useLocation();
 
   const handleDrawerOpen = () => {
     setOpen(true);
@@ -96,107 +102,79 @@ export default function MainUI() {
   };
 
   return (
-    // <VisualizerContext.Provider value={contextValue}>
-    <VisualizerContextProvider>
-      <BrowserRouter>
-        <Box sx={{ display: 'flex' }} style={{ height: '100%' }}>
-          <AppBar position="fixed" open={open}>
-            <Toolbar>
-              <IconButton
-                color="inherit"
-                aria-label="open drawer"
-                onClick={handleDrawerOpen}
-                edge="start"
-                sx={{ mr: 2, ...(open && { display: 'none' }) }}
-              >
-                <MenuIcon />
-              </IconButton>
-              <Typography variant="h6" noWrap component="div">
-                Tana Helper
-              </Typography>
-            </Toolbar>
-          </AppBar>
-          <Drawer
-            sx={{
-              width: drawerWidth,
-              flexShrink: 0,
-              '& .MuiDrawer-paper': {
-                width: drawerWidth,
-                boxSizing: 'border-box',
-              },
-            }}
-            variant="persistent"
-            anchor="left"
-            open={open}
+
+    <Box sx={{ display: 'flex' }} style={{ height: '100%' }}>
+      <AppBar position="fixed" open={open}>
+        <Toolbar>
+          <IconButton
+            color="inherit"
+            aria-label="open drawer"
+            onClick={handleDrawerOpen}
+            edge="start"
+            sx={{ mr: 2, ...(open && { display: 'none' }) }}
           >
-            <DrawerHeader>
-              <IconButton onClick={handleDrawerClose}>
-                {theme.direction === 'ltr' ? <ChevronLeftIcon /> : <ChevronRightIcon />}
-              </IconButton>
-            </DrawerHeader>
-            <Divider />
-            {/* <List>
-              {[
-                ['Home', '/ui'],
-                ['Configure', '/ui/configure'],
-                ['Logs', '/ui/logs'],
-                ['Class Diagram', '/ui/classdiagram'],
-                ['Visualizer', '/ui/visualizer'],
-              ].map(([text, link], index) => (
-                <ListItem key={text} disablePadding>
-                  <ListItemButton>
-                    <NavLink to={link}><ListItemText primary={text} /></NavLink>
+            <MenuIcon />
+          </IconButton>
+          <Typography variant="h6" noWrap component="div">
+            Tana Helper
+          </Typography>
+        </Toolbar>
+      </AppBar>
+      <Drawer
+        sx={{
+          width: drawerWidth,
+          flexShrink: 0,
+          '& .MuiDrawer-paper': {
+            width: drawerWidth,
+            boxSizing: 'border-box',
+          },
+        }}
+        variant="persistent"
+        anchor="left"
+        open={open}
+      >
+        <DrawerHeader>
+          <IconButton onClick={handleDrawerClose}>
+            {theme.direction === 'ltr' ? <ChevronLeftIcon /> : <ChevronRightIcon />}
+          </IconButton>
+        </DrawerHeader>
+        <Divider />
+        <div className='nav-controls'>
+          <Paper elevation={0}>
+            <List aria-label="main mailbox folders">
+              {routes.map(([text, link, view, controls ], index) => (
+                <li>
+                  <ListItemButton component={Link} to={link} selected={location.pathname == link}>
+                    <ListItemText primary={text} />
                   </ListItemButton>
-                </ListItem>
+                </li>
               ))}
-            </List> */}
-            <div className='nav-controls'>
-              <Paper elevation={0}>
-                <List aria-label="main mailbox folders">
-                  {[
-                    ['Home', '/ui'],
-                    ['Logs', '/ui/logs'],
-                    ['Class Diagram', '/ui/classdiagram'],
-                    ['Visualizer', '/ui/visualizer'],
-                    ['Configure', '/ui/configure'],
-                  ].map(([text, link], index) => (
-                    <li><ListItem button component={Link} to={link}>
-                      <ListItemText primary={text} />
-                      {/* <Button component={Link} to={link}>{text}</Button> */}
-                    </ListItem>
-                    </li>
-                  ))}
-                </List>
-              </Paper>
-            </div>
-            <Divider />
-            <div id="controls">
-              <Routes>
-                <Route path="/ui" element={<div />} />
-                <Route path="/ui/configure" element={<div />} />
-                <Route path="/ui/logs" element={<div />} />
-                <Route path="/ui/classdiagram" element={<ClassDiagramControls />} />
-                <Route path="/ui/visualizer" element={<VisualizerControls />} />
-              </Routes>
-            </div>
-          </Drawer>
-          {/* TODO: Adjust width here on Main component*/}
-          <Main open={open} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            {/* <DrawerHeader style={{height: 'auto'}}/> */}
-            <DrawerHeader />
-            <div className="content">
-              <Routes>
-                <Route path="/ui" element={<Home />} />
-                <Route path="/ui/configure" element={<Configure />} />
-                <Route path="/ui/logs" element={<Logs />} />
-                <Route path="/ui/classdiagram" element={<ClassDiagram />} />
-                <Route path="/ui/visualizer" element={<Visualizer leftDrawerSpace={open ? drawerWidth : 0} />} />
-              </Routes>
-            </div>
-          </Main>
-        </Box>
-      </BrowserRouter >
-    </VisualizerContextProvider >
-    // </VisualizerContext.Provider>
+            </List>
+          </Paper>
+        </div>
+        <Divider />
+        <div id="controls">
+          <Routes>
+          {routes.map(([text, link, view, controls ], index) => (
+            <Route path={link} element={controls} />
+
+          ))}
+          </Routes>
+        </div>
+      </Drawer>
+      {/* TODO: Adjust width here on Main component*/}
+      <Main open={open} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        {/* <DrawerHeader style={{height: 'auto'}}/> */}
+        <DrawerHeader />
+        <div className="content">
+          <Routes>
+          {routes.map(([text, link, view, controls ], index) => (
+            <Route path={link} element={view} />
+
+          ))}
+          </Routes>
+        </div>
+      </Main>
+    </Box>
   );
 }
