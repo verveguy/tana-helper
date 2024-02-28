@@ -7,19 +7,19 @@
 */
 
 
-import React, { useCallback, useContext, useEffect, useRef, useState } from "react";
+import React, { useCallback, useContext, useRef } from "react";
 import { CircularProgress } from '@mui/material';
-import { Container } from "@mui/system";
-import { VisualizerContext } from "../VisualizerContext";
 import ForceGraph3D from 'react-force-graph-3d';
-import './Visualizer.css';
+import ForceGraph2D from 'react-force-graph-2d';
+import { TanaHelperContext } from "../TanaHelperContext";
 import { useDimensions } from "./utils";
+import './Visualizer.css';
 
 export default function Visualizer() {
   const containerRef = useRef(null);
   const dimensions = useDimensions(containerRef);
-  const { graphData, loading } = useContext(VisualizerContext)
-  const fgRef = useRef(null);  
+  const { graphData, loading, twoDee } = useContext(TanaHelperContext)
+  const fgRef = useRef(null);
 
   // TODO: rework this to be cleaner React.
   // See example:
@@ -38,13 +38,12 @@ export default function Visualizer() {
     }
   }, [fgRef]);
 
-  if (loading) {
+  if (!graphData) {
     return (
       <div className="graph-container">
-
         <div className="spinner-container">
           <div className="spinner">
-            <CircularProgress />
+            {loading ? <CircularProgress /> : "Upload your Tana JSON export file"}
           </div>
         </div>
       </div>
@@ -57,18 +56,32 @@ export default function Visualizer() {
     return (
       <div className="graph-container" ref={containerRef}>
         <div className="abs-container" >
-          <ForceGraph3D ref={fgRef}
-            graphData={graphData}
-            onNodeClick={handleNodeClick}
-            onNodeDragEnd={node => {
-              node.fx = node.x;
-              node.fy = node.y;
-              node.fz = node.z;
-            }}
+          { twoDee ?
+            <ForceGraph2D ref={fgRef}
+              graphData={graphData}
+              onNodeClick={handleNodeClick}
+              onNodeDragEnd={node => {
+                node.fx = node.x;
+                node.fy = node.y;
+                node.fz = node.z;
+              }}
+              linkColor={() => 'rgba(255,255,255,0.0)'}
+              width={dimensions.width}
+              height={dimensions.height}
+            />
+            : <ForceGraph3D ref={fgRef}
+              graphData={graphData}
+              onNodeClick={handleNodeClick}
+              onNodeDragEnd={node => {
+                node.fx = node.x;
+                node.fy = node.y;
+                node.fz = node.z;
+              }}
 
-            width={dimensions.width}
-            height={dimensions.height}
-          />
+              width={dimensions.width}
+              height={dimensions.height}
+            />
+          }
         </div>
       </div>
     );

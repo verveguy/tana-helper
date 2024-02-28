@@ -1,21 +1,19 @@
 import React, { useContext, useEffect, useState } from "react";
 
 import axios from 'axios';
-import { VisualizerContext } from "./VisualizerContext";
+import { TanaHelperContext } from "./TanaHelperContext";
 import { Box, Button, Divider } from "@mui/material";
 
 
 export default function ClassDiagramControls() {
-  const { mermaidText, setMermaidText, loading, setLoading } = useContext(VisualizerContext)
+  const { mermaidText, setMermaidText, loading, setLoading } = useContext(TanaHelperContext)
   const [dumpFile, setDumpFile] = useState<File>();
   const [upload, setUpload] = useState(false);
-  const [needsUpload, setNeedsUpload] = useState(true);
 
   const handleFileUpload = (event: React.FormEvent<HTMLInputElement>) => {
     const target = event.currentTarget;
     const file = target.files?.[0];
     setDumpFile(file);
-    setNeedsUpload(false)
     setUpload(true);
     // reset input field so we can upload another file later
     event.currentTarget.value = "";
@@ -54,11 +52,14 @@ export default function ClassDiagramControls() {
           onChange={handleFileUpload}
         />
         <label htmlFor="raised-button-file">
-          <Button component="span">
-            Upload
+          <Button component="span"  sx={{ width: '100%', alignContent:'center'}}>
+            <span style={{ fontSize: 14 }}>
+              Upload
+            </span>
           </Button>
         </label>
       </Box>
+      <Divider />
     </div>
   )
 }

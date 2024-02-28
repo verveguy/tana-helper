@@ -8,7 +8,7 @@ import { GraphData } from 'react-force-graph-3d';
 import { useWindowSize } from "@react-hook/window-size";
 import axios from 'axios';
 import { Id, Index } from "flexsearch-ts";
-import { VisualizerContext } from "./VisualizerContext";
+import { TanaHelperContext } from "./TanaHelperContext";
 
 interface GraphConfig {
   include_all_nodes: boolean;
@@ -30,10 +30,10 @@ const IS_CHILD_CONTENT_LINK = 'icl'
 
 
 export default function VisualizerControls() {
-  const { graphData, setGraphData, loading, setLoading } = useContext(VisualizerContext)
+  const { graphData, setGraphData, loading, setLoading, twoDee, setTwoDee } = useContext(TanaHelperContext)
   const [open, setOpen] = useState(true);
   const [rawGraphData, setRawGraphData] = useState<GraphData>();
-  const [config, setConfig] = useState<GraphConfig>();
+  const [config, setConfig] = useState<GraphConfig>({ include_all_nodes: true, include_tag_nodes: false, include_tag_links: false, include_inline_ref_nodes: false, include_inline_refs: false });
   const [dumpFile, setDumpFile] = useState<File>();
   const [upload, setUpload] = useState(false);
   const [searchString, setSearchString] = useState('');
@@ -48,10 +48,10 @@ export default function VisualizerControls() {
     event.currentTarget.value = "";
   };
 
-  useEffect(() => {
-    let new_config: GraphConfig = { include_all_nodes: true, include_tag_nodes: false, include_tag_links: false, include_inline_ref_nodes: false, include_inline_refs: false };
-    setConfig(new_config)
-  }, []);
+  // useEffect(() => {
+  //   let new_config: GraphConfig = { include_all_nodes: true, include_tag_nodes: false, include_tag_links: false, include_inline_ref_nodes: false, include_inline_refs: false };
+  //   setConfig(new_config)
+  // }, []);
 
   useEffect(() => {
     if (upload) {
@@ -199,6 +199,11 @@ export default function VisualizerControls() {
     setConfig(new_config);
   }
 
+
+  function handleTwoDee(event: SyntheticEvent<Element, Event>, checked: boolean): void {
+    setTwoDee(checked);
+  }
+
   return (
     <div>
       <Divider />
@@ -211,8 +216,10 @@ export default function VisualizerControls() {
           onChange={handleFileUpload}
         />
         <label htmlFor="raised-button-file">
-          <Button component="span">
-            Upload
+          <Button component="span" sx={{ width: '100%', alignContent: 'center' }}>
+            <span style={{ fontSize: 14 }}>
+              Upload
+            </span>
           </Button>
         </label>
       </Box>
@@ -235,7 +242,9 @@ export default function VisualizerControls() {
         <FormControlLabel control={<Checkbox disabled={true} />}
           label="Show fields as links" />
         <FormControlLabel control={<Checkbox disabled={true} />}
-          label="Show child links" />
+          label="Show child links" /> 
+        <FormControlLabel control={<Checkbox checked={twoDee} />}
+          label="2D" onChange={handleTwoDee} />
         <Divider />
       </FormGroup>
       <TextField label="Search" onChange={e => setSearchString(e.target.value)} />

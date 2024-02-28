@@ -8,11 +8,11 @@ import { CircularProgress } from '@mui/material';
 import { useWindowSize } from "@react-hook/window-size";
 import React, { useContext, useEffect } from "react";
 import './ClassDiagram.css';
-import { VisualizerContext } from "../VisualizerContext";
+import { TanaHelperContext } from "../TanaHelperContext";
 import { Mermaid } from "./Mermaid";
 
 export default function ClassDiagram() {
-  const { mermaidText, setMermaidText, loading, setLoading } = useContext(VisualizerContext)
+  const { mermaidText, setMermaidText, loading, setLoading } = useContext(TanaHelperContext)
   const [width, height] = useWindowSize();
 
   useEffect(() => {
@@ -27,21 +27,17 @@ export default function ClassDiagram() {
   return (
     <div className="diagram-container">
       {(() => {
-        if (loading) {
+        if (!mermaidText) {
           return (
             <div className="spinner-container">
               <div className="spinner">
-                <CircularProgress />
+                {loading ? <CircularProgress /> : "Upload your Tana JSON export file"}
               </div>
             </div>
           );
         } else {
           return (
-            // <TransformWrapper>
-            //   <TransformComponent>
             <Mermaid diagram={mermaidText} id="mermaid" style={{ width: '100%', height: '100%' }} />
-            //   </TransformComponent>
-            // </TransformWrapper> 
           )
         }
       })()}

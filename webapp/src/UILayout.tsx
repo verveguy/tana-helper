@@ -1,3 +1,7 @@
+import React, { ReactNode } from "react";
+
+import { Routes } from "react-router-dom";
+
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -7,36 +11,23 @@ import Divider from '@mui/material/Divider';
 import Drawer from '@mui/material/Drawer';
 import IconButton from '@mui/material/IconButton';
 import List from '@mui/material/List';
-import ListItemButton from '@mui/material/ListItemButton';
-import ListItemText from '@mui/material/ListItemText';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import { styled, useTheme } from '@mui/material/styles';
-import React, { ReactNode } from "react";
 
-import { Link, NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
-import ClassDiagramControls from './ClassDiagramControls';
-import Configure from "./Configure";
-import Home from "./Home";
-import Logs from "./Logs";
-import VisualizerControls from './VisualizerControls';
-import ClassDiagram from "./components/ClassDiagram";
-import Visualizer from "./components/Visualizer";
+import './UILayout.css';
 
-import { Paper } from '@mui/material';
-import './MainUI.css';
 
-// pass in the routes here
-// Title, link, view, controls
-// TODO: make these into some kind of JSX children
+// TODO: can this be dynamic based on content?
+const drawerWidth = 150;
+
+// pass in the routes and views here
+
 interface MainUIProps {
   navigation: ReactNode[];
   controls: ReactNode[];
   contents: ReactNode[];
 }
-
-// TODO: can this be dynamic based on content?
-const drawerWidth = 150;
 
 const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })<{
   open?: boolean;
@@ -89,11 +80,10 @@ const DrawerHeader = styled('div')(({ theme }) => ({
 }));
 
 
-export default function MainUI(props: MainUIProps) {
+export default function UILayout(props: MainUIProps) {
   const { controls, contents, navigation } = props;
   const theme = useTheme();
   const [open, setOpen] = React.useState(true);
-  const location = useLocation();
 
   const handleDrawerOpen = () => {
     setOpen(true);

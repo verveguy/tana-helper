@@ -12,13 +12,14 @@ def get_api_metadata():
     'title':"Tana Helper",
     'version':"0.2.0", # TODO: make this configured at build time somehow
     'description':"""
-Tana Helper API helps you do awesome stuff. 🚀
+Tana Helper helps you do awesome stuff. 🚀
+It's all done via API calls to this service.
 
 Most of this API is intended to be called from the `Make API request` command in Tana.
 As a result, most API calls return data in "Tana paste" format.
 
 See the [Tana Helper GitHub](https://www.github.com/verveguy/tana-helper) for more information.
-Also see 
+Also see the Tana Helper 
 
 """,
     'summary':"API for the Tana Helper service that augments Tana.",
@@ -42,14 +43,7 @@ Also see
         "name": "Calendar",
         "description": "Get your calendar events in Tana Paste format.",
       },
-      {
-        "name": "items",
-        "description": "Manage items. So _fancy_ they have their own docs.",
-        "externalDocs": {
-          "description": "Items external docs",
-          "url": "https://fastapi.tiangolo.com/",
-        },
-      },
+      # more tags here...
     ],
   }
 
