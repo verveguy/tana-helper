@@ -172,12 +172,16 @@ if plat == 'Windows':
 
 # BUILD TWO .app on MAC ONLY
 elif plat == 'Darwin':
-
+    # actually, just build one binary
     helper_coll = COLLECT( 
         helper_exe,
+        service_exe,
         helper_a.binaries,
         helper_a.zipfiles,
         helper_a.datas,
+        service_a.binaries,
+        service_a.zipfiles,
+        service_a.datas,
         strip=False,
         upx=True,
         upx_exclude=[],

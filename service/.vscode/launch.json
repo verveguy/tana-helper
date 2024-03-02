@@ -13,15 +13,23 @@
     },
     {
       "name": "Python: Current File",
-      "type": "python",
+      "type": "debugpy",
       "request": "launch",
       "program": "${file}",
       "console": "integratedTerminal",
       "justMyCode": true
     },
     {
+      "name": "Python: Tana Helper",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "tanahelper.py",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
       "name": "Python: FastAPI",
-      "type": "python",
+      "type": "debugpy",
       "request": "launch",
       "module": "uvicorn",
       "args": [

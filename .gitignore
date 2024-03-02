@@ -123,3 +123,4 @@ release/builds
 service/data
 service/pkgtree
 release/notarization_report.json
+service/service/bin
