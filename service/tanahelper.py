@@ -1,4 +1,4 @@
-import socket
+from socket import socket
 import syslog
 from multiprocessing import freeze_support, set_start_method, Process
 from typing import List
@@ -25,6 +25,8 @@ from PyQt6.QtCore import QTimer, QUrl
 from PyQt6.QtWidgets import (QApplication, QSystemTrayIcon, QMenu)
 from  multiprocessing import Value, freeze_support, set_start_method
 from uvicorn import Config, Server
+from myuvicorn import STATUS_STOPPING, ServiceWorker, STATUS_CHECK_INTERVAL_MS, STATUS_STARTING, STATUS_UP, STATUS_DOWN
+
 # from myuvicorn import ServiceWorker, STATUS_CHECK_INTERVAL_MS, STATUS_STARTING, STATUS_UP, STATUS_DOWN
 
 # these imports are to satisfy PyInstaller's dependency finder
@@ -34,53 +36,6 @@ import onnxruntime, tokenizers, tqdm
 
 import logging
 logger = logging.getLogger(__name__)
-
-
-STATUS_CHECK_INTERVAL_MS  = 1000
-STATUS_STARTING = b'S'
-STATUS_UP = b'U'
-STATUS_DOWN = b'D'
-
-# override the UvicornServer class to add a status flag
-class MyUvicornServer(Server):
-
-  def __init__(self, config: Config, status):
-    message("MyUvicornServer created")
-    super().__init__(config=config)
-    self.status_flag = status
-
-  async def startup(self, sockets=None):
-    message("MyUvicornServer startup() called")
-    await super().startup(sockets=sockets)
-    self.status_flag.value = STATUS_UP
-    message("Server started")
-
-  async def shutdown(self, sockets: List[socket] | None = None) -> None:
-    message("MyUvicornServer shutdown() called")
-    result = await super().shutdown(sockets)
-    self.status_flag.value = STATUS_DOWN
-    message("Server stopped")
-    return result
-
-# Process wrapper to spawn multiprocessing subprocess
-class ServiceWorker(Process):
-
-  def __init__(self, status):
-    message("UvicornServer created")
-    self.status = status
-    super().__init__()
-
-  def stop(self):
-    message("UvicornServer stop() called")
-    self.terminate()
-
-  def run(self, *args, **kwargs):
-    message("ServiceWorker run() called")
-    self.config = Config("service.main:app", host="127.0.0.1", port=8000, log_level="info", )
-    self.server = MyUvicornServer(config=self.config, status=self.status)
-    message("UvicornServer run() calling...")
-    self.server.run()
-
 
 class TanaHelperTrayApp():
   
@@ -105,32 +60,43 @@ class TanaHelperTrayApp():
       self.instance.stop()
     message('Stopped serviceworker')
 
+  def toggle_icon(self):
+    if self.toggle == False:
+      self.tray.setIcon(self.active_icon)
+      self.toggle = True
+    else:
+      self.tray.setIcon(self.icon)
+      self.toggle = False
+
+  def reset_icon(self):
+    self.tray.setIcon(self.icon)
+    self.toggle = False
+
   def check_server_status(self):
     if self.state.value == STATUS_STARTING:
       self.start_action.setEnabled(False)
-      if self.toggle == False:
-        self.tray.setIcon(self.active_icon)
-        self.toggle = True
-      else:
-        self.tray.setIcon(self.icon)
-        self.toggle = False
+      self.toggle_icon()
       message("Server is starting")
+    elif self.state.value == STATUS_STOPPING:
+      self.start_action.setEnabled(False)
+      self.stop_action.setEnabled(False)
+      self.open_webui.setEnabled(False)
+      message("Server is still stopping")
+      self.toggle_icon()
     elif self.state.value == STATUS_UP:
       self.start_action.setEnabled(False)
       self.stop_action.setEnabled(True)
       self.open_webui.setEnabled(True)
       message("Server is running")
       self.timer.stop()
-      self.tray.setIcon(self.icon)
-      self.toggle = False
+      self.reset_icon()
     elif self.state.value == STATUS_DOWN:
       self.start_action.setEnabled(True)
       self.stop_action.setEnabled(False)
       self.open_webui.setEnabled(False)
       message("Server is stopped")
       self.timer.stop()
-      self.tray.setIcon(self.icon)
-      self.toggle = False
+      self.reset_icon()
       # clean up any zombie process
       if self.instance:
         self.instance.join()
@@ -153,6 +119,7 @@ class TanaHelperTrayApp():
 
   def stop_service(self):
     if self.state.value == STATUS_UP:
+      self.state.value = STATUS_STOPPING
       self.stop_server()
       message("Server is stopping")
       # start the watchdog timer
@@ -251,9 +218,6 @@ if __name__ == "__main__":
     helperapp.start()
     # app has been quit
     message("Exiting")
-  else:
-    message("Subprocess spawned (__main__ detected)")
-    sleep(60)
-    message("Subprocess exited")
+  
 else:
   message("Subprocess spawned (__main__ not detected)")

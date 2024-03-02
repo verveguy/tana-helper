@@ -15,6 +15,7 @@ STATUS_CHECK_INTERVAL_MS  = 1000
 STATUS_STARTING = b'S'
 STATUS_UP = b'U'
 STATUS_DOWN = b'D'
+STATUS_STOPPING = b'X'
 
 # override the UvicornServer class to add a status flag
 class MyUvicornServer(Server):
