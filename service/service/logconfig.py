@@ -13,6 +13,11 @@ from pydantic import BaseModel
 from service.dependencies import settings
 from typing import Optional
 
+import logging
+import os
+import platform
+from logging.handlers import RotatingFileHandler
+
 # BASED ON https://www.pythonbynight.com/blog/sharpen-your-code
 
 class LoggerConfig(BaseModel):
@@ -24,7 +29,19 @@ class LoggerConfig(BaseModel):
   level: int = logging.INFO # change this for DEBUG
 
 
-LOGGER_FILE = Path(settings.logger_file)  # where log is stored
+def get_log_path(app_name):
+    if platform.system() == "Windows":
+        base_dir = os.path.join(os.getenv('APPDATA'), app_name, "Logs") #type: ignore
+    else:  # macOS and Linux-like
+        base_dir = os.path.join(os.path.expanduser('~'), "Library", "Logs", app_name)
+        
+    if not os.path.exists(base_dir):
+        os.makedirs(base_dir, exist_ok=True)
+    
+    return os.path.join(base_dir, "application.log")
+
+
+LOGGER_FILE = Path(get_log_path('TanaHelper'))  # where log is stored
 DATE_FORMAT = "%d %b %Y | %H:%M:%S"
 LOGGER_FORMAT = "%(asctime)s | %(threadName)s | %(message)s"
 
@@ -38,11 +55,7 @@ def get_logger_config():
   if not settings.production:
     from rich.logging import RichHandler
     from rich.console import Console
-    output_file_handler = logging.FileHandler(LOGGER_FILE)
-    handler_format = logging.Formatter(
-      LOGGER_FORMAT, datefmt=DATE_FORMAT)
-    output_file_handler.setFormatter(handler_format)
-
+    
     rich_props = {
       'rich_tracebacks': True,
       'tracebacks_show_locals': False,
@@ -64,7 +77,12 @@ def get_logger_config():
       console=Console(file=rich_log_file, force_terminal=True, soft_wrap=True, width=100),
       **rich_props
     )
- 
+
+    # output_file_handler = RotatingFileHandler(LOGGER_FILE, maxBytes=10*1024*1024, backupCount=5)
+    # handler_format = logging.Formatter(
+    #   LOGGER_FORMAT, datefmt=DATE_FORMAT)
+    # output_file_handler.setFormatter(handler_format)
+
     logger_config = LoggerConfig(
       handlers=[
         rich_handler,
@@ -95,7 +113,7 @@ def get_logger_config():
       logger_file=LOGGER_FILE,
     )
 
-    return logger_config, LOGGER_FILE
+    return logger_config, os.path.abspath(LOGGER_FILE)
 
 
 def setup_rich_logger():
@@ -119,5 +137,6 @@ def setup_rich_logger():
     datefmt=logger_config.date_format,
     handlers=logger_config.handlers,
   )
+
   # return path to log file
   return log_file_name

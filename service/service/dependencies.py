@@ -11,17 +11,16 @@ import httpx
 import json 
 from dotenv import load_dotenv
 
-logger = getLogger()
-
 # Load environment variables from .env file
 # load_dotenv()
+
+app_name = "TanaHelper"
 
 class Settings(BaseSettings):
   model_config = SettingsConfigDict( env_file='.env', env_file_encoding='utf-8')
   production: bool = False
   openai_api_key: str = "OPENAI_API_KEY NOT SET"
   tana_api_token: str = "TANA_API_TOKEN NOT SET"
-  logger_file: str = 'tana-handler.log'
   webhook_template_path: str = '/tmp/tana_helper/webhooks'
   temp_files: str = '/tmp/tana_helper/tmp'
   export_path: str = '/tmp/tana_helper/export'
@@ -33,6 +32,10 @@ class Settings(BaseSettings):
 # create global settings 
 # TODO: make settings per-request context, not gobal
 settings = Settings()
+
+
+
+# Types for our APIs to use
 
 TANA_TEXT = "tana-text"
 TANA_NODE = "tana-node"
@@ -155,6 +158,11 @@ class Node(BaseModel):
 class AddToNodeRequest(BaseModel):
   nodes: List[Node]
   targetNodeId: Optional[str] = None
+
+
+# Utility classes
+
+logger = getLogger()
 
 class TanaInputAPIClient:
   def __init__(self, base_url: str = "https://europe-west1-tagr-prod.cloudfunctions.net", auth_token: Optional[str] = None):

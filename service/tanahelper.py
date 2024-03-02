@@ -46,8 +46,6 @@ class TanaHelperTrayApp():
     self.app.setQuitOnLastWindowClosed(False)
     self.instance = None
 
-  def quit(self):
-    self.app.quit()
 
   def start_server(self):
     message('About to start serviceworker')
@@ -55,10 +53,15 @@ class TanaHelperTrayApp():
     self.instance.start()
     message('Started serviceworker')
 
+
   def stop_server(self):
     if self.instance:
+      message('About to stop serviceworker')
       self.instance.stop()
-    message('Stopped serviceworker')
+      message('Stopped serviceworker')
+    else:
+      message('No serviceworker to stop')
+
 
   def toggle_icon(self):
     if self.toggle == False:
@@ -68,74 +71,95 @@ class TanaHelperTrayApp():
       self.tray.setIcon(self.icon)
       self.toggle = False
 
+
   def reset_icon(self):
     self.tray.setIcon(self.icon)
     self.toggle = False
 
+
   def check_server_status(self):
+    poll = False
     if self.state.value == STATUS_STARTING:
       self.start_action.setEnabled(False)
+      self.stop_action.setEnabled(False)
+      self.open_webui.setEnabled(False)
       self.toggle_icon()
       message("Server is starting")
+      poll = True
     elif self.state.value == STATUS_STOPPING:
       self.start_action.setEnabled(False)
       self.stop_action.setEnabled(False)
       self.open_webui.setEnabled(False)
       message("Server is still stopping")
       self.toggle_icon()
+      poll = True
     elif self.state.value == STATUS_UP:
       self.start_action.setEnabled(False)
       self.stop_action.setEnabled(True)
       self.open_webui.setEnabled(True)
       message("Server is running")
-      self.timer.stop()
-      self.reset_icon()
+      poll = False
     elif self.state.value == STATUS_DOWN:
       self.start_action.setEnabled(True)
       self.stop_action.setEnabled(False)
       self.open_webui.setEnabled(False)
       message("Server is stopped")
+      poll = False
+    else:
+        message("Server is in an unknown state")
+    
+    if not poll:
       self.timer.stop()
       self.reset_icon()
-      # clean up any zombie process
-      if self.instance:
-        self.instance.join()
-        self.instance = None
-    else:
-      message("Server is in an unknown state")
+  
 
   def start_service(self):
     if self.state.value == STATUS_DOWN:
       self.start_server()
-      self.state.value = STATUS_STARTING
+      message("Server is starting")
+      self.check_server_status()
       # start the watchdog timer
       self.timer.start(STATUS_CHECK_INTERVAL_MS)
-      self.check_server_status()
       message("Server is starting")
     elif self.state.value == STATUS_STARTING:
       message("Server is already starting")
+    elif self.state.value == STATUS_STOPPING:
+      message("Server is still stopping")
     else:
       message("Server is already started")
 
+
   def stop_service(self):
+    self.check_server_status()
     if self.state.value == STATUS_UP:
-      self.state.value = STATUS_STOPPING
       self.stop_server()
+      self.check_server_status()
       message("Server is stopping")
       # start the watchdog timer
       self.timer.start(STATUS_CHECK_INTERVAL_MS)
     elif self.state.value == STATUS_STARTING:
-      message("Server is starting")
+      message("Server is still starting")
+    elif self.state.value == STATUS_STOPPING:
+      message("Server is already stopping")
     else:
+      if self.instance:
+        # clean up any zombie process
+        # self.instance.join()
+        self.instance = None
       message("Server is already stopped")
+
 
   def quit_app(self):
     self.stop_service()
+    # self.state.release()
+    self.state = None
     self.app.quit()
+
 
   def open_webui_url(self):
     url = QUrl('http://localhost:8000/ui')
     QDesktopServices.openUrl(url)
+
 
   def setup_app(self):
     # Create the icon

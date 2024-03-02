@@ -14,7 +14,7 @@ from fastapi.templating import Jinja2Templates
 from service.dependencies import settings
 from service.endpoints import (calendar, chroma, class_diagram, configure, exec_code, graph_view, 
                  inlinerefs, jsonify, logmonitor, api_docs, preload, cleanups, proxy, research, topics, weaviate, webhooks)
-from service.logconfig import get_logger_config, setup_rich_logger
+from service.logconfig import setup_rich_logger
 from snowflake import SnowflakeGenerator
 from service.endpoints.api_docs import get_api_metadata
 
@@ -31,6 +31,8 @@ def get_app() -> FastAPI:
 app = get_app()
 
 logger = getLogger()
+
+logger.info(f"Log file is {log_filename}")
 
 origins = [
   "http://localhost",

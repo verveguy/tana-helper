@@ -1,12 +1,10 @@
 
 import multiprocessing
-import syslog
-from typing import List
+from time import sleep
+from typing import List, Optional
 from uvicorn import Config, Server
-from socket import socket
-
-# Define identifier
-syslog.openlog("TanaHelper")
+import socket
+import syslog
 
 def message(s):
   syslog.syslog(syslog.LOG_ALERT, s)
@@ -22,19 +20,24 @@ class MyUvicornServer(Server):
 
   def __init__(self, config: Config, status):
     message("MyUvicornServer created")
+    self.status = status
     super().__init__(config=config)
-    self.status_flag = status
+
+  def run(self, sockets: Optional[List[socket.socket]] = None) -> None:
+    message("MyUvicornServer run() called")
+    super().run(sockets=sockets)
+    message("MyUvicornServer run() called")
 
   async def startup(self, sockets=None):
     message("MyUvicornServer startup() called")
     await super().startup(sockets=sockets)
-    self.status_flag.value = STATUS_UP
+    self.status.value = STATUS_UP
     message("Server started")
 
-  async def shutdown(self, sockets: List[socket] | None = None) -> None:
+  async def shutdown(self, sockets: List[socket.socket] | None = None) -> None:
     message("MyUvicornServer shutdown() called")
     result = await super().shutdown(sockets)
-    self.status_flag.value = STATUS_DOWN
+    self.status.value = STATUS_DOWN
     message("Server stopped")
     return result
 
@@ -46,13 +49,33 @@ class ServiceWorker(multiprocessing.Process):
     self.status = status
     super().__init__()
 
-  def stop(self):
+  def stopXX(self):
     message("UvicornServer stop() called")
+    self.status.value = STATUS_STOPPING
     self.terminate()
 
-  def run(self, *args, **kwargs):
+
+  def stop(self):
+    message("UvicornServer stop() called")
+    self.status.value = STATUS_STOPPING
+    sleep(10)
+    self.status.value = STATUS_DOWN
+    self.terminate()
+    self.close()
+
+
+  def runXX(self, *args, **kwargs):
     message("ServiceWorker run() called")
     self.config = Config("service.main:app", host="127.0.0.1", port=8000, log_level="info", )
     self.server = MyUvicornServer(config=self.config, status=self.status)
-    message("UvicornServer run() calling...")
+    message("calling MyUvicornServer.run()")
     self.server.run()
+
+
+  def run(self, *args, **kwargs):
+    message("ServiceWorker run() called")
+    self.status.value = STATUS_STARTING
+    sleep(10)
+    self.status.value = STATUS_UP
+    message("ServiceWorker run() done")
+
