@@ -47,8 +47,15 @@ class TanaHelperTrayApp():
     self.instance = None
 
 
+  def set_state(self, state):
+    self.state.value = state # type: ignore
+
+  def is_state(self, state):
+    return self.state.value == state # type: ignore
+  
   def start_server(self):
     message('About to start serviceworker')
+    self.set_state(STATUS_STARTING)
     self.instance = ServiceWorker(status=self.state)
     self.instance.start()
     message('Started serviceworker')
@@ -57,7 +64,13 @@ class TanaHelperTrayApp():
   def stop_server(self):
     if self.instance:
       message('About to stop serviceworker')
-      self.instance.stop()
+      self.set_state(STATUS_STOPPING)
+      self.check_server_status()
+      self.instance.terminate()
+      self.check_server_status()
+      self.instance.join()
+      self.set_state(STATUS_DOWN)
+      self.instance = None
       message('Stopped serviceworker')
     else:
       message('No serviceworker to stop')
@@ -79,27 +92,27 @@ class TanaHelperTrayApp():
 
   def check_server_status(self):
     poll = False
-    if self.state.value == STATUS_STARTING:
+    if self.is_state(STATUS_STARTING):
       self.start_action.setEnabled(False)
       self.stop_action.setEnabled(False)
       self.open_webui.setEnabled(False)
       self.toggle_icon()
       message("Server is starting")
       poll = True
-    elif self.state.value == STATUS_STOPPING:
+    elif self.is_state(STATUS_STOPPING):
       self.start_action.setEnabled(False)
       self.stop_action.setEnabled(False)
       self.open_webui.setEnabled(False)
       message("Server is still stopping")
       self.toggle_icon()
       poll = True
-    elif self.state.value == STATUS_UP:
+    elif self.is_state(STATUS_UP):
       self.start_action.setEnabled(False)
       self.stop_action.setEnabled(True)
       self.open_webui.setEnabled(True)
       message("Server is running")
       poll = False
-    elif self.state.value == STATUS_DOWN:
+    elif self.is_state(STATUS_DOWN):
       self.start_action.setEnabled(True)
       self.stop_action.setEnabled(False)
       self.open_webui.setEnabled(False)
@@ -114,16 +127,16 @@ class TanaHelperTrayApp():
   
 
   def start_service(self):
-    if self.state.value == STATUS_DOWN:
+    if self.is_state(STATUS_DOWN):
       self.start_server()
-      message("Server is starting")
       self.check_server_status()
+      message("Server is starting")
       # start the watchdog timer
       self.timer.start(STATUS_CHECK_INTERVAL_MS)
       message("Server is starting")
-    elif self.state.value == STATUS_STARTING:
+    elif self.is_state(STATUS_STARTING):
       message("Server is already starting")
-    elif self.state.value == STATUS_STOPPING:
+    elif self.is_state(STATUS_STOPPING):
       message("Server is still stopping")
     else:
       message("Server is already started")
@@ -131,21 +144,17 @@ class TanaHelperTrayApp():
 
   def stop_service(self):
     self.check_server_status()
-    if self.state.value == STATUS_UP:
+    if self.is_state(STATUS_UP):
       self.stop_server()
       self.check_server_status()
       message("Server is stopping")
       # start the watchdog timer
       self.timer.start(STATUS_CHECK_INTERVAL_MS)
-    elif self.state.value == STATUS_STARTING:
+    elif self.is_state(STATUS_STARTING):
       message("Server is still starting")
-    elif self.state.value == STATUS_STOPPING:
+    elif self.is_state(STATUS_STOPPING):
       message("Server is already stopping")
     else:
-      if self.instance:
-        # clean up any zombie process
-        # self.instance.join()
-        self.instance = None
       message("Server is already stopped")
 
 
@@ -165,10 +174,11 @@ class TanaHelperTrayApp():
     # Create the icon
     plat = platform.system()
     if plat == 'Darwin':
-      self.active_icon = QIcon(os.path.join(basedir,'icons', 'icon_16x16.png'))
+      icon_path = os.path.join(basedir,'icons', 'icon_16x16_color.png')
+      self.active_icon = QIcon(os.path.join(basedir,'icons', 'icon_16x16_color.png'))
       self.icon = QIcon(os.path.join(basedir,'icons', 'icon_16x16_white.png'))
     elif plat == 'Windows':
-      self.icon = QIcon(os.path.join(basedir,'icons', 'icon_16x16.png'))
+      self.icon = QIcon(os.path.join(basedir,'icons', 'icon_16x16_color.png'))
       self.active_icon = QIcon(os.path.join(basedir,'icons', 'icon_16x16_white.png'))
 
     # Create the tray
@@ -207,7 +217,7 @@ class TanaHelperTrayApp():
     # Add the menu to the tray
     self.tray.setContextMenu(self.menu)
 
-  def start(self):
+  def start_app(self):
     # create our watchdog timer
     self.timer = QTimer(self.app)
     self.timer.timeout.connect(self.check_server_status)
@@ -215,6 +225,9 @@ class TanaHelperTrayApp():
     self.check_server_status()
     # start the app
     self.app.exec()
+    if self.instance:
+      self.instance.join()
+      self.instance = None
 
 #  __main__ test doesn't work in multiprocessing situation on Mac OS
 # when running as a bundled .app
@@ -239,7 +252,7 @@ if __name__ == "__main__":
     helperapp = TanaHelperTrayApp()
     helperapp.setup_app()
     # this won't return until we quit the app
-    helperapp.start()
+    helperapp.start_app()
     # app has been quit
     message("Exiting")
   

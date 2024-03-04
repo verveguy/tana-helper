@@ -9,4 +9,4 @@ import onnxruntime, tokenizers, tqdm
     
 if __name__ == "__main__":
     cwd = Path(__file__).parent.resolve()
-    uvicorn.run("service.main:app", port=8000, log_level="info")
+    uvicorn.run("service.main:app", port=8000, log_level="info", reload=True)

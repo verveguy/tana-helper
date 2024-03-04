@@ -29,6 +29,8 @@ service_datas = []
 service_binaries = []
 service_hiddenimports = []
 
+service_hiddenimports += ['service.small_main', 'service.main']
+
 service_hiddenimports += collect_submodules('service')
 
 service_datas += [

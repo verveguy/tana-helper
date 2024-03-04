@@ -1,10 +1,13 @@
 
+import asyncio
 import multiprocessing
 from time import sleep
 from typing import List, Optional
 from uvicorn import Config, Server
 import socket
 import syslog
+# import service.small_main
+import service.main
 
 def message(s):
   syslog.syslog(syslog.LOG_ALERT, s)
@@ -47,15 +50,17 @@ class ServiceWorker(multiprocessing.Process):
   def __init__(self, status):
     message("UvicornServer created")
     self.status = status
+    self.server = None
     super().__init__()
 
-  def stopXX(self):
+  def stop(self):
     message("UvicornServer stop() called")
     self.status.value = STATUS_STOPPING
-    self.terminate()
+
+    self.close()
 
 
-  def stop(self):
+  def stopXX(self):
     message("UvicornServer stop() called")
     self.status.value = STATUS_STOPPING
     sleep(10)
@@ -64,15 +69,22 @@ class ServiceWorker(multiprocessing.Process):
     self.close()
 
 
-  def runXX(self, *args, **kwargs):
-    message("ServiceWorker run() called")
-    self.config = Config("service.main:app", host="127.0.0.1", port=8000, log_level="info", )
-    self.server = MyUvicornServer(config=self.config, status=self.status)
-    message("calling MyUvicornServer.run()")
-    self.server.run()
-
-
   def run(self, *args, **kwargs):
+    message("ServiceWorker run() called")
+    self.status.value = STATUS_STARTING
+    try:
+      self.config = Config("service.main:app", host="127.0.0.1", port=8000, log_level="info", loop="asyncio")
+      self.server = MyUvicornServer(config=self.config, status=self.status)
+      message("calling MyUvicornServer.run()")
+      self.server.run()
+      message("ServiceWorker run() done")
+    except Exception as e:
+      message(f"ServiceWorker run() exception: {e}")
+      self.status.value = STATUS_DOWN
+    
+
+
+  def runXX(self, *args, **kwargs):
     message("ServiceWorker run() called")
     self.status.value = STATUS_STARTING
     sleep(10)

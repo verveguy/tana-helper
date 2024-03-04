@@ -23,7 +23,7 @@
       "name": "Python: Tana Helper",
       "type": "debugpy",
       "request": "launch",
-      "program": "tanahelper.py",
+      "program": "${workspaceFolder}/tanahelper.py",
       "console": "integratedTerminal",
       "justMyCode": true
     },

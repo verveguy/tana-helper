@@ -4,6 +4,7 @@ from pathlib import Path
 import platform
 import time
 from logging import getLogger
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,9 +21,24 @@ from service.endpoints.api_docs import get_api_metadata
 
 log_filename = None
 
+# essentially, context managers are aspect-oriented constructs for python
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+  # TODO: find out the actual configured port at runtime
+  logger.info("Tana Helper running on port 8000")
+  logger.info("Try opening http://localhost:8000/")
+  logger.info(f"Log file is {log_filename}")
+  # ...do other expensive startup things here
+  # ...
+  yield # yield 
+  # ... do any shutdown cleanup stuff before finishing
+  # ...
+
+
 def get_app() -> FastAPI:
   global log_filename
   app = FastAPI(
+    lifespan=lifespan,
     **get_api_metadata(),
     )
   log_filename = setup_rich_logger()
@@ -31,8 +47,6 @@ def get_app() -> FastAPI:
 app = get_app()
 
 logger = getLogger()
-
-logger.info(f"Log file is {log_filename}")
 
 origins = [
   "http://localhost",
@@ -188,7 +202,3 @@ async def new_app_ui_path(full_path:str):
   # return a completely generic index.html that assumes the app is
   # available on App_file.js (note initial cap)
   return await app_ui('root')
-
-# TODO: find out the actual configured port at runtime
-logger.info("Tana Helper running on port 8000")
-logger.info("Try opening http://localhost:8000/")
