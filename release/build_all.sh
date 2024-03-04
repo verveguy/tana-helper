@@ -38,13 +38,9 @@ SVCNAME="${NAME}Service"
 # of the build machine
 ARM64_NAME="$NAME-12.6-arm64.app"
 ARM64="builds/$ARM64_NAME"
-SVCARM64_NAME="$SVCNAME-12.6-arm64.app"
-SVCARM64="builds/$SVCARM64_NAME"
 
 X86_64_NAME="$NAME-12.7-x86_64.app"
 X86_64="builds/$X86_64_NAME"
-SVCX86_64_NAME="$SVCNAME-12.7-x86_64.app"
-SVCX86_64="builds/$SVCX86_64_NAME"
 
 echo_blue "START builds"
 
@@ -83,20 +79,6 @@ echo_blue "Preparing Universal Map .app"
 echo_blue "Lipo-ing the two architectures into one"
 mkdir -p "dist/dmg"
 
-# BUILD Mac Service.app first
-# use arm64 build as our "primary" and recurse that structure
-SVCAPP="dist/dmg/${SVCNAME}.app"
-
-echo_blue "Lipo-ing ${SVCAPP}"
-lipo_files "$SVCAPP" "$SVCARM64" "$SVCX86_64" > builds/lipo_svc.log 2>&1 &
-lipopid1=$!
-
-# show process spinner
-waitalljobs $lipopid1
-echo_blue "Completed Universal Service.app build"
-
-codesign_app "$SVCAPP"
-
 # BUild Mac Helper.app next
 # use arm64 build as our "primary" and recurse that structure
 APP="dist/dmg/${NAME}.app"
@@ -108,14 +90,6 @@ lipopid2=$!
 # show process spinner
 waitalljobs $lipopid2
 echo_blue "Completed Universal Helper.app build"
-
-# Place Service.app inside Helper.app package
-echo_blue "Placing Service.app inside Helper.app package"
-ditto "${SVCAPP}" "${APP}/Contents/MacOS/${SVCNAME}.app"
-
-# REMOVE the copy of Service.app from the DMG tree
-echo_blue "Removing Service.app from DMG tree"
-rm -rf "${SVCAPP}"
 
 echo_blue "Codesigning ${APP}"
 codesign_app "$APP"

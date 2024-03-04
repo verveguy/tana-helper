@@ -17,12 +17,9 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     OS_VERSION=$(sw_vers -productVersion | awk -F '.' '{print $1 "." $2}')
     ARCH=$(uname -m)
     NAME="TanaHelper-$OS_VERSION-$ARCH"
-    SVCNAME="TanaHelperService-$OS_VERSION-$ARCH"
     
     mkdir -p "dist/$NAME.app"
-    mkdir -p "dist/$SVCNAME.app"
     ditto '../service/dist/TanaHelper.app' "dist/$NAME.app"
-    ditto '../service/dist/TanaHelperService.app' "dist/$SVCNAME.app"
     echo "Mac .app bundles done"
 
 elif [[ "$OSTYPE" == "msys"* ]]; then

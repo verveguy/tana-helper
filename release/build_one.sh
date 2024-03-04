@@ -21,7 +21,6 @@ source .env
 set +a
 
 NAME='TanaHelper'
-SVCNAME="${NAME}Service"
 
 # set up the names of the two builds
 # pattern is TanaHelper-OS_REV-ARCH.app 
@@ -29,9 +28,6 @@ SVCNAME="${NAME}Service"
 # of the build machine
 ARM64_NAME="$NAME-12.6-arm64.app"
 ARM64="builds/$ARM64_NAME"
-SVCARM64_NAME="$SVCNAME-12.6-arm64.app"
-SVCARM64="builds/$SVCARM64_NAME"
-
 
 echo_blue "START builds"
 
@@ -52,23 +48,10 @@ waitalljobs $buildpid
 
 # since we don't have to lipo multiple builds into one, we can just rename the build
 APP="dist/dmg/${NAME}.app"
-SVCAPP="dist/dmg/${SVCNAME}.app"
 
 mkdir -p dist/dmg/
 
 mv dist/${NAME}-*.app "$APP"
-mv dist/${SVCNAME}-*.app "$SVCAPP"
-
-# codesigning, etc
-codesign_app "$SVCAPP"
-
-# Place Service.app inside Helper.app package
-echo_blue "Placing Service.app inside Helper.app package"
-ditto "${SVCAPP}" "${APP}/Contents/MacOS/${SVCNAME}.app"
-
-# REMOVE the copy of Service.app from the DMG tree
-echo_blue "Removing Service.app from DMG tree"
-rm -rf "${SVCAPP}"
 
 echo_blue "Codesigning ${APP}"
 codesign_app "$APP"
