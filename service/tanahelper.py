@@ -1,23 +1,12 @@
 from socket import socket
-import syslog
 from multiprocessing import freeze_support, set_start_method, Process
 from typing import List
-
-# Define identifier
-syslog.openlog("TanaHelper")
-
-def message(s):
-  syslog.syslog(syslog.LOG_ALERT, s)
 
 if __name__ == "__main__":
   freeze_support()
   set_start_method('spawn')
-  message('started main process')
-else:
-  message('started subprocess')
 
 import sys
-import platform
 import os
 from time import sleep
 from PyQt6.QtGui import QIcon, QAction, QDesktopServices
@@ -32,7 +21,7 @@ from myuvicorn import STATUS_STOPPING, ServiceWorker, STATUS_CHECK_INTERVAL_MS, 
 # these imports are to satisfy PyInstaller's dependency finder
 # since they appear to be "hidden" from it for unknown reasons
 import onnxruntime, tokenizers, tqdm
-
+from message import message, os_platform
 
 import logging
 logger = logging.getLogger(__name__)
@@ -172,12 +161,11 @@ class TanaHelperTrayApp():
 
   def setup_app(self):
     # Create the icon
-    plat = platform.system()
-    if plat == 'Darwin':
+    if os_platform == 'Darwin':
       icon_path = os.path.join(basedir,'icons', 'icon_16x16_color.png')
       self.active_icon = QIcon(os.path.join(basedir,'icons', 'icon_16x16_color.png'))
       self.icon = QIcon(os.path.join(basedir,'icons', 'icon_16x16_white.png'))
-    elif plat == 'Windows':
+    elif os_platform == 'Windows':
       self.icon = QIcon(os.path.join(basedir,'icons', 'icon_16x16_color.png'))
       self.active_icon = QIcon(os.path.join(basedir,'icons', 'icon_16x16_white.png'))
 

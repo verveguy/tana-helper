@@ -1,16 +1,11 @@
-
-import asyncio
 import multiprocessing
 from time import sleep
 from typing import List, Optional
 from uvicorn import Config, Server
 import socket
-import syslog
+from message import message
 # import service.small_main
 import service.main
-
-def message(s):
-  syslog.syslog(syslog.LOG_ALERT, s)
 
 STATUS_CHECK_INTERVAL_MS  = 1000
 STATUS_STARTING = b'S'
