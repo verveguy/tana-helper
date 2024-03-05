@@ -78,8 +78,10 @@ pyz = PYZ(analysis.pure)
 # NOW BUILD HELPER APP
     
 icon=None
+console=False
 if plat == 'Windows':
   icon=['icons/TanaHelper.ico']
+  console=True
 
 exe = EXE(
   pyz,
@@ -91,7 +93,7 @@ exe = EXE(
   bootloader_ignore_signals=False,
   strip=False,
   upx=True,
-  console=False,
+  console=console,
   disable_windowed_traceback=False,
   argv_emulation=False,
   target_arch=None,
