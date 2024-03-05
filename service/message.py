@@ -12,4 +12,5 @@ if os_platform == "Darwin":
     print(s)
 else:
   def message(s):
-    print(s)
+    # print(s)
+    pass

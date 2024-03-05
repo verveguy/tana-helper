@@ -8,6 +8,17 @@ if __name__ == "__main__":
 
 import sys
 import os
+
+# workaround for Windows --noconsole mode
+# let's ensure stdout and stderr are not None
+# see https://pyinstaller.org/en/stable/common-issues-and-pitfalls.html?highlight=windowed
+if sys.stdin is None:
+  sys.stdin = open(os.devnull, "r")
+if sys.stdout is None:
+  sys.stdout = open(os.devnull, "w")
+if sys.stderr is None:
+  sys.stderr = open(os.devnull, "w")
+
 from time import sleep
 from PyQt6.QtGui import QIcon, QAction, QDesktopServices
 from PyQt6.QtCore import QTimer, QUrl

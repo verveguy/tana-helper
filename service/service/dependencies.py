@@ -352,9 +352,9 @@ def tana_to_json(tana_format):
     return newnode
 
   # now, reprocess tree, 'hoisting' children of fields and dropping is_field flags
-  print(top)
+  # print(top)
   result = process_node(top)
-  print(result)
+  # print(result)
   return result['children']
 
 

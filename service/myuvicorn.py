@@ -1,3 +1,16 @@
+import sys
+import os
+
+# workaround for Windows --noconsole mode
+# let's ensure stdout and stderr are not None
+# see https://pyinstaller.org/en/stable/common-issues-and-pitfalls.html?highlight=windowed
+if sys.stdin is None:
+  sys.stdin = open(os.devnull, "r")
+if sys.stdout is None:
+  sys.stdout = open(os.devnull, "w")
+if sys.stderr is None:
+  sys.stderr = open(os.devnull, "w")
+
 import multiprocessing
 from time import sleep
 from typing import List, Optional

@@ -1,12 +1,23 @@
-import asyncio
+import sys
 import os
+
+# workaround for Windows --noconsole mode
+# let's ensure stdout and stderr are not None
+# see https://pyinstaller.org/en/stable/common-issues-and-pitfalls.html?highlight=windowed
+if sys.stdin is None:
+  sys.stdin = open(os.devnull, "r")
+if sys.stdout is None:
+  sys.stdout = open(os.devnull, "w")
+if sys.stderr is None:
+  sys.stderr = open(os.devnull, "w")
+
 from pathlib import Path
 import platform
 import time
 from logging import getLogger
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, Response, WebSocket
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles

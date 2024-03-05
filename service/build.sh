@@ -53,5 +53,5 @@ elif [[ "$OSTYPE" == "msys"* ]]; then
     # NOTE: we do this differently for Mac and Win since Windows suffers false positives
     # on the pysinstaller bootloader unless we use --clean
     echo "Building tanahelper .exe using pyinstaller..."
-    pyinstaller tanahelper.spec --noconfirm --clean
+    pyinstaller tanahelper.spec --noconfirm # --clean
 fi

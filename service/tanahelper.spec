@@ -81,7 +81,7 @@ icon=None
 console=False
 if plat == 'Windows':
   icon=['icons/TanaHelper.ico']
-  console=True
+  console=False
 
 exe = EXE(
   pyz,
