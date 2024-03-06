@@ -44,15 +44,15 @@ function Panels() {
   return (
     <UILayout
       navigation={[
-        ['Home', '/ui'],
-        ['API', '/ui/rapidoc'],
-        ['Logs', '/ui/logs'],
-        ['Class Diagram', '/ui/classdiagram'],
-        ['Visualizer', '/ui/visualizer'],
-        //['Configure', '/ui/configure'],
-      ].map(([text, link], index) => (
+        ['Home', '/ui', 'home'],
+        ['API', '/ui/rapidoc', 'api'],
+        ['Logs', '/ui/logs', 'logs'],
+        ['Class Diagram', '/ui/classdiagram', 'classdiagram'],
+        ['Visualizer', '/ui/visualizer', 'visualizer'],
+        //['Configure', '/ui/configure', 'configure'],
+      ].map(([text, link, key], index) => (
         <li>
-          <ListItemButton component={NavLink} to={link} selected={location.pathname == link}>
+          <ListItemButton key={key} component={NavLink} to={link} selected={location.pathname == link}>
             <ListItemText primary={text} />
           </ListItemButton>
         </li>
