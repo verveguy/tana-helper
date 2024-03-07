@@ -136,4 +136,8 @@ elif plat == 'Darwin':
     version=version,
     icon=f'icons/{title}.icns',
     bundle_identifier='com.v3rv.app.Tana-Helper',
+    info_plist={
+      'LSBackgroundOnly': True,
+    },
   )
+
