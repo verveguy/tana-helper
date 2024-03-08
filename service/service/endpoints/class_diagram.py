@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import Optional, List
 from service.tana_types import GraphLink, NodeDump, TanaDump, TanaTag, Visualizer
-from service.tanaparser import NodeIndex, add_linkage, patch_node_name
+from service.tanaparser import IS_TAG_SCHEMA_LINK, NodeIndex, add_linkage, patch_node_name
 from logging import getLogger
 import re
 
@@ -27,7 +27,8 @@ async def class_diagram(tana_dump:TanaDump):
                       include_inline_refs=False,
                       include_tag_tag_links=True,
                       include_node_tag_links=False,
-                      include_inline_ref_nodes=False)
+                      include_inline_ref_nodes=False,
+                      include_tag_schema_links=True)
 
   index = NodeIndex(tana_dump=tana_dump, config=config)
 
@@ -89,16 +90,25 @@ async def mermaid_classes(tana_dump:TanaDump):
   
   mermaid += "classDiagram\n"
   mermaid += "    direction RL\n"
-    
+  schema_node = None
+
+  for link in graph.links:
+    if link.reason != IS_TAG_SCHEMA_LINK:
+      mermaid += f'    {link.target} <|-- {link.source} \n\n'
+    else:
+      # make a note of the schema node so we can omit it
+      schema_node = link.target
+
   for node in graph.nodes:
+    if node.id == schema_node:
+      continue
     if node.name:
-      mermaid += f'    class {node.id}["{node.name}"]' + ' {\n'
+      encoded_name = node.name.replace('"', "#quot;")
+      mermaid += f'    class {node.id}["{encoded_name}"]' + ' {\n'
       # TODO: add all fields of the tag here
       mermaid += "    }\n"
   
-  for link in graph.links:
-    mermaid += f'    {link.target} <|-- {link.source} \n'
-
+      
   mermaid += "\n"
 
   return mermaid

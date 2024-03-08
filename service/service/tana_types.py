@@ -46,6 +46,7 @@ class Visualizer(BaseModel):
   include_inline_refs: bool = True
   include_inline_ref_nodes: bool = True
   include_content_nodes: bool = False
+  include_tag_schema_links: Optional[bool] = False
   # make this hashable
   model_config = ConfigDict(frozen = True)
 

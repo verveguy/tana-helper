@@ -47,7 +47,7 @@ function Panels() {
         ['Home', '/ui', 'home'],
         ['API', '/ui/rapidoc', 'api'],
         ['Logs', '/ui/logs', 'logs'],
-        ['Class Diagram', '/ui/classdiagram', 'classdiagram'],
+        ['Tag Diagram', '/ui/classdiagram', 'classdiagram'],
         ['Visualizer', '/ui/visualizer', 'visualizer'],
         //['Configure', '/ui/configure', 'configure'],
       ].map(([text, link, key], index) => (

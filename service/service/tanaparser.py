@@ -22,6 +22,7 @@ IS_TAG_TAG_LINK='itn'
 IS_CHILD_CONTENT_LINK='icl'
 IS_CHILD_REF_LINK='icr'
 IS_FIELD_CONTENT_LINK='ifl'
+IS_TAG_SCHEMA_LINK='its'
 
 # Workhorse class and methods
 # Pass in a Tana JSON dump, get back a DirectedGraph
@@ -111,12 +112,15 @@ class NodeIndex(BaseModel):
                           if self.valid(child_id):
                             supertag = self.index[child_id]
                             tag_node.tags.append(supertag.id)
-                            # print (f'{tag_name} -> {supertag.props.name}')
+                            # print (f'TAG {tag_name} -> {supertag.props.name}')
                             if self.config.include_tag_tag_links:
                               self.master_pairs.append((tag_id, child_id, IS_TAG_TAG_LINK))
                       else:
-                        # print(f'{tag_name} ->')
-                        pass
+                        if self.config.include_tag_schema_links:
+                          schema_id = tag_node.props.ownerId
+                          if schema_id and self.valid(schema_id):
+                            self.master_pairs.append((tag_id, schema_id, IS_TAG_SCHEMA_LINK))
+                        #print(f'TAG {tag_name} -> SCHEMA')
                 # else:
                   # trashed_node = self.trash[tag_id]
                   # print(f'Found tag_id {tag_id}, name {trashed_node.props.name} in the TRASH')

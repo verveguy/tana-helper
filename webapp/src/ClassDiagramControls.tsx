@@ -22,6 +22,7 @@ export default function ClassDiagramControls() {
   useEffect(() => {
     if (upload) {
       setLoading(true);
+      setMermaidText(null);
       axios.post('/mermaid_classes', dumpFile, {
         headers: {
           "Content-Type": "application/json",
