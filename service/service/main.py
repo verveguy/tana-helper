@@ -17,14 +17,19 @@ import time
 from logging import getLogger
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, Response
+from fastapi import BackgroundTasks, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from starlette.responses import StreamingResponse
+from starlette.background import BackgroundTask
+
+import httpx
+
 from service.dependencies import settings
-from service.endpoints import (calendar, chroma, class_diagram, configure, exec_code, graph_view, 
+from service.endpoints import (calendar, chroma, class_diagram, configure, exec_code, graph_view, home, 
                  inlinerefs, jsonify, logmonitor, api_docs, preload, cleanups, proxy, research, topics, weaviate, webhooks)
 from service.logconfig import setup_rich_logger
 from snowflake import SnowflakeGenerator
@@ -93,6 +98,7 @@ app.include_router(configure.router)
 app.include_router(cleanups.router)
 app.include_router(proxy.router)
 app.include_router(api_docs.router)
+app.include_router(home.router)
 
 app.include_router(chroma.router)
 app.include_router(preload.router)
@@ -202,6 +208,9 @@ async def app_ui(app_file:str):
   """
 
 @app.get("/", response_class=HTMLResponse, tags=["UI"])
+def root_ui():
+  return RedirectResponse(url="/ui", status_code=301)
+
 @app.get("/ui", response_class=HTMLResponse, tags=["UI"])
 async def new_app_ui():
   # return a completely generic index.html that assumes the app is
