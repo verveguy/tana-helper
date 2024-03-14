@@ -25,12 +25,6 @@ router = APIRouter()
 
 INBOX_QUEUE = "queue"
 
-# TODO: Add header support throughout so we can pass Tana API key and OpenAPI Key as headers
-# NOTE: we already have this in the main.py middleware wrapper, but it would be better
-# to do it here for OpenAPI purposes.
-# x_tana_api_token: Annotated[str | None, Header()] = None
-# x_openai_api_key: Annotated[str | None, Header()] = None
-
 db_path = os.path.join(Path.home(), '.chroma.db')
 @lru_cache() # reuse connection to chromadb to avoid connection rate limiting on parallel requests
 def get_chroma():
@@ -57,7 +51,7 @@ def get_queue_collection():
 lock = asyncio.Lock()
 
 @router.post("/chroma/upsert", status_code=status.HTTP_204_NO_CONTENT, tags=["Chroma"])
-async def chroma_upsert(request: Request, req: ChromaRequest):
+async def chroma_upsert(req: ChromaRequest):
   async with lock:
     # we only want the direct children of the node as context
     # so we prune the context before embedding

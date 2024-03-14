@@ -1,5 +1,7 @@
 import asyncio
+import io
 import json
+import logging
 import os
 import tempfile
 import time
@@ -21,16 +23,20 @@ from snowflake import SnowflakeGenerator
 from service.dependencies import (
     TANA_NODE,
     TANA_TEXT,
+    ChromaRequest,
     LlamaRequest,
     TanaNodeMetadata,
+    capture_logs,
 )
 
+from service.endpoints.chroma import chroma_upsert
 from service.endpoints.topics import TanaDocument, extract_topic_from_context, extract_topics
 from service.llamaindex import create_index, get_index
 from service.tana_types import TanaDump
 from service.txntimer import txntimer
 
 logger = getLogger()
+
 snowflakes = SnowflakeGenerator(42)
 
 router = APIRouter()
@@ -42,6 +48,32 @@ minutes = 1000 * 60
 # to do it here for OpenAPI spec purposes.
 # x_tana_api_token: Annotated[str | None, Header()] = None
 # x_openai_api_key: Annotated[str | None, Header()] = None
+
+# TODO: change this to remove LLamaindex and simply go directly to ChromaDB
+
+
+async def load_chromadb_from_topics(topics:List[TanaDocument], model:str, observe=False):
+  '''Load the topic index from the topic array directly.'''
+
+  logger.info('Building ChromaDB vectors from nodes')
+
+  index_nodes = []
+  # loop through all the topics and create a Document for each
+  for topic in topics:
+    (doc_node, text_nodes) = document_from_topic(topic)
+    index_nodes.append(doc_node)
+    index_nodes.extend(text_nodes)
+
+  logger.info(f'Gathered {len(index_nodes)} tana nodes')
+  logger.info("Preparing storage context")
+
+  for node in index_nodes:
+    logger.info(f'Node {node.node_id} {node.metadata}')
+    chroma_req = ChromaRequest(context=node.text, nodeId=node.node_id, model=model)
+    upsert = await chroma_upsert(chroma_req)
+    
+  logger.info("ChromaDB populated and ready")
+  return index_nodes
 
 def load_index_from_topics(topics:List[TanaDocument], model:str, observe=False):
   '''Load the topic index from the topic array directly.'''
@@ -168,33 +200,37 @@ async def llama_upsert(request: Request, req:LlamaRequest, model:str="openai", o
 
 
 # Note: accepts ?model= query param
-@router.post("/llamaindex/preload", status_code=status.HTTP_204_NO_CONTENT, tags=["preload"])
+@router.post("/llamaindex/preload", tags=["preload"])
 async def llama_preload(request: Request, tana_dump:TanaDump, model:str="openai"):
-  '''Accepts a Tana dump JSON payload and builds the LLama index from it
+  '''Accepts a Tana dump JSON payload and builds the index from it.
   Uses the topic extraction code from the topics endpoint to build
-  a temporary JSON file, then loads that into the index.
+  an object tree in memory, then loads that into ChromaDB via LLamaIndex.
+  
+  Returns a list of log messages from the process.
   '''
   async with lock:
-    result = await extract_topics(tana_dump, 'JSON') # type: ignore
-    logger.info('Extracted topics from Tana dump')
+    messages = []
+    async with capture_logs(logger) as logs:
+      result = await extract_topics(tana_dump, 'JSON') # type: ignore
+      logger.info('Extracted topics from Tana dump')
 
-    # save output to a temporary file
-    with tempfile.TemporaryDirectory() as tmp:
-      path = os.path.join(tmp, 'topics.json')
-      logger.info(f'Saving topics to {path}')
-      # use path
-      with open(path, "w") as f:
-        json_result = jsonable_encoder(result)
-        f.write(json.dumps(json_result))
-      
-      logger.info('Loading index ...')
-    # don't use file anymore...
-    # load_index_from_file(path)
-    # load directly from in-memory representation
-    load_index_from_topics(result, model=model)
-  
-    # logger.info(f'Deleted temp file {path}')
-
-    #TODO: consider returning some kind of completion confirmation payload with statidtics
-    return None
+      # save output to a temporary file
+      with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, 'topics.json')
+        logger.info(f'Saving topics to {path}')
+        # use path
+        with open(path, "w") as f:
+          json_result = jsonable_encoder(result)
+          f.write(json.dumps(json_result))
+        
+        logger.info('Loading index ...')
+      # don't use file anymore...
+      # load_index_from_file(path)
+      # load directly from in-memory representation
+      await load_chromadb_from_topics(result, model=model)
+      # load_index_from_topics(result, model=model)
+    
+      # logger.info(f'Deleted temp file {path}')
+      messages = logs.getvalue()
+    return messages
 
