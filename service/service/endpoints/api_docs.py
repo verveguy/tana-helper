@@ -10,7 +10,7 @@ router = APIRouter()
 def get_api_metadata():
   return {
     'title':"Tana Helper",
-    'version':"0.2.0", # TODO: make this configured at build time somehow
+    'version':"0.2.1", # TODO: make this configured at build time somehow
     'description':"""
 Tana Helper helps you do awesome stuff. 🚀
 It's all done via API calls to this service.
@@ -19,7 +19,7 @@ Most of this API is intended to be called from the `Make API request` command in
 As a result, most API calls return data in "Tana paste" format.
 
 See the [Tana Helper GitHub](https://www.github.com/verveguy/tana-helper) for more information.
-Also see the Tana Helper 
+Also see the [Tana Helper](https://tana.pub/EufhKV4ZMH/tana-helper) instructions.
 
 """,
     'summary':"API for the Tana Helper service that augments Tana.",
