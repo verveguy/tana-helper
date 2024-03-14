@@ -176,7 +176,7 @@ cwd = os.getcwd()
 app.mount("/static", StaticFiles(directory="dist"), name="static")
 
 # for HTML template responses
-settings.templates = Jinja2Templates(directory=os.path.join(basedir,'dist','templates'))
+# settings.templates = Jinja2Templates(directory=os.path.join(basedir,'dist','templates'))
 
 @app.get('/favicon.ico', include_in_schema=False)
 async def favicon():

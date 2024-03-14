@@ -5,14 +5,17 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { BrowserRouter, NavLink, Route, useLocation } from 'react-router-dom';
 import { TanaHelperContextProvider } from './TanaHelperContext';
 
-import API from './API';
-import ClassDiagramControls from './ClassDiagramControls';
-import Home from './Home';
-import Logs from './Logs';
+import ClassDiagramControls from './components/ClassDiagramControls';
+import Home from './components/Home';
+import Logs from './components/Logs';
 import UILayout from './UILayout';
-import VisualizerControls from './VisualizerControls';
+import VisualizerControls from './components/VisualizerControls';
 import ClassDiagram from './components/ClassDiagram';
 import Visualizer from './components/Visualizer';
+import RAGIndex from './components/RAGIndex';
+import RAGIndexControls from './components/RAGIndexControls';
+import Api from './components/Api';
+import Configure from './components/Configure';
 
 const darkTheme = createTheme({
   palette: {
@@ -47,10 +50,10 @@ const config = [
     control: null
   },
   {
-    label: 'API',
-    link: '/ui/api',
-    key: 'api',
-    content: <API />,
+    label: 'Configuration',
+    link: '/ui/configuration',
+    key: 'configuration',
+    content: <Configure />,
     control: null
   },
   {
@@ -58,6 +61,13 @@ const config = [
     link: '/ui/logs',
     key: 'logs',
     content: <Logs />,
+    control: null
+  },
+  {
+    label: 'API',
+    link: '/ui/api',
+    key: 'api',
+    content: <Api />,
     control: null
   },
   {
@@ -73,7 +83,14 @@ const config = [
     key: 'visualizer',
     content: <Visualizer />,
     control: <VisualizerControls />
-  }
+  },
+  {
+    label: 'RAG Index',
+    link: '/ui/ragindex',
+    key: 'ragindex',
+    content: <RAGIndex />,
+    control: <RAGIndexControls />
+  },
 ];
 
 function Panels() {

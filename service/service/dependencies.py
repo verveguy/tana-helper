@@ -1,38 +1,101 @@
-from openai import OpenAI
-from pydantic import BaseModel, Field, ConfigDict
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import ForwardRef, List, Optional
+import io
+import os
+import logging
+import httpx
+import pytz
+import json
+
 from datetime import datetime
 from logging import getLogger
-import timeit
-import pytz
-import os
-import httpx
-import json 
-from dotenv import load_dotenv
+from timeit import timeit
+from typing import ForwardRef, List, Optional
+from typing_extensions import Annotated
+from fastapi.concurrency import asynccontextmanager
+from openai import OpenAI
+from pydantic import BaseModel, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pathlib import Path
+
 
 # Load environment variables from .env file
 # load_dotenv()
 
 app_name = "TanaHelper"
 
+# TODO: figure out how to make settings more modular, based on endpoints configured
 class Settings(BaseSettings):
-  model_config = SettingsConfigDict( env_file='.env', env_file_encoding='utf-8')
-  production: bool = False
-  openai_api_key: str = "OPENAI_API_KEY NOT SET"
-  tana_api_token: str = "TANA_API_TOKEN NOT SET"
-  webhook_template_path: str = '/tmp/tana_helper/webhooks'
-  temp_files: str = '/tmp/tana_helper/tmp'
-  export_path: str = '/tmp/tana_helper/export'
-  tana_environment: str = "us-west4-gcp-free"
-  tana_namespace: str = "tana-namespace"
-  tana_index:str = "tana-helper"
-  templates:object = None
+  """
+  Settings for Tana Helper
+  """
+  # Read from .env for development/debug only
+  # otherwise, see below for get_settings() function
+  model_config = SettingsConfigDict( title="Settings", env_file='.env', env_file_encoding='utf-8')
+
+  openai_api_key: Annotated[str, Field(title="OpenAI API Key", 
+    description="API Key for OpenAI. You can also pass this as the header x-openai-api-key on each request.")] \
+      = "OPENAI_API_KEY NOT SET"
+  
+  tana_api_token: Annotated[str, Field(title="Tana API Token", 
+    description="API Token for Tana access. You can also pass this as the header x-tana-api-token on each request.")] \
+      = "TANA_API_TOKEN NOT SET"
+  
+  webhook_template_path: Annotated[str, Field(title="Webhook Template Path", 
+      description="Path to store webhook templates")] \
+        = os.path.join(Path.home(), '.tana_helper', 'webhooks')
+  
+  temp_files: Annotated[str, Field(title="Temporary Files Path", 
+    description="Path to store temporary files")] \
+      = os.path.join('/', 'tmp','tana_helper', 'tmp')
+  
+  export_path: Annotated[str, Field(title="Export Path", 
+    description="Path to store exported files")] \
+      = os.path.join('/', 'tmp','tana_helper', 'export')
+  
+  tana_environment: Annotated[str, Field(title="Tana Pinecone Environment",
+    description="Pinecone environment for Tana vector storage")] \
+      = "us-west4-gcp-free" 
+  
+  tana_namespace: Annotated[str, Field(title="Tana VectorDB Namespace", 
+    description="VectorDB namespace for Tana vector storage")] \
+      = "tana-namespace" 
+  
+  tana_index: Annotated[str, Field(title="Tana VectorDB Index", 
+    description="VectorDB index for Tana vector storage")] \
+      = "tana-helper"
+                          
+  # production: Annotated[bool, Field(title="Production", 
+  #   description="Whether we are running in production mode")] \
+  #     = False
+  
+  # templates:object = None
 
 # create global settings 
 # TODO: make settings per-request context, not gobal
-settings = Settings()
+global settings
 
+settings_path = os.path.join(Path.home(), '.tana_helper', 'settings.json')
+
+def get_settings():
+  global settings
+  try:
+    with open(settings_path, 'r') as f:
+      settings_dict = json.load(f)
+      settings = Settings.model_validate(settings_dict)
+  except Exception:
+    # any exception, reset to defaults
+    settings = Settings()
+  return settings
+
+def set_settings(new_settings:Settings):
+  global settings
+  settings = new_settings
+  # write new settings to .env file
+  with open('.env.json', 'w') as f:
+    f.write(settings.model_dump_json())
+  return settings
+
+# read from file to start with
+settings = get_settings()
 
 
 # Types for our APIs to use
@@ -65,7 +128,6 @@ class ExecRequest(BaseModel):
   payload: dict
 
 class OpenAIRequest(BaseModel):
-  openai: str
   model: str = 'gpt-3.5-turbo'
   embedding_model: str = "text-embedding-ada-002"
 
@@ -181,14 +243,14 @@ class TanaInputAPIClient:
 
 def get_embedding(req:EmbeddingRequest):
   # get shared client object
-  api_key = settings.openai_api_key if not req.openai else req.openai
+  api_key = settings.openai_api_key
   openai_client = OpenAI(api_key=api_key)
   content = req.name + req.context 
   embedding = openai_client.embeddings.create(input=content, model=req.embedding_model)
   return embedding.data # type: ignore
 
 def get_chatcompletion(req:OpenAICompletion) -> dict:
-  api_key = settings.openai_api_key if not req.openai else req.openai
+  api_key = settings.openai_api_key
   openai_client = OpenAI(api_key=api_key)
   completion = openai_client.chat.completions.create(
                   messages=[{ 'role': 'user', 'content': req.prompt }],
@@ -437,3 +499,15 @@ def json_to_tana(json_format):
   tana_format += chunk
 
   return tana_format
+
+# essentially, context managers are aspect-oriented constructs for python
+@asynccontextmanager
+async def capture_logs(logger):
+  # add a local capture to our logger
+  logs = io.StringIO('')
+  eh = logging.StreamHandler(logs)
+  formatter = logging.Formatter('%(asctime)s - %(module)s.%(funcName)s() - %(levelname)s - %(message)s',"%Y-%m-%d %H:%M:%S")
+  eh.setFormatter(formatter)
+  logger.addHandler(eh)
+  yield logs
+  logger.removeHandler(eh)

@@ -18,10 +18,12 @@ export default function Home() {
   const handleIframeLoad = () => {
     setIsMounted(true);
     setTimeout(() => {
-      iframeRef.current.contentDocument.querySelectorAll('a')
-      .forEach(function (elem) {
-        elem.setAttribute('target', '_blank');
-      });
+      if (iframeRef.current != null) {
+        iframeRef.current.contentDocument.querySelectorAll('a')
+        .forEach(function (elem) {
+          elem.setAttribute('target', '_blank');
+        });
+      }
     }, 5000);
   };
 

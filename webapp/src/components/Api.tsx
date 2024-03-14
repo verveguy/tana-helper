@@ -2,7 +2,7 @@ import React, { Component, useEffect } from "react";
 import 'rapidoc';
 
 /* This component simply redirects us to a different site */
-export default function API() {
+export default function Api() {
 
   useEffect(() => {
     (document.querySelector('#root') as HTMLElement)?.style.setProperty('overflow', 'scroll');

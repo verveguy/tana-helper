@@ -20,6 +20,9 @@ from logging.handlers import RotatingFileHandler
 
 # BASED ON https://www.pythonbynight.com/blog/sharpen-your-code
 
+# TODO: figure out what production should mean now
+production = False
+
 class LoggerConfig(BaseModel):
   handlers: list
   format: str
@@ -52,7 +55,7 @@ def get_logger_config():
   """
 
   logger_config = None
-  if not settings.production:
+  if not production:
     from rich.logging import RichHandler
     from rich.console import Console
     

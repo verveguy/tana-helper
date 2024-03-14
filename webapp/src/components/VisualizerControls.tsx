@@ -1,14 +1,11 @@
-import React, { Component, SyntheticEvent, useCallback, useContext, useEffect, useRef, useState } from "react";
+import React, { SyntheticEvent, useContext, useEffect, useState } from "react";
 import { Box, Button, Checkbox, Divider, FormControlLabel, FormGroup, TextField } from "@mui/material";
-import { config } from "process";
 
-import { useTheme } from '@mui/material/styles';
 import { GraphData } from 'react-force-graph-3d';
 // import ForceGraph2D, { GraphData } from 'react-force-graph-2d';
-import { useWindowSize } from "@react-hook/window-size";
 import axios from 'axios';
 import { Id, Index } from "flexsearch-ts";
-import { TanaHelperContext } from "./TanaHelperContext";
+import { TanaHelperContext } from "../TanaHelperContext";
 
 interface GraphConfig {
   include_all_nodes: boolean;

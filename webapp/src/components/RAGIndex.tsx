@@ -4,14 +4,13 @@
 
 */
 
-import { CircularProgress } from '@mui/material';
+import { CircularProgress, Typography } from '@mui/material';
 import React, { useContext, useEffect } from "react";
-import './ClassDiagram.css';
+import './RAGIndex.css';
 import { TanaHelperContext } from "../TanaHelperContext";
-import { Mermaid } from "./Mermaid";
 
-export default function ClassDiagram() {
-  const { mermaidText, loading } = useContext(TanaHelperContext)
+export default function RAGIndex() {
+  const { ragIndexData, loading } = useContext(TanaHelperContext)
 
   useEffect(() => {
     (document.querySelector('#root') as HTMLElement)?.style.setProperty('overflow', 'scroll');
@@ -23,9 +22,9 @@ export default function ClassDiagram() {
   }, []);
 
   return (
-    <div className="diagram-container">
+    <div className="ragindex-container">
       {(() => {
-        if (!mermaidText) {
+        if (!ragIndexData) {
           return (
             <div className="spinner-container">
               <div className="spinner">
@@ -34,9 +33,14 @@ export default function ClassDiagram() {
             </div>
           );
         } else {
-          return (
-            <Mermaid diagram={mermaidText} id="mermaid" style={{ width: '100%', height: '100%' }} />
-          )
+          const lines = ragIndexData.split('\n');
+          return lines.map((line) => {
+            return (<Typography className="ragindex">
+              {line}
+            </Typography>
+            )
+          }
+          );
         }
       })()}
     </div>

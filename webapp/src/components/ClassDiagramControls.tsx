@@ -1,12 +1,12 @@
 import React, { useContext, useEffect, useState } from "react";
 
 import axios from 'axios';
-import { TanaHelperContext } from "./TanaHelperContext";
+import { TanaHelperContext } from "../TanaHelperContext";
 import { Box, Button, Divider } from "@mui/material";
 
 
 export default function ClassDiagramControls() {
-  const { mermaidText, setMermaidText, loading, setLoading } = useContext(TanaHelperContext)
+  const { setMermaidText, setLoading } = useContext(TanaHelperContext)
   const [dumpFile, setDumpFile] = useState<File>();
   const [upload, setUpload] = useState(false);
 

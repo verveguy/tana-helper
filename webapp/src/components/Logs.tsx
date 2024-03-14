@@ -6,13 +6,13 @@
   
 */
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import 'xterm/css/xterm.css';
 /* This CSS might be unecessary ... see https://github.com/xtermjs/xterm.js/issues/3564 */
 import './Logs.css';
-import useWindowSize, { useDimensions } from "./components/utils";
+import { useDimensions } from "./utils";
 
 let terminal;
 let fitAddon;
