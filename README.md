@@ -136,6 +136,8 @@ See [Pinecone README](docs/README_PINECONE.md) for more details.
 
 ## LLamaindex support
 
+DISABLED CURRENTLY PENDING BETTER RESULTS
+
 Beyond upserting/querying a vector database, `tana-helper` now has the start of some functionality built on top of the [llamaindex](https://www.llamaindex.ai/) opensource RAG toolkit. Llamaindex allows you to build a "document index" on top of a vector database (in this case, ChromaD, so everything is stored locally). 
 
 APIs are provided for preloading your entire Tana workspace from a Tana JSON Export file, building a llamaindex for the whole workspace, as well as incrementally "updating" individual Tana notebook nodes within the index.

@@ -101,7 +101,8 @@ app.include_router(api_docs.router)
 app.include_router(home.router)
 
 app.include_router(chroma.router)
-app.include_router(preload.router)
+# TODO: preload is not yet ready for RAGIndex features
+# app.include_router(preload.router)
 app.include_router(research.router)
 
 app.include_router(logmonitor.router)
