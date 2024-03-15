@@ -13,6 +13,7 @@ A number of the capabilities of `tana-helper` need OpenAI and other services. Fo
 
 ## Configuration
 This service is intended to be run as a local server. It also has some experimental support for hosting on Deta Space. See [Webhooks README](docs/README_WEBHOOKS.md) for details.
+OpenAI and Tana Input API keys can be configured via built-in the Web UI.
 
 # Installation
 `tana-helper` includes a python base API service and a React Typescript web app.
