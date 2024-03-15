@@ -90,7 +90,7 @@ def set_settings(new_settings:Settings):
   global settings
   settings = new_settings
   # write new settings to .env file
-  with open('.env.json', 'w') as f:
+  with open(settings_path, 'w') as f:
     f.write(settings.model_dump_json())
   return settings
 
