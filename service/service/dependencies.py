@@ -73,7 +73,8 @@ class Settings(BaseSettings):
 # TODO: make settings per-request context, not gobal
 global settings
 
-settings_path = os.path.join(Path.home(), '.tana_helper', 'settings.json')
+tana_helper_config_dir = os.path.join(Path.home(), '.tana_helper')
+settings_path = os.path.join(tana_helper_config_dir, 'settings.json')
 
 def get_settings():
   global settings
@@ -90,6 +91,8 @@ def set_settings(new_settings:Settings):
   global settings
   settings = new_settings
   # write new settings to .env file
+  if not os.path.exists(tana_helper_config_dir):
+      os.makedirs(tana_helper_config_dir, exist_ok=True)
   with open(settings_path, 'w') as f:
     f.write(settings.model_dump_json())
   return settings
