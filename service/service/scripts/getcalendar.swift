@@ -212,12 +212,12 @@ let eventStore = EKEventStore()
 // For example, Keyboard Maestro needs a "helper" the first time
 // See https://forum.keyboardmaestro.com/t/icalbuddy-doesnt-work-within-keyboard-maestro-mojave-calendar-permissions/15446/40?u=brett_adam
 
-eventStore.requestAccess(to: .event) { (granted, error) in
-    if granted {
-      eventStore.reset()
-       // go on managing reminders
-    }
-}
+// eventStore.requestAccess(to: .event) { (granted, error) in
+//     if granted {
+//       eventStore.reset()
+//        // go on managing reminders
+//     }
+// }
 
 var today = Calendar.current.startOfDay(for: Date())
 if date != nil {
@@ -240,9 +240,22 @@ let events = eventStore.events(matching: predicate)
 
 // filter all the events we don't care about
 // and narrow to our single relevant calendar
-let filteredEvents = events.filter { event in
-    event.calendar.title == calendar_name
-    && !titles_to_ignore.contains(event.title)
+var filteredEvents: [EKEvent] = []
+
+for event in events {
+    let calendar = event.calendar
+    if calendar?.title == calendar_name {
+       if !titles_to_ignore.contains(event.title) {
+        filteredEvents.append(event)
+       }
+    //    else{
+    //     print("Filtering event from calendar " + (calendar?.title ?? "nil") + " " + event.title)
+       
+    //    }
+    }
+    // else {
+    //     print("Ignoring event from calendar " + (calendar?.title ?? "nil") + " " + event.title)
+    // }
 }
 
 // Now map the event array to our own internal structure
