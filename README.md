@@ -17,18 +17,20 @@ This service is intended to be run as a local server. It also has some experimen
 # Installation
 `tana-helper` includes a python base API service and a React Typescript web app.
 
-You can either install from source (instructions below), or if you are on a Mac you can try the pre-built .app package. Check the Releases section of this github repository for latest downlodable .dmg disk image.
+You can either install from source (instructions below), or if you are on a Mac or Windows you can try the pre-built application packages. Check the Releases section of this github repository for latest downlodable Mac .dmg disk image and Windows .zip archives.
 
 ## Prebuilt Mac OS .app
 
 Mac OS app bundles have been tested on Monterey (12.x), Ventura (13.x) and Sonoma (14.x) on both Intel and Apple Silicon. If you have any problems with these, please add an issue here or come find me on the Tana slack community.
 
-To launch `tana-helper`, double-click the Mac .app. You'll get a menu bar app with a single `Start tana-helper` menu item. This will launch a Terminal window showing the log as the helper service starts up.
+To launch `tana-helper`, double-click the Mac .app. 
 
 ## Prebuilt Windows .exe
 Windows prebuilt binaries have been tested on Windows 11. 
 
-To launch `tana-helper`, double-click the .exe. You'll get a task bar app with a single `Start tana-helper` menu item available via right-click. This will launch a Command console window showing the log as the helper service starts up.
+# Startup
+
+To launch `tana-helper`, double-click the .exe. You'll get a task bar app with a menu that has `Start / Stop tana-helper` menu items and `Open Web UI` available via right-click. To view the logs, use the Web UI and select Log view.
 
 
 # Installation from source
@@ -61,19 +63,18 @@ Edit `~/.zprofile` or whichever shell you use
     source ~/.zprofile
     pip install poetry
 
-### Build everything, including .app and .dmg
+
+## Windows
+    You'll need to install Python 3.11, node and yarn.
+    You'll also need git, and the gitbash tool in particular.
+ 
+
+## Build everything, including .app and .dmg
 
     cd release
     ./build.sh
 
-## Windows
-(instructions coming soon!)
-
-For Windows 11:
-
-     .\\.venv\\Scripts\\Activate.ps1
- 
- If you have problems doing this due to "Execution Policy", open PowerShell as Administrator and do `set-executionpolicy remotesigned`. This should let you run the virtualenv `Activate.ps1` script)
+If you get errors on Windows during service/python vuild prtion, it could be due to "Execution Policy" of the service/.venv/scripts/Activate.ps1 step. Open PowerShell as Administrator and do `set-executionpolicy remotesigned`. This should let you run the virtualenv `Activate.ps1` script)
 
 ## Run the service
 
@@ -87,9 +88,9 @@ Then you can start the service:
 ## Experimental deployment to Deta Space
 If you want to host this service somewhere, there's experimental support for Deta Space in the main branch. Learn more about Deta Space [here](https://deta.space/).
 
-However, there's something wrong with Tana Proxy fetch right now...
+However, there's something wrong with Tana Proxy fetch right now...so this needs more work.
 
-# Usage
+# Developer usage
 
 There's a few different services provided by tana-helper: you may not want all of them.
 You can remove services by modifying the file `src/main/py`. Comment out the line for the service you don't want.
@@ -173,7 +174,7 @@ Makes it easier to call external services that expect JSON. Lets you proxy reque
 
 ## Self bootstrapping into Tana
 
-(NOT YET POSSIBLE. SEE `/usage`)
+(NOT YET POSSIBLE)
 
 
 
