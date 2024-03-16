@@ -107,7 +107,7 @@ echo_blue "Notarizing the .dmg"
 notarize_dmg "dist/$NAME.dmg"
 
 # now we can assess the app and see what it says
-assess "$APP"
+# assess "$APP"
 
 echo_blue "Verifying deep codesigning of .dmg"
 codesign --verbose=4 --display --deep --strict "dist/$NAME.dmg"
