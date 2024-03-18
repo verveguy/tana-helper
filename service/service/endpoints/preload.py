@@ -1,22 +1,15 @@
 import asyncio
-import io
 import json
-import logging
 import os
 import tempfile
-import time
 from logging import getLogger
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, Request
 from fastapi.encoders import jsonable_encoder
 from typing import List, Tuple
 
 # This is here to satisfy runtime import needs 
 # that pyinstaller appears to miss
-
-from llama_index.schema import BaseNode, TextNode, NodeRelationship, RelatedNodeInfo
-from llama_index import Document, VectorStoreIndex
-from llama_index import Document
 
 from snowflake import SnowflakeGenerator
 
@@ -24,16 +17,13 @@ from service.dependencies import (
     TANA_NODE,
     TANA_TEXT,
     ChromaRequest,
-    LlamaRequest,
     TanaNodeMetadata,
     capture_logs,
 )
 
 from service.endpoints.chroma import chroma_upsert
-from service.endpoints.topics import TanaDocument, extract_topic_from_context, extract_topics
-from service.llamaindex import create_index, get_index
+from service.endpoints.topics import TanaDocument, extract_topics
 from service.tana_types import TanaDump
-from service.txntimer import txntimer
 
 logger = getLogger()
 
@@ -74,25 +64,6 @@ async def load_chromadb_from_topics(topics:List[TanaDocument], model:str, observ
     
   logger.info("ChromaDB populated and ready")
   return index_nodes
-
-def load_index_from_topics(topics:List[TanaDocument], model:str, observe=False):
-  '''Load the topic index from the topic array directly.'''
-
-  logger.info('Building llama_index nodes')
-
-  index_nodes = []
-  # loop through all the topics and create a Document for each
-  for topic in topics:
-    (doc_node, text_nodes) = document_from_topic(topic)
-    index_nodes.append(doc_node)
-    index_nodes.extend(text_nodes)
-
-  logger.info(f'Gathered {len(index_nodes)} tana nodes')
-  logger.info("Preparing storage context")
-
-  index = create_index(model, observe, index_nodes)
-  logger.info("Llamaindex populated and ready")
-  return index
 
 
 def document_from_topic(topic) -> Tuple[Document, List[TextNode]]:
@@ -172,36 +143,8 @@ def document_from_topic(topic) -> Tuple[Document, List[TextNode]]:
 lock = asyncio.Lock()
 
 # Note: accepts ?model= query param
-@router.post("/llamaindex/upsert", status_code=status.HTTP_204_NO_CONTENT, tags=["preload"])
-async def llama_upsert(request: Request, req:LlamaRequest, model:str="openai", observe:bool=False):
-  '''Upserts a single Tana node context into the Llama index.
-  '''
-  async with lock:
-    tana_id = req.nodeId
-    tana_context = req.context
-    (index, _, _, _)  = get_index(model, observe)
-    result = extract_topic_from_context(tana_id, tana_context)
-    (document, text_nodes) = document_from_topic(result)
-    # remove then add back
-    # index.delete_nodes([document.node_id] + [node.node_id for node in text_nodes])
-    # strip '0' ids from node list
-    id_list = [document.node_id] + [node.node_id for node in text_nodes if node.node_id != '0']
-    for node_id in id_list:
-      index.delete_ref_doc(node_id) 
-    
-    # filter out the '0' id nodes
-    text_nodes = [node for node in text_nodes if node.node_id != '0']
-    node_list = [document] + text_nodes
-    index.insert_nodes(node_list)
-
-    #TODO: consider returning some kind of completion confirmation payload with statidtics
-    
-    return None
-
-
-# Note: accepts ?model= query param
-@router.post("/llamaindex/preload", tags=["preload"])
-async def llama_preload(request: Request, tana_dump:TanaDump, model:str="openai"):
+@router.post("/chroma/preload", tags=["preload"])
+async def chroma_preload(request: Request, tana_dump:TanaDump, model:str="openai"):
   '''Accepts a Tana dump JSON payload and builds the index from it.
   Uses the topic extraction code from the topics endpoint to build
   an object tree in memory, then loads that into ChromaDB via LLamaIndex.

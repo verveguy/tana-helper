@@ -23,7 +23,7 @@ export default function RAGIndexControls() {
     if (upload) {
       setLoading(true);
       setRagIndexData(null);
-      axios.post('/llamaindex/preload', dumpFile, {
+      axios.post('/chroma/preload', dumpFile, {
         headers: {
           "Content-Type": "application/json",
         }
