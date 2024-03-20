@@ -11,6 +11,7 @@ from fastapi.responses import HTMLResponse
 from logging import getLogger
 
 from service.dependencies import CalendarRequest
+import re
 
 logger = getLogger()
 
@@ -61,7 +62,9 @@ def run_calendar_swift_script(payload: CalendarRequest):
   if payload.range:
     args += ["-range", payload.range]
   if payload.date:
-    args += ["-date", payload.date]
+    # unwrap tana date format [[date:2024-03-20]] to 2024-03-20
+    date = re.sub(r'\[\[date:(.*?)\]\]', r'\1', payload.date)
+    args += ["-date", date]
   if payload.solo:
     args += ["-solo"]
 
