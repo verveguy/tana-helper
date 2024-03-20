@@ -84,7 +84,6 @@ const config = [
     content: <Visualizer />,
     control: <VisualizerControls />
   },
-  TODO: RAG index is not yet ready...
   {
     label: 'RAG Index',
     link: '/ui/ragindex',

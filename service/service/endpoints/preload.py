@@ -58,13 +58,32 @@ async def load_chromadb_from_topics(topics:List[TanaDocument], model:str, observ
   logger.info("Preparing storage context")
 
   for node in index_nodes:
-    logger.info(f'Node {node.node_id} {node.metadata}')
-    chroma_req = ChromaRequest(context=node.text, nodeId=node.node_id, model=model)
+    logger.info(f'Node {node.id} {node.metadata}')
+    chroma_req = ChromaRequest(context=node.text, nodeId=node.id, model=model)
     upsert = await chroma_upsert(chroma_req)
     
   logger.info("ChromaDB populated and ready")
   return index_nodes
 
+class Document:
+  def __init__(self, id:str, text:str, metadata:dict=None):
+    if not id:
+      raise ValueError('Document must have an id')
+    if not text:
+      raise ValueError('Document must have text')
+    self.id = id 
+    self.text = text
+    self.metadata = metadata if metadata else {}
+
+class TextNode(Document):
+  def __init__(self, id:str, text:str, relationships:dict=None, metadata:dict=None):
+    super().__init__(id, text, metadata)
+    self.relationships = relationships if relationships else {}
+
+class NodeRelationship:
+  SOURCE = 'source'
+  NEXT = 'next'
+  PREVIOUS = 'previous'
 
 def document_from_topic(topic) -> Tuple[Document, List[TextNode]]:
   '''Load a single topic into the index_nodes list.'''
@@ -72,10 +91,8 @@ def document_from_topic(topic) -> Tuple[Document, List[TextNode]]:
 
   metadata = {
     'category': TANA_NODE,
-    'supertag': ' '.join(['#' + tag for tag in topic.tags]),
+    'supertag': ' '.join([tag for tag in topic.tags]),
     'title': topic.name,
-    'tana_id': topic.id,
-    'document_id': topic.id,
     }
   
   if topic.fields:
@@ -89,8 +106,7 @@ def document_from_topic(topic) -> Tuple[Document, List[TextNode]]:
   # we only add the ffirst line and fields to the document payload
   # anything else and we blow out the token limits (and cost a lot!)
   text = topic.content[0][2]
-  document_node = Document(doc_id=topic.id, text=text) # first line only
-  document_node.metadata = metadata
+  document_node = Document(id=topic.id, text=text, metadata=metadata) # first line only
 
   # # make a note of the document in our nodes list
   # index_nodes.append(document_node)
@@ -116,29 +132,29 @@ def document_from_topic(topic) -> Tuple[Document, List[TextNode]]:
     
     # wire up the tana_node as an index_node with the text as the payload
     if is_ref:
-      current_text_node = TextNode(text=tana_element)
+      ref_id = next(snowflakes)
+      current_text_node = TextNode(id=ref_id, text=tana_element) # type: ignore
       current_text_node.metadata['tana_ref_id'] = content_id
     else:
-      current_text_node = TextNode(id_=content_id, text=tana_element)
-      current_text_node.metadata['tana_id'] = content_id
+      current_text_node = TextNode(id=content_id, text=tana_element)
 
     current_text_node.metadata = content_metadata.model_dump()
 
     # check if this is a reference node and add additional metadata
     # TODO: backport this to chroma upsert...?
 
-    current_text_node.relationships[NodeRelationship.SOURCE] = RelatedNodeInfo(node_id=document_node.node_id)
+    current_text_node.relationships[NodeRelationship.SOURCE] = document_node.id
     # wire up next/previous
     if previous_text_node:
-      current_text_node.relationships[NodeRelationship.PREVIOUS] = RelatedNodeInfo(node_id=previous_text_node.node_id)
-      previous_text_node.relationships[NodeRelationship.NEXT] = RelatedNodeInfo(node_id=current_text_node.node_id)
+      current_text_node.relationships[NodeRelationship.PREVIOUS] = previous_text_node.id
+      previous_text_node.relationships[NodeRelationship.NEXT] = current_text_node.id
 
     text_nodes.append(current_text_node)
     previous_text_node = current_text_node
   
   return (document_node, text_nodes)
 
-# attempt to paralleize non-async code
+# attempt to parallelize non-async code
 # see https://github.com/tiangolo/fastapi/discussions/6347
 lock = asyncio.Lock()
 

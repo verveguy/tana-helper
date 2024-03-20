@@ -30,7 +30,7 @@ import httpx
 
 from service.dependencies import settings
 from service.endpoints import (calendar, chroma, class_diagram, configure, exec_code, graph_view, home, 
-                 inlinerefs, jsonify, logmonitor, api_docs, preload, cleanups, proxy, research, topics, weaviate, webhooks)
+                 inlinerefs, jsonify, logmonitor, api_docs, preload, cleanups, proxy, topics, weaviate, webhooks)
 from service.logconfig import setup_rich_logger
 from snowflake import SnowflakeGenerator
 from service.endpoints.api_docs import get_api_metadata
@@ -102,8 +102,8 @@ app.include_router(home.router)
 
 app.include_router(chroma.router)
 # TODO: preload is not yet ready for RAGIndex features
-# app.include_router(preload.router)
-app.include_router(research.router)
+app.include_router(preload.router)
+# app.include_router(research.router)
 
 app.include_router(logmonitor.router)
 
