@@ -22,6 +22,8 @@ from pathlib import Path
 
 app_name = "TanaHelper"
 
+tana_settings_dir = os.path.join(Path.home(), '.tana_helper')
+
 # TODO: figure out how to make settings more modular, based on endpoints configured
 class Settings(BaseSettings):
   """
@@ -41,15 +43,15 @@ class Settings(BaseSettings):
   
   webhook_template_path: Annotated[str, Field(title="Webhook Template Path", 
       description="Path to store webhook templates")] \
-        = os.path.join(Path.home(), '.tana_helper', 'webhooks')
+        = os.path.join(tana_settings_dir, 'webhooks')
   
   temp_files: Annotated[str, Field(title="Temporary Files Path", 
     description="Path to store temporary files")] \
-      = os.path.join('/', 'tmp','tana_helper', 'tmp')
+      = os.path.join(tana_settings_dir, 'tmp')
   
   export_path: Annotated[str, Field(title="Export Path", 
     description="Path to store exported files")] \
-      = os.path.join('/', 'tmp','tana_helper', 'export')
+      = os.path.join(tana_settings_dir, 'export')
   
   tana_environment: Annotated[str, Field(title="Tana Pinecone Environment",
     description="Pinecone environment for Tana vector storage")] \
@@ -73,8 +75,7 @@ class Settings(BaseSettings):
 # TODO: make settings per-request context, not gobal
 global settings
 
-tana_helper_config_dir = os.path.join(Path.home(), '.tana_helper')
-settings_path = os.path.join(tana_helper_config_dir, 'settings.json')
+settings_path = os.path.join(tana_settings_dir, 'settings.json')
 
 def get_settings():
   global settings
@@ -91,8 +92,8 @@ def set_settings(new_settings:Settings):
   global settings
   settings = new_settings
   # write new settings to .env file
-  if not os.path.exists(tana_helper_config_dir):
-      os.makedirs(tana_helper_config_dir, exist_ok=True)
+  if not os.path.exists(tana_settings_dir):
+      os.makedirs(tana_settings_dir, exist_ok=True)
   with open(settings_path, 'w') as f:
     f.write(settings.model_dump_json())
   return settings
