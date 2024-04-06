@@ -6,6 +6,7 @@ export const TanaHelperContext = createContext({
   mermaidText: undefined, setMermaidText: (a)=>{},
   ragIndexData: undefined, setRagIndexData: (a)=>{},
   config: undefined, setConfig: (a)=>{},
+  webhooks: undefined, setWebhooks: (a)=>{},
   twoDee: false, setTwoDee: (a)=>{},
 });
 
@@ -15,6 +16,7 @@ export function TanaHelperContextProvider({ children }) {
   const [loading, setLoading] = useState(false);
   const [ragIndexData, setRagIndexData] = useState();
   const [config, setConfig] = useState();
+  const [webhooks, setWebhooks] = useState();
   const [twoDee, setTwoDee] = useState(false);
 
   const contextValue = useMemo(
@@ -24,8 +26,9 @@ export function TanaHelperContextProvider({ children }) {
       mermaidText, setMermaidText,
       ragIndexData, setRagIndexData,
       config, setConfig,
+      webhooks, setWebhooks,
       twoDee, setTwoDee}),
-    [graphData, loading, mermaidText, ragIndexData, config, twoDee]
+    [graphData, loading, mermaidText, ragIndexData, config, webhooks, twoDee]
   );
 
   return (

@@ -85,6 +85,13 @@ const config = [
     control: <VisualizerControls />
   },
   {
+    label: 'Webhooks',
+    link: '/ui/webhooks',
+    key: 'webhooks',
+    content: <Webhooks />,
+    control: null
+  },
+  {
     label: 'RAG Index',
     link: '/ui/ragindex',
     key: 'ragindex',
