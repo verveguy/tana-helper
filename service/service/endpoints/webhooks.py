@@ -1,8 +1,7 @@
 from fastapi.responses import HTMLResponse
-from fastapi import APIRouter, status, Response, Body, Header, HTTPException
+from fastapi import APIRouter, status, Body, HTTPException
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
-from typing import Union, Annotated
-from service.dependencies import OpenAICompletion, get_chatcompletion, settings, LineTimer, tana_to_json
+from service.dependencies import OpenAICompletion, get_chatcompletion, settings, LineTimer
 from starlette.requests import Request
 from logging import getLogger
 import httpx
@@ -22,12 +21,14 @@ pattern = re.compile(r'\(?"?http[^\t ")]*"?\)?')
 
 # Schema upload handlers
 
-# Add a new OpenAI Prompt template by POST to /template/<typename>
-# Allows for customized prompts
 @router.post("/template/{schema}", response_class=HTMLResponse, tags=["Webhooks"])
 async def add_template(req:Request,
                        schema:str,
                        body:str=Body(...)):
+  '''
+  Add a new OpenAI Prompt template for a Tana schema and creates a webhook endpoint.
+  Allows for fully customized prompts.
+  '''
   # create file from body
   try:
     if not os.path.exists(path):
@@ -40,9 +41,11 @@ async def add_template(req:Request,
 
   return f'{req.base_url}webhook/{schema}'
 
-# GET a list of all schemas (for configuration)
 @router.get("/schema", tags=["Webhooks"])
 async def get_schemas():
+  '''
+  Retrieve a list of all existing webhook schemas (for configuration)
+  '''
   try:
       directory = os.listdir(path)
       files = [f for f in directory if os.path.isfile(path+'/'+f)] #Filtering only the files.
@@ -52,9 +55,11 @@ async def get_schemas():
     logger.warning(f'Failed to read directory {path}')
     raise HTTPException(detail = e.strerror, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-# GET the template for a schema_name
 @router.get("/template/{schema}", response_class=HTMLResponse, tags=["Webhooks"])
 async def get_template(schema:str):
+  '''
+  Retrieves the OpenAI Prompt template for the given Tana schema.
+  '''
   try:
       with open(f'{path}/{schema}.jn2', 'r') as template_file:
         body = template_file.read()
@@ -64,12 +69,15 @@ async def get_template(schema:str):
     raise HTTPException(detail = e.strerror, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-# Add a new Tana schema by POST of Tana schema to /schema/<typename>
-# generates a standard OpenAI prompt from the schema
 @router.post("/schema/{schema}", response_class=HTMLResponse, tags=["Webhooks"])
 async def add_schema(req:Request, 
                      schema:str, 
                      body:str=Body(...)):
+  '''
+  Create a new webhook endpoint from a Tana schema.
+  Generates a standard OpenAI prompt from the schema that will convert data on webhook submission.
+  To customize the prompt, call /template/<schema> instead.
+  '''
   # create template from standard prompt + body (schema def)
   template = '''TASK: Extract information from CONTEXT 
 
@@ -88,6 +96,9 @@ OUTPUT:
 # generates a standard OpenAI prompt from the schema
 @router.delete("/schema/{schema}", tags=["Webhooks"])
 async def delete(schema:str):
+  '''
+  Remove the webhook endpoints for a Tana schema previously registered.
+  '''
   try:
     if not os.path.exists(path):
       os.mkdir(path)
@@ -157,3 +168,12 @@ async def webhook(schema:str, body:str=Body(...)):
 async def webhook_alt(schema:str, body:str=Body(...)):
   return await do_webhook(schema, body)
 
+ 
+# Accept path parm /webhook/<schema>
+@router.get("/webhooks", tags=["Webhooks"])
+async def webhook_configuration():
+  result = []
+  schemas = await get_schemas()
+  for schema in schemas:
+    result = result.append(schema)
+  return result

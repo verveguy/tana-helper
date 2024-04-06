@@ -86,8 +86,8 @@ async def extract_topics(tana_dump:TanaDump, format:str='TANA') -> List[TanaDocu
       topic.content = [(source_id, False, '- '+topic_name)]
 
       # add all the tag names as structured elems 
-      for tag_id in node.tags:
-        topic.tags.append(index.node(tag_id).props.name)
+      # for tag_id in node.tags:
+      #   topic.tags.append(index.node(tag_id).props.name)
 
       # add all the field names and values
       for field_dict in node.fields:
@@ -112,13 +112,14 @@ async def extract_topics(tana_dump:TanaDump, format:str='TANA') -> List[TanaDocu
 
           # so how do we want to represent fields?
           if format == 'JSON':
-            # structure fields as metadata
-            field = TanaField(field_id=field_id,
-                              value_id=value_id,
-                              name=index.node(field_id).props.name,
-                              value=value)
-          
-            topic.fields.append(field) # type: ignore
+            # structure fields as metadata, but skip if empty
+            if value != "":
+              field = TanaField(field_id=field_id,
+                                value_id=value_id,
+                                name=index.node(field_id).props.name,
+                                value=value)
+            
+              topic.fields.append(field) # type: ignore
         
         #TODO: redo all ths code to use field value_ids instead of ''
         if format == 'TANA':

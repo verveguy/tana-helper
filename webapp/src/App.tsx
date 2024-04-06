@@ -84,14 +84,20 @@ const config = [
     content: <Visualizer />,
     control: <VisualizerControls />
   },
-  // TODO: RAG index is not yet ready...
-  // {
-  //   label: 'RAG Index',
-  //   link: '/ui/ragindex',
-  //   key: 'ragindex',
-  //   content: <RAGIndex />,
-  //   control: <RAGIndexControls />
-  // },
+  {
+    label: 'Webhooks',
+    link: '/ui/webhooks',
+    key: 'webhooks',
+    content: <Webhooks />,
+    control: null
+  },
+  {
+    label: 'RAG Index',
+    link: '/ui/ragindex',
+    key: 'ragindex',
+    content: <RAGIndex />,
+    control: <RAGIndexControls />
+  },
 ];
 
 function Panels() {
