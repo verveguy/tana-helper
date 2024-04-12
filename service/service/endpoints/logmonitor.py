@@ -5,7 +5,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 import os
 from service.logconfig import get_logger_config
-from service.dependencies import settings
+from service.settings import settings
 from logging import getLogger
 
 router = APIRouter()

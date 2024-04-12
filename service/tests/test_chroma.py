@@ -2,7 +2,8 @@ import requests
 from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
 from typing import List, Union
-from service.dependencies import settings, ChromaRequest, CalendarRequest
+from service.dependencies import ChromaRequest, CalendarRequest
+from service.settings import settings
 from .test_types import BASE_URL, APIValidationError, HTTPValidationError
 
 

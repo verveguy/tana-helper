@@ -1,7 +1,8 @@
 from fastapi import APIRouter, status, Request
 from fastapi.responses import HTMLResponse
 from typing import Dict, List, Optional
-from service.dependencies import ChromaStoreRequest, TanaNodeMetadata, settings, QueueRequest, ChromaRequest, get_embedding, TANA_NODE, TanaInputAPIClient, SuperTag, Node, AddToNodeRequest
+from service.dependencies import ChromaStoreRequest, TanaNodeMetadata, QueueRequest, ChromaRequest, get_embedding, TANA_NODE, TanaInputAPIClient, SuperTag, Node, AddToNodeRequest
+from service.settings import settings
 from logging import getLogger
 from ratelimit import limits, RateLimitException, sleep_and_retry
 from functools import lru_cache

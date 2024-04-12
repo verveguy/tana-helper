@@ -1,7 +1,8 @@
 from fastapi.responses import HTMLResponse
 from fastapi import APIRouter, status, Body, HTTPException
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
-from service.dependencies import OpenAICompletion, get_chatcompletion, settings, LineTimer
+from service.dependencies import OpenAICompletion, get_chatcompletion, LineTimer
+from service.settings import settings
 from starlette.requests import Request
 from logging import getLogger
 import httpx
