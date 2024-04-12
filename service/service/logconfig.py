@@ -10,7 +10,7 @@ import uvicorn
 from functools import lru_cache
 from pathlib import Path
 from pydantic import BaseModel
-from service.dependencies import settings
+from service.settings import settings
 from typing import Optional
 
 import logging

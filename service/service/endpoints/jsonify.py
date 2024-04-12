@@ -1,6 +1,7 @@
 from fastapi import APIRouter, status, Body, HTTPException
 from fastapi.responses import HTMLResponse
 from service.json2tana import json_to_tana
+from service.settings import settings
 from starlette.requests import Request
 from logging import getLogger
 import json
