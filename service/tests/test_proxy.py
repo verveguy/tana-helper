@@ -1,7 +1,7 @@
 import requests
 from pydantic import BaseModel, Field
 from typing import Optional, List, Union
-from service.dependencies import tana_to_json
+from service.json2tana import tana_to_json
 from .test_types import BASE_URL, APIValidationError, HTTPValidationError
 
 def test_proxy_post():

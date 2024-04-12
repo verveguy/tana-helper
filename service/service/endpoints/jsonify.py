@@ -1,11 +1,13 @@
 from fastapi import APIRouter, status, Body, HTTPException
 from fastapi.responses import HTMLResponse
-from service.dependencies import settings, tana_to_json, json_to_tana
+from service.json2tana import json_to_tana
 from starlette.requests import Request
 from logging import getLogger
 import json
 import os
 import csv
+
+from service.json2tana import tana_to_json
 
 router = APIRouter()
 
@@ -26,7 +28,7 @@ async def jsonify(req:Request, body:str=Body(...)):
 @router.post("/tanify", response_class=HTMLResponse, tags=["Conversions"])
 async def tanify(body:str=Body(...)):
   raw_body = bytes(body, "utf-8").decode("unicode_escape")
-  if '```json' == raw_body[:7]:
+  if raw_body.startswith('```json'):
     # this is a code node full of json
     raw_body = extract_json_from_code_node(raw_body)
   json_format = json.loads(raw_body)

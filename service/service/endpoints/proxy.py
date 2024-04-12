@@ -1,14 +1,14 @@
 from enum import Enum
 from starlette.requests import Request
-from starlette.background import BackgroundTask
-from starlette.datastructures import Headers
-from fastapi import APIRouter, Response, status, Body, HTTPException
+from fastapi import APIRouter, Response
 from fastapi.responses import HTMLResponse
-from service.dependencies import tana_to_json, json_to_tana
+from service.json2tana import json_to_tana
 from starlette.requests import Request
 from logging import getLogger
 import json
 import httpx
+
+from service.json2tana import tana_to_json
 
 router = APIRouter()
 
