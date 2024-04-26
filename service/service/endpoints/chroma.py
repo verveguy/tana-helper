@@ -63,17 +63,21 @@ async def chroma_upsert(req: ChromaRequest):
     vector = embedding[0].embedding
 
     collection = get_collection()
+    if not req.metadata:
+      metadata = TanaNodeMetadata(
+                  category=TANA_NODE,
+                  supertag=req.tags,
+                  title=req.name,
+                  # we put the pruned node context into the metadata
+                  text=req.context,
+                  tana_id=req.nodeId,
+                  topic_id=req.nodeId,
+      )
+      metadatas = metadata.model_dump()
+    else:
+      metadatas = req.metadata
 
-    metadata = TanaNodeMetadata(
-                category=TANA_NODE,
-                supertag=req.tags,
-                title=req.name,
-                # we put the pruned node context into the metadata
-                text=req.context,
-                tana_id=req.nodeId,
-                topic_id=req.nodeId,
-    )
-    
+
     if req.context is None:
       logger.warning(f"Empty context for {req.nodeId}")
 
@@ -85,7 +89,7 @@ async def chroma_upsert(req: ChromaRequest):
         embeddings=vector,
         # we only embed the name of the node (primary content of the node)
         documents=req.name,
-        metadatas=metadata.model_dump(),
+        metadatas=metadatas,
       )
       
     do_upsert()

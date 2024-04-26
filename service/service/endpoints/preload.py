@@ -59,8 +59,8 @@ async def load_chromadb_from_topics(topics:List[TanaDocument], model:str, observ
 
   for node in index_nodes:
     logger.info(f'Node {node.id} {node.metadata}')
-    chroma_req = ChromaRequest(context=node.text, nodeId=node.id, model=model)
-    upsert = await chroma_upsert(chroma_req)
+    chroma_req = ChromaRequest(context=node.text, nodeId=node.id, model=model, metadata=node.metadata)
+    await chroma_upsert(chroma_req)
     
   logger.info("ChromaDB populated and ready")
   return index_nodes

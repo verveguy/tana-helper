@@ -4,6 +4,7 @@ from typing import List
 from service.tana_types import GraphLink, NodeDump, TanaDump, Visualizer
 from itertools import combinations
 from logging import getLogger
+import html
 
 logger = getLogger()
 
@@ -330,8 +331,10 @@ def patch_node_name(index:NodeIndex, node_id:str) -> str:
     return ref_id
 
   name = index.node(node_id).props.name
-  if name and '<span' in name:
+  if name and '<span data-inlineref-node' in name:
       name = re.sub('<span data-inlineref-node="([^"]*)"></span>', subfunc, name)
+  elif name and '<span data-inlineref-date' in name:
+      name = html.unescape(re.sub('<span data-inlineref-date="([^"]*)"></span>', subfunc, name))
   return name
 
 

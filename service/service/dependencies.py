@@ -93,6 +93,7 @@ class ChromaRequest(EmbeddingRequest, ChromaStoreRequest):
   score: Optional[float] = 0.80
   top: Optional[int] = 10
   tags: Optional[str] = ''
+  metadata: Optional[dict] = None
   nodeId: str
 
 
