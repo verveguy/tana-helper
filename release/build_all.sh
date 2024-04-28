@@ -75,7 +75,7 @@ waitalljobs $pid1 $pid2 # $winpid
 # Mac specific build of Universal binary
 
 # LIPO the two into one
-echo_blue "Preparing Universal Map .app"
+echo_blue "Preparing Universal Mac .app"
 echo_blue "Lipo-ing the two architectures into one"
 mkdir -p "dist/dmg"
 
