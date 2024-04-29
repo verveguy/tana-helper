@@ -1,0 +1,26 @@
+# Query: 0.2.2
+# Flags: IgnoreExcludeSettings
+# Excluding: *.lock, .git/**, builds/**, .venv/**, build/**, dist/**, node_modules/**
+# ContextLines: 1
+
+4 results - 4 files
+
+service • pyproject.toml:
+  2  name = "tana-helper"
+  3: version = "0.2.2" # TODO: get this from build environment somehow
+  4  description = "Small helper service for Tana to add various extensions via MakeAPI calls"
+
+service • tanahelper.spec:
+  2  
+  3: version = '0.2.2' # TODO: get this from the build environment
+  4  
+
+service • service/endpoints/api_docs.py:
+  12      'title':"Tana Helper",
+  13:     'version':"0.2.2", # TODO: make this configured at build time somehow
+  14      'description':"""
+
+webapp • package.json:
+  2    "name": "tana-helper",
+  3:   "version": "0.2.2",
+  4    "license": "MIT",

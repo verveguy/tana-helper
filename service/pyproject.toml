@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "tana-helper"
-version = "0.2.1"
+version = "0.2.2" # TODO: get this from build environment somehow
 description = "Small helper service for Tana to add various extensions via MakeAPI calls"
 authors = ["verveguy <bpjadam@gmail.com>"]
 license = "MIT"

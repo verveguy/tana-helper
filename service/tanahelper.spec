@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-version = '0.2.1' # TODO: get this from the build environment
+version = '0.2.2' # TODO: get this from the build environment
 
 # BUILD UNSIGNED .APP BUNDLES FOR CURRENT ARCH
 # We will assemble them into a universal, signed bundle later
