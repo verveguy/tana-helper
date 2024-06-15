@@ -1,7 +1,7 @@
 # TODO: figure out how to make settings more modular, based on endpoints configured
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
+import json
 
 import os
 from pathlib import Path

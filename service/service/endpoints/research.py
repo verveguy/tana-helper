@@ -56,7 +56,7 @@ from service.dependencies import (
 )
 from service.endpoints.chroma import get_collection, get_tana_nodes_by_id
 
-from service.endpoints.topics import TanaDocument, extract_topics, is_reference_content, tana_node_ids_from_text
+from service.endpoints.topics import TanaTopicNode, extract_topics, is_reference_content, tana_node_ids_from_text
 from service.llamaindex import DecomposeQueryWithNodeContext, WidenNodeWindowPostProcessor, create_index, get_index
 from service.tana_types import TanaDump
 

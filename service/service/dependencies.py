@@ -14,6 +14,8 @@ from openai import OpenAI
 from pydantic import BaseModel
 from pathlib import Path
 
+from service.tana_types import TANA_NODE
+
 
 from .settings import settings
 
@@ -29,10 +31,7 @@ app_name = "TanaHelper"
   # templates:object = None
 
 
-# Types for our APIs to use
 
-TANA_TEXT = "tana-text"
-TANA_NODE = "tana-node"
 
 class CalendarRequest(BaseModel):
   me: Optional[str] = None
@@ -58,9 +57,19 @@ class ExecRequest(BaseModel):
   call: str 
   payload: dict
 
+#OPENAI_EMBEDDING_MODEL = "text-embedding-3-large"
+OPENAI_EMBEDDING_MODEL = "text-embedding-3-small"
+OPENAI_EMBEDDING_THRESHOLD = 0.45
+
+#OPENAI_EMBEDDING_MODEL = "text-embedding-ada-002"
+#OPENAI_EMBEDDING_THRESHOLD = 0.80
+
+
+OPENAI_CHAT_MODEL = 'gpt-4o'
+
 class OpenAIRequest(BaseModel):
-  model: str = 'gpt-3.5-turbo'
-  embedding_model: str = "text-embedding-ada-002"
+  model: str = OPENAI_CHAT_MODEL
+  embedding_model: str = OPENAI_EMBEDDING_MODEL
 
 class OpenAICompletion(OpenAIRequest):
   prompt: str
@@ -75,7 +84,7 @@ class PineconeRequest(EmbeddingRequest):
   pinecone: str
   environment: Optional[str] = settings.tana_environment
   index: Optional[str] = settings.tana_index
-  score: Optional[float] = 0.80
+  score: Optional[float] = OPENAI_EMBEDDING_THRESHOLD
   top: Optional[int] = 10
   tags: Optional[str] = ''
   nodeId: str
@@ -90,7 +99,7 @@ class ChromaStoreRequest(BaseModel):
   environment: Optional[str] = "local"
 
 class ChromaRequest(EmbeddingRequest, ChromaStoreRequest):
-  score: Optional[float] = 0.80
+  score: Optional[float] = OPENAI_EMBEDDING_THRESHOLD
   top: Optional[int] = 10
   tags: Optional[str] = ''
   metadata: Optional[dict] = None
@@ -98,7 +107,7 @@ class ChromaRequest(EmbeddingRequest, ChromaStoreRequest):
 
 
 class LlamaRequest(EmbeddingRequest):
-  score: Optional[float] = 0.80
+  score: Optional[float] = OPENAI_EMBEDDING_THRESHOLD
   top: Optional[int] = 10
   tags: Optional[str] = ''
   nodeId: str
@@ -106,13 +115,6 @@ class LlamaRequest(EmbeddingRequest):
 class LlamaindexAsk(BaseModel):
   query: str
 
-class TanaNodeMetadata(BaseModel):
-  category: str = TANA_NODE
-  title: str
-  supertag: Optional[str] = None
-  topic_id: str
-  tana_id: Optional[str] = None
-  text: Optional[str] = None
 
 class QueueRequest(HelperRequest):
   pass
@@ -120,7 +122,7 @@ class QueueRequest(HelperRequest):
 class WeaviateRequest(EmbeddingRequest):
   environment: Optional[str] = settings.tana_environment
   index: Optional[str] = settings.tana_index
-  score: Optional[float] = 0.80
+  score: Optional[float] = OPENAI_EMBEDDING_THRESHOLD
   top: Optional[int] = 10
   tags: Optional[str] = ''
   nodeId: Optional[str] = None
@@ -173,13 +175,22 @@ class TanaInputAPIClient:
 
 # OpenAI helper functions
 
-def get_embedding(req:EmbeddingRequest):
+def get_embedding(req:EmbeddingRequest) -> List:
   # get shared client object
   api_key = settings.openai_api_key
   openai_client = OpenAI(api_key=api_key)
-  content = req.name + req.context 
+  content = req.context 
   embedding = openai_client.embeddings.create(input=content, model=req.embedding_model)
   return embedding.data # type: ignore
+
+
+def get_embeddings(nodes:List, model:str):
+  # get shared client object
+  api_key = settings.openai_api_key
+  openai_client = OpenAI(api_key=api_key)
+  embedding = openai_client.embeddings.create(input=nodes, model=model)
+  return embedding.data # type: ignore
+
 
 def get_chatcompletion(req:OpenAICompletion) -> dict:
   api_key = settings.openai_api_key
@@ -233,3 +244,23 @@ async def capture_logs(logger):
   logger.addHandler(eh)
   yield logs
   logger.removeHandler(eh)
+
+
+from io import StringIO
+from snowflake import SnowflakeGenerator
+
+snowflakes = SnowflakeGenerator(42)
+
+BASE66_ALPHABET = u"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_.~"
+BASE = len(BASE66_ALPHABET)
+
+def nextflake():
+    n = next(snowflakes)
+    if n == 0:
+        return BASE66_ALPHABET[0].encode('ascii')
+
+    r = StringIO()
+    while n:
+        n, t = divmod(n, BASE)
+        r.write(BASE66_ALPHABET[t])
+    return r.getvalue().encode('ascii')[::-1]

@@ -2,7 +2,7 @@ import requests
 from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
 from typing import List, Union
-from service.dependencies import ChromaRequest, CalendarRequest
+from service.dependencies import OPENAI_CHAT_MODEL, OPENAI_EMBEDDING_MODEL, ChromaRequest, CalendarRequest
 from service.settings import settings
 from .test_types import BASE_URL, APIValidationError, HTTPValidationError
 
@@ -10,13 +10,11 @@ from .test_types import BASE_URL, APIValidationError, HTTPValidationError
 def test_chroma_upsert_success():
     payload = ChromaRequest(
         nodeId="12345",
-        openai=settings.openai_api_key,
-        model="gpt-3.5-turbo",
-        embedding_model="text-embedding-ada-002",
+        model=OPENAI_CHAT_MODEL,
+        embedding_model=OPENAI_EMBEDDING_MODEL,
         context="test context",
         name="test",
         environment="local",
-        index="tana-helper",
         score=0.8,
         top=10,
         tags="test"
@@ -35,13 +33,11 @@ def test_chroma_upsert_validation_error():
 def test_chroma_delete_success():
     payload = ChromaRequest(
         nodeId="12345",
-        openai=settings.openai_api_key,
-        model="gpt-3.5-turbo",
-        embedding_model="text-embedding-ada-002",
+        model=OPENAI_CHAT_MODEL,
+        embedding_model=OPENAI_EMBEDDING_MODEL,
         context="test context",
         name="test",
         environment="local",
-        index="tana-helper",
         score=0.8,
         top=10,
         tags="test"
@@ -60,13 +56,11 @@ def test_chroma_delete_validation_error():
 def test_chroma_query():
     query_payload = ChromaRequest(
         nodeId="12345",
-        openai=settings.openai_api_key,
-        model="gpt-3.5-turbo",
-        embedding_model="text-embedding-ada-002",
+        model=OPENAI_CHAT_MODEL,
+        embedding_model=OPENAI_EMBEDDING_MODEL,
         context="test context",
         name="test",
         environment="local",
-        index="tana-helper",
         score=0.8,
         top=10,
         tags="test"

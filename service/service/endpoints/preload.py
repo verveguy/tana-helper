@@ -7,31 +7,32 @@ from logging import getLogger
 from fastapi import APIRouter, Request
 from fastapi.encoders import jsonable_encoder
 from typing import List, Tuple
+from openai import OpenAI
 
 # This is here to satisfy runtime import needs 
 # that pyinstaller appears to miss
 
-from snowflake import SnowflakeGenerator
 
 from service.dependencies import (
-    TANA_NODE,
-    TANA_TEXT,
+    OPENAI_EMBEDDING_MODEL,
     ChromaRequest,
-    TanaNodeMetadata,
     capture_logs,
+    get_embeddings,
+    nextflake,
 )
 
-from service.endpoints.chroma import chroma_upsert
-from service.endpoints.topics import TanaDocument, extract_topics
+from service.endpoints.chroma import EmbeddableNode, chroma_upsert, get_collection, prepare_node_for_embedding
+from service.endpoints.topics import TanaTopicNode, extract_topics
 from service.tana_types import TanaDump
+from service.json2tana import json_to_tana
 
 logger = getLogger()
-
-snowflakes = SnowflakeGenerator(42)
 
 router = APIRouter()
 
 minutes = 1000 * 60
+
+BATCH_SIZE = 500
 
 # TODO: Add header support throughout so we can pass Tana API key and OpenAPI Key as headers
 # NOTE: we already have this in the main.py middleware wrapper, but it would be better
@@ -39,120 +40,149 @@ minutes = 1000 * 60
 # x_tana_api_token: Annotated[str | None, Header()] = None
 # x_openai_api_key: Annotated[str | None, Header()] = None
 
-# TODO: change this to remove LLamaindex and simply go directly to ChromaDB
 
+# reduce our list of nodes to embed by testing hashes of the nodes
+def reduce_embeddings(nodes:List[EmbeddableNode]) -> Tuple[List[EmbeddableNode], dict]:  
+  
+  collection = get_collection()
+  lookup = {node.id: node for node in nodes}
+  removes = {}
+  deletes = {}
+  
+  # TODO: narrow this query to nodes from the given workspace 
+  # (requires we track workspace root node somehow in metadata or collection name)
+  query_response = collection.get()
 
-async def load_chromadb_from_topics(topics:List[TanaDocument], model:str, observe=False):
+  if query_response:
+    # the result from ChromaDB is kinda strange. Instead of an array of objects
+    # # it's four distinct arrays of object properties. Very odd interface.
+
+    for node_id, metadata in zip(
+            query_response["ids"],
+            query_response["metadatas"], # type: ignore
+        ):
+      
+      # is this node in the new set?
+      if node_id in lookup:
+        the_node = lookup[node_id]
+        if metadata and the_node.hash == metadata["hash"]:
+          # remove this node from the results
+          removes[node_id] = the_node
+      else:
+        deletes[node_id] = True
+
+  # remove the nodes that are already in the DB
+  results = [node for node in nodes if node.id not in removes]
+  return results, deletes
+
+async def load_chromadb_from_topics(topics:List[TanaTopicNode], model:str, observe=False):
   '''Load the topic index from the topic array directly.'''
 
   logger.info('Building ChromaDB vectors from nodes')
 
+  references = {}
+
   index_nodes = []
-  # loop through all the topics and create a Document for each
+  # loop through all the topics and create an EmbeddableNode for each
   for topic in topics:
-    (doc_node, text_nodes) = document_from_topic(topic)
-    index_nodes.append(doc_node)
-    index_nodes.extend(text_nodes)
+    tags = ' '.join(topic.tags)
+    text = topic.content[0].content + ' ' + tags + '\n'
 
-  logger.info(f'Gathered {len(index_nodes)} tana nodes')
-  logger.info("Preparing storage context")
+    # find all of the fields and make them part of the topic context
+    field_text=''
+    for content in topic.content[1:]:
+      if content.is_field:
+        # TODO HACK if content starts with Attendees:: we want to skip it
+        if content.field_name == 'Attendees':
+          continue
 
-  for node in index_nodes:
-    logger.info(f'Node {node.id} {node.metadata}')
-    chroma_req = ChromaRequest(context=node.text, nodeId=node.id, model=model, metadata=node.metadata)
-    await chroma_upsert(chroma_req)
+        field_text += content.content + '\n'
+
+    text += field_text
+    index_nodes.append(prepare_node_for_embedding(node_id=topic.id,
+                                                  content_id=topic.id,
+                                                  topic_id=topic.id, 
+                                                  name=topic.name,
+                                                  tags=tags,
+                                                  context=text))
+    
+    # now embed all the child content nodes, pointing back at the parent topic
+    for content in topic.content[1:]:
+      if content.is_field:
+        continue
+
+      # build a more detailed tree of nodes
+      # references are .. hard. We make a new synthetic node here
+      # since references will be embedded themselves as topics
+      # and we just want to know that the content of the reference node
+      # is relevant to the current topic we are embedding.
+      topic_id = topic.id
+      content_id = content.id
+      if content.is_reference:
+        #node_id = nextflake() # this means we will leak fake reference nodes over time...
+        node_id = content.id + '__' + topic.id # type: ignore
+        if node_id in references:
+          # we already created this node_topic ref, so skip
+          continue
+        references[node_id] = content
+      else:
+        node_id = content.id
+
+      new_node = prepare_node_for_embedding(node_id=node_id,
+                                            content_id=content_id,
+                                            topic_id= topic_id, 
+                                            name=content.content,
+                                            tags='', # TODO: add tags to content nodes
+                                            context=content.content + '\n')
+      index_nodes.append(new_node)
+
+  logger.info(f'Gathered {len(index_nodes)} nodes for embedding')
+
+  index_nodes, deletes = reduce_embeddings(index_nodes)
+
+  logger.info(f'Reduced to {len(index_nodes)} nodes for embedding')
+  # TODO: delete dead nodes, but NOT until we have properly implemented multi-workspace support
+  logger.info(f'Identified {len(deletes)} nodes for removal')
+
+  collection = get_collection()
+
+  counter = 0
+  # batch process the nodes, generating embeddings
+  for i in range(0, len(index_nodes), BATCH_SIZE):
+    batch = index_nodes[i:i+BATCH_SIZE]
+    nodes = [node.text for node in batch]
+
+    counter = counter + 1
+    # somewhere in this batch, we have a very long text that will cause the OpenAI API to fail
+    biggest=0
+    for node in batch:
+      if len(node.text) > biggest:
+        biggest = len(node.text)
+        big_node = node
+
+    logger.info(f'Batch {counter} Node {big_node.id} has {len(big_node.text)} characters')
+
+    embeddings = get_embeddings(nodes, model=model)
+    for j, node in enumerate(batch):    
+      node.embedding = embeddings[j].embedding
+
+    # upsert the batch into ChromaDB
+    # @sleep_and_retry
+    # @limits(calls=5, period=10)
+    def do_upsert():
+      collection.upsert(
+        ids=[node.id for node in batch],
+        embeddings=[node.embedding for node in batch], # type: ignore
+        # we only embed the name of the node (primary content of the node)
+        documents=[node.name for node in batch],
+        metadatas=[node.metadata for node in batch], #type: ignore
+      )
+    
+    do_upsert()
     
   logger.info("ChromaDB populated and ready")
   return index_nodes
 
-class Document:
-  def __init__(self, id:str, text:str, metadata:dict=None):
-    if not id:
-      raise ValueError('Document must have an id')
-    if not text:
-      raise ValueError('Document must have text')
-    self.id = id 
-    self.text = text
-    self.metadata = metadata if metadata else {}
-
-class TextNode(Document):
-  def __init__(self, id:str, text:str, relationships:dict=None, metadata:dict=None):
-    super().__init__(id, text, metadata)
-    self.relationships = relationships if relationships else {}
-
-class NodeRelationship:
-  SOURCE = 'source'
-  NEXT = 'next'
-  PREVIOUS = 'previous'
-
-def document_from_topic(topic) -> Tuple[Document, List[TextNode]]:
-  '''Load a single topic into the index_nodes list.'''
-  text_nodes = []
-
-  metadata = {
-    'category': TANA_NODE,
-    'supertag': ' '.join([tag for tag in topic.tags]),
-    'title': topic.name,
-    }
-  
-  if topic.fields:
-    # get all the fields as metdata as well
-    fields = set([field.name for field in topic.fields])
-    for field_name in fields:
-      metadata[field_name] = ' '.join([field.value for field in topic.fields if field.name == field_name])
-
-  # what other props do we need to create?
-  # document = Document(id_=topic.id, text=topic.name) # type: ignore
-  # we only add the ffirst line and fields to the document payload
-  # anything else and we blow out the token limits (and cost a lot!)
-  text = topic.content[0][2]
-  document_node = Document(id=topic.id, text=text, metadata=metadata) # first line only
-
-  # # make a note of the document in our nodes list
-  # index_nodes.append(document_node)
-
-  # now iterate all the remaining topic.content and create a node for each
-  # each of these is simply a string, being the name of a tana child node
-  # but with [[]name^id]] reference syntax used for references
-  # TODO: make these tana_nodes richer structurally
-  # TODO: use actual tana node id here perhaps?
-  previous_text_node = None
-  if len(topic.content) > 30:
-    logger.warning(f'Large topic {topic.id} with {len(topic.content)} children')
-
-  # process all the child content records...
-  for (content_id, is_ref, tana_element) in topic.content[1:]:
-    content_metadata = TanaNodeMetadata(
-      category=TANA_TEXT,
-      title=topic.name,
-      topic_id=topic.id,
-      # TODO: ? 'supertag': ' '.join(['#' + tag for tag in topic.tags]),
-      # text gets added below...
-    )
-    
-    # wire up the tana_node as an index_node with the text as the payload
-    if is_ref:
-      ref_id = next(snowflakes)
-      current_text_node = TextNode(id=ref_id, text=tana_element) # type: ignore
-      current_text_node.metadata['tana_ref_id'] = content_id
-    else:
-      current_text_node = TextNode(id=content_id, text=tana_element)
-
-    current_text_node.metadata = content_metadata.model_dump()
-
-    # check if this is a reference node and add additional metadata
-    # TODO: backport this to chroma upsert...?
-
-    current_text_node.relationships[NodeRelationship.SOURCE] = document_node.id
-    # wire up next/previous
-    if previous_text_node:
-      current_text_node.relationships[NodeRelationship.PREVIOUS] = previous_text_node.id
-      previous_text_node.relationships[NodeRelationship.NEXT] = current_text_node.id
-
-    text_nodes.append(current_text_node)
-    previous_text_node = current_text_node
-  
-  return (document_node, text_nodes)
 
 # attempt to parallelize non-async code
 # see https://github.com/tiangolo/fastapi/discussions/6347
@@ -160,7 +190,7 @@ lock = asyncio.Lock()
 
 # Note: accepts ?model= query param
 @router.post("/chroma/preload", tags=["preload"])
-async def chroma_preload(request: Request, tana_dump:TanaDump, model:str="openai"):
+async def chroma_preload(request: Request, tana_dump:TanaDump, model:str=OPENAI_EMBEDDING_MODEL):
   '''Accepts a Tana dump JSON payload and builds the index from it.
   Uses the topic extraction code from the topics endpoint to build
   an object tree in memory, then loads that into ChromaDB via LLamaIndex.
@@ -170,26 +200,32 @@ async def chroma_preload(request: Request, tana_dump:TanaDump, model:str="openai
   async with lock:
     messages = []
     async with capture_logs(logger) as logs:
-      result = await extract_topics(tana_dump, 'JSON') # type: ignore
+      topics = await extract_topics(tana_dump, 'TANA') # type: ignore
       logger.info('Extracted topics from Tana dump')
 
-      # save output to a temporary file
+      # DEBUG save output to a temporary file
       with tempfile.TemporaryDirectory() as tmp:
         path = os.path.join(tmp, 'topics.json')
         logger.info(f'Saving topics to {path}')
         # use path
         with open(path, "w") as f:
-          json_result = jsonable_encoder(result)
+          json_result = jsonable_encoder(topics)
           f.write(json.dumps(json_result))
         
         logger.info('Loading index ...')
-      # don't use file anymore...
-      # load_index_from_file(path)
-      # load directly from in-memory representation
-      await load_chromadb_from_topics(result, model=model)
-      # load_index_from_topics(result, model=model)
-    
       # logger.info(f'Deleted temp file {path}')
+
+      # load directly from in-memory representation
+
+      # extract the tag schema from the dump
+      # tags_schema = tag_schema_from_dump(tana_dump)
+
+      # extract the field schema from the dump
+      # fields_schema = field_schema_from_dump(tana_dump)
+
+      # load the vector DB from the topics
+      await load_chromadb_from_topics(topics, model=model)
+    
       messages = logs.getvalue()
     return messages
 

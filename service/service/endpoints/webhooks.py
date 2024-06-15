@@ -1,7 +1,7 @@
 from fastapi.responses import HTMLResponse
 from fastapi import APIRouter, status, Body, HTTPException
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
-from service.dependencies import OpenAICompletion, get_chatcompletion, LineTimer
+from service.dependencies import OPENAI_CHAT_MODEL, OpenAICompletion, get_chatcompletion, LineTimer
 from service.settings import settings
 from starlette.requests import Request
 from logging import getLogger
@@ -129,7 +129,7 @@ async def do_webhook(schema: str, body: str):
     completion_request = OpenAICompletion(prompt=prompt,
                                           max_tokens=1000, 
                                           temperature=0, 
-                                          model='gpt-4'
+                                          model=OPENAI_CHAT_MODEL
                                           )
     with LineTimer('openai'):
       completion = get_chatcompletion(completion_request)

@@ -4,9 +4,8 @@ from typing import Optional, List, Tuple
 
 from fastapi import APIRouter
 from pydantic import BaseModel
-from service.dependencies import TANA_NODE, TanaNodeMetadata
 
-from service.tana_types import GraphLink, NodeDump, TanaDocument, TanaDump, TanaField, TanaTag, Visualizer
+from service.tana_types import GraphLink, NodeDump, TanaContentElement, TanaTopicNode, TanaDump, TanaField, TanaTag, Visualizer
 from service.tanaparser import IS_CHILD_CONTENT_LINK, IS_TAG_LINK, NodeIndex, patch_node_name, prune_reference_nodes
 
 router = APIRouter()
@@ -14,13 +13,13 @@ router = APIRouter()
 logger = getLogger()
 
 class DocumentDump(BaseModel):
-  documents: List[TanaDocument] = []
+  documents: List[TanaTopicNode] = []
   tags: List[TanaTag] = [] 
   links: List[GraphLink] = []
 
 
 @router.post("/topics", tags=["Extractor"])
-async def extract_topics(tana_dump:TanaDump, format:str='TANA') -> List[TanaDocument]:
+async def extract_topics(tana_dump:TanaDump, format:str='TANA') -> List[TanaTopicNode]:
   '''Given a Tana dump JSON payload, return a list of topics and their content.
 
   Topics are defined as nodes that are tagged with a supertag.
@@ -73,7 +72,7 @@ async def extract_topics(tana_dump:TanaDump, format:str='TANA') -> List[TanaDocu
     if reason == IS_TAG_LINK:
       node = index.node(source_id)
       topic_name = patch_node_name(index, source_id)
-      topic = TanaDocument(id=source_id, 
+      topic = TanaTopicNode(id=source_id, 
                           name=topic_name,
                           description=node.props.description,
                           fields=[],
@@ -83,7 +82,7 @@ async def extract_topics(tana_dump:TanaDump, format:str='TANA') -> List[TanaDocu
       
       topics.append(topic)
       
-      topic.content = [(source_id, False, '- '+topic_name)]
+      topic.content = [TanaContentElement(id=source_id, is_reference=False, content='- '+topic_name)]
 
       # add all the tag names as structured elems 
       # for tag_id in node.tags:
@@ -125,9 +124,9 @@ async def extract_topics(tana_dump:TanaDump, format:str='TANA') -> List[TanaDocu
         if format == 'TANA':
           # structure fields in Tana paste format
           if len(value_contents) > 0 and len(value_contents[0]) > 0:
-            topic.content.append((None, False, f"  - {field_name}:: {value_contents[0]}"))
+            topic.content.append(TanaContentElement(id=None, is_field=True, field_name=field_name, is_reference=False, content=f"  - {field_name}:: {value_contents[0]}"))
             for value in value_contents[1:]:
-              topic.content.append((None, False, f"    - {value}"))
+              topic.content.append(TanaContentElement(id=None, is_field=True, field_name=field_name, is_reference=False, content=f"    - {value}"))
           # and remove any structured fields
           topic.fields = None
 
@@ -180,7 +179,7 @@ def tana_node_ids_from_text(text:str) -> List[str]:
 
 # TODO: now that we "prune" reference nodes, do we need depth_limit?
 
-def recurse_content(index:NodeIndex, parent_id:str, depth_limit=10) -> list[tuple[str|None, bool, str]]:
+def recurse_content(index:NodeIndex, parent_id:str, depth_limit=10) -> List[TanaContentElement]:
   parent_node = index.node(parent_id)
   content = []
 
@@ -193,19 +192,24 @@ def recurse_content(index:NodeIndex, parent_id:str, depth_limit=10) -> list[tupl
         # and treat it like a referenced node. (Yes, this isn't Tana's way
         # but we want to reduce redundant content and Day nodes mess with this
         # concept rather badly)
-        content.append((content_id, True, indent(11 - depth_limit)+'- [['+patch_node_name(index, content_id)+'^'+content_id+']]'+add_tags(index, content_node.tags)))
+        content.append(TanaContentElement(id=content_id, is_reference=True, 
+                                          content=indent(11 - depth_limit)+'- [['+patch_node_name(index, content_id)+'^'+content_id+']]'+add_tags(index, content_node.tags)))
       else:
         # this is a regular text node, untagged and not a reference
 
         # TODO: decide what, if anything, to do with fields on such nodes
         
         # here we know the Tana nodeId of the child, so we capture it as content_id
-        content.append((content_id, False, indent(11 - depth_limit)+'- '+patch_node_name(index, content_id)))
+        content.append(TanaContentElement(id=content_id, 
+                                         is_reference=False,
+                                         content=indent(11 - depth_limit)+'- '+patch_node_name(index, content_id)))
         if depth_limit > 0:
           content += recurse_content(index, content_id, depth_limit - 1)
     else:
       # this is a Tana reference link, so don't recurse
-      content.append((content_id, True, indent(11 - depth_limit)+'- [['+patch_node_name(index, content_id)+'^'+content_id+']]'+add_tags(index, content_node.tags)))
+      content.append(TanaContentElement(id=content_id,
+                                        is_reference=True,
+                                        content=indent(11 - depth_limit)+'- [['+patch_node_name(index, content_id)+'^'+content_id+']]'+add_tags(index, content_node.tags)))
 
   return content
 
@@ -228,14 +232,14 @@ def extract_topic_from_context(tana_id:str, tana_context:str):
   name = pruned_content.split('\n')[0]
 
   # create a document with the whole (pruned) text blob as first [content] triple
-  topic = TanaDocument(id=tana_id,
+  topic = TanaTopicNode(id=tana_id,
                       description=None,
                       fields=[],
                       tags=tags_from_name(name),
                       name=name
                       )
   
-  topic.content = [(tana_id, False, '- '+name)]
+  topic.content = [TanaContentElement(id=tana_id, is_reference=False, content='- '+name)]
 
   fields = []
   for line in pruned_content.split('\n'):
@@ -255,11 +259,11 @@ def extract_topic_from_context(tana_id:str, tana_context:str):
       # we've hit a content line, break it down for "sentence splitting"
       (ref, ref_id) = is_reference_content(line)
       if ref:
-        topic.content.append((ref_id, True, line))
+        topic.content.append(TanaContentElement(id=ref_id, is_reference=True, content=line))
       else:
         # Unfortunately, we don't know the Tana node id of the child content
         # unlike in the preload case (where we build from full graph info)
-        topic.content.append((None, False, line))
+        topic.content.append(TanaContentElement(id=None, is_reference=False, content=line))
 
   
   topic.fields = fields

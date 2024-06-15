@@ -8,6 +8,10 @@ from enum import Enum
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, Union, List, Dict, Any
 
+# Types for our APIs to use
+
+TANA_TEXT = "tana-text"
+TANA_NODE = "tana-node"
 
 class Props(BaseModel):
   created: int
@@ -77,15 +81,42 @@ class TanaTag(BaseModel):
   description: Optional[str] = None
   color: Optional[str] = None
 
-class TanaDocument(BaseModel):
+class TanaContent(BaseModel):
   id: str # the tana node id
   name: str
   description: Optional[str]
+
+class TanaContentElement(BaseModel):
+  id: Optional[str] = None
+  is_reference: bool = False
+  is_field: bool = False
+  field_name: str | None = None
+  content: str
+
+# A Tana Topic is anything that is tagged. This is the "logical document" of the Tana 
+# worksapce for the purpose of our RAG efforts
+class TanaTopicNode(TanaContent):
   tags: List[str] = []
   fields: Optional[List[TanaField]]
   # TODO: consider whether we should preserve more node structure here
-  content: list[tuple[str|None, bool, str]] = []
+  content: List[TanaContentElement] = []
 
+# A Tana Content Node is a child of a topic node. We split this out for
+# finer grained embedding purposes - and because single topics are too
+# large to embed in one go.
+# Content Nodes are assumed to be flat text - no fields, no tags.
+class TanaContentNode(TanaContent):
+  topic_id: str # the parent topic we are part of
+
+
+class TanaNodeMetadata(BaseModel):
+  category: str = TANA_NODE
+  title: str
+  supertag: Optional[str] = None
+  topic_id: Optional[str] = None
+  node_id: Optional[str] = None
+  text: Optional[str] = None
+  hash: int
 
 class GraphLink(BaseModel):
   source: str

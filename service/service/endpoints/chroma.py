@@ -1,7 +1,10 @@
+import hashlib
 from fastapi import APIRouter, status, Request
 from fastapi.responses import HTMLResponse
 from typing import Dict, List, Optional
-from service.dependencies import ChromaStoreRequest, TanaNodeMetadata, QueueRequest, ChromaRequest, get_embedding, TANA_NODE, TanaInputAPIClient, SuperTag, Node, AddToNodeRequest
+
+from pydantic import BaseModel
+from service.dependencies import ChromaStoreRequest, QueueRequest, ChromaRequest, get_embedding, TANA_NODE, TanaInputAPIClient, SuperTag, Node, AddToNodeRequest
 from service.settings import settings
 from logging import getLogger
 from ratelimit import limits, RateLimitException, sleep_and_retry
@@ -10,14 +13,25 @@ import asyncio
 import time
 from chromadb import EmbeddingFunction, Documents, Embeddings, Where
 import chromadb
-import chromadb.api.segment
+from chromadb.api.types import Embedding, Metadata
+# import chromadb.api.segment
 from chromadb.config import Settings
 from pathlib import Path
 import os
 import re
 from snowflake import SnowflakeGenerator
 
+from service.tana_types import TanaNodeMetadata
 from service.tanaparser import prune_reference_nodes
+
+
+class EmbeddableNode(BaseModel):
+  id: str # the tana node id or a synthetic for reference nodes
+  name: str
+  text: str
+  embedding: Optional[Embedding] = None
+  metadata: Optional[Metadata] = None
+  hash: int = 0
 
 logger = getLogger()
 snowflakes = SnowflakeGenerator(42)
@@ -47,6 +61,35 @@ def get_queue_collection():
   collection = chroma.get_or_create_collection(name=INBOX_QUEUE)
   return collection
 
+
+def prepare_node_for_embedding(node_id, content_id, topic_id, name, tags, context, metadata=None) -> EmbeddableNode:
+  # we only want the direct children of the node as context
+  # so we prune the context before embedding
+  pruned_content = prune_reference_nodes(context)
+  context = pruned_content
+  hash_val = int(hashlib.sha1(context.encode("utf-8")).hexdigest(), 16) % (2 ** 62)
+  
+  if not metadata:
+    metadata = TanaNodeMetadata(
+                category=TANA_NODE,
+                supertag=tags,
+                title=name,
+                # we put the pruned node context into the metadata
+                text=context,
+                node_id=content_id,
+                topic_id=topic_id,
+                hash=hash_val
+    )
+    metadatas = metadata.model_dump()
+  else:
+    metadatas = metadata
+
+  if context is None:
+    logger.warning(f"Empty context for {node_id}")
+
+  embeddable = EmbeddableNode(id=node_id, name=name, text=context, metadata=metadatas, hash=hash_val)
+  return embeddable
+
 # attempt to parallelize non-async code
 # see https://github.com/tiangolo/fastapi/discussions/6347
 lock = asyncio.Lock()
@@ -54,42 +97,30 @@ lock = asyncio.Lock()
 @router.post("/chroma/upsert", status_code=status.HTTP_204_NO_CONTENT, tags=["Chroma"])
 async def chroma_upsert(req: ChromaRequest):
   async with lock:
-    # we only want the direct children of the node as context
-    # so we prune the context before embedding
-    pruned_content = prune_reference_nodes(req.context)
-    req.context = pruned_content
-    
+    # individual node inserts are assumed to be small enough to embed as a whole
+    # and to be topics in their own right.
+    # TODO: consider making this more sophisticated for large single-topic enbeds
+    embeddable = prepare_node_for_embedding(node_id=req.nodeId,
+                                            content_id=req.nodeId,
+                                            topic_id=req.nodeId, 
+                                            name=req.name, 
+                                            tags=req.tags, 
+                                            context=req.context, 
+                                            metadata=req.metadata)
+
     embedding = get_embedding(req)
     vector = embedding[0].embedding
 
     collection = get_collection()
-    if not req.metadata:
-      metadata = TanaNodeMetadata(
-                  category=TANA_NODE,
-                  supertag=req.tags,
-                  title=req.name,
-                  # we put the pruned node context into the metadata
-                  text=req.context,
-                  tana_id=req.nodeId,
-                  topic_id=req.nodeId,
-      )
-      metadatas = metadata.model_dump()
-    else:
-      metadatas = req.metadata
-
-
-    if req.context is None:
-      logger.warning(f"Empty context for {req.nodeId}")
-
     # @sleep_and_retry
     # @limits(calls=5, period=10)
     def do_upsert():
       collection.upsert(
-        ids=req.nodeId,
+        ids=embeddable.id,
         embeddings=vector,
         # we only embed the name of the node (primary content of the node)
-        documents=req.name,
-        metadatas=metadatas,
+        documents=embeddable.name,
+        metadatas=embeddable.metadata,
       )
       
     do_upsert()
@@ -170,7 +201,7 @@ def get_tana_nodes_for_query(req: ChromaRequest):
             query_response["metadatas"][0], # type: ignore
             query_response["distances"][0], # type: ignore
         ):
-      
+
       distance = (1.0 - distance)
       if 'title' in metadata:
         first_line = metadata['title']
@@ -182,7 +213,10 @@ def get_tana_nodes_for_query(req: ChromaRequest):
       if node_id != req.nodeId:
         logger.info(f"Found node {node_id} with score {distance}. Title is {first_line}")
         if distance > req.score: # type: ignore
-          best.append(node_id)
+          if 'topic_id' in metadata and metadata['topic_id'] is not None:
+            best.append(metadata['topic_id']) # use the topic_id, rather than the node fragment id
+          else:
+            best.append(metadata['node_id'])
           if 'text' in metadata:
             texts.append(metadata['text'])
 
