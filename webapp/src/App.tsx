@@ -16,6 +16,7 @@ import RAGIndex from './components/RAGIndex';
 import RAGIndexControls from './components/RAGIndexControls';
 import Api from './components/Api';
 import Configure from './components/Configure';
+import Webhooks from './components/Webhooks';
 
 const darkTheme = createTheme({
   palette: {
