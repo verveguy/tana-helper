@@ -104,6 +104,7 @@ class ChromaRequest(EmbeddingRequest, ChromaStoreRequest):
   tags: Optional[str] = ''
   metadata: Optional[dict] = None
   nodeId: str
+  returns: Optional[str] = 'topic'
 
 
 class LlamaRequest(EmbeddingRequest):
