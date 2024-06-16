@@ -60,6 +60,7 @@ class ExecRequest(BaseModel):
 #OPENAI_EMBEDDING_MODEL = "text-embedding-3-large"
 OPENAI_EMBEDDING_MODEL = "text-embedding-3-small"
 OPENAI_EMBEDDING_THRESHOLD = 0.45
+OPENAI_MAX_EMBEDDING_SIZE = 10000 # in chars. TODO: Really should be tokens < 8192
 
 #OPENAI_EMBEDDING_MODEL = "text-embedding-ada-002"
 #OPENAI_EMBEDDING_THRESHOLD = 0.80
@@ -102,7 +103,7 @@ class ChromaRequest(EmbeddingRequest, ChromaStoreRequest):
   score: Optional[float] = OPENAI_EMBEDDING_THRESHOLD
   top: Optional[int] = 10
   tags: Optional[str] = ''
-  metadata: Optional[dict] = None
+  # metadata: Optional[dict] = None  # TODO: not fully implemented
   nodeId: str
   returns: Optional[str] = 'topic'
 

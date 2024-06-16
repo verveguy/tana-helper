@@ -92,14 +92,14 @@ async def load_chromadb_from_topics(topics:List[TanaTopicNode], model:str, obser
     field_text=''
     for content in topic.content[1:]:
       if content.is_field:
-        # TODO HACK if content starts with Attendees:: we want to skip it
-        if content.field_name == 'Attendees':
-          continue
+        # # TODO HACK if content starts with Attendees:: we want to skip it
+        # if content.field_name == 'Attendees':
+        #   continue
 
         field_text += content.content + '\n'
 
     text += field_text
-    index_nodes.append(prepare_node_for_embedding(node_id=topic.id,
+    index_nodes.extend(prepare_node_for_embedding(node_id=topic.id,
                                                   content_id=topic.id,
                                                   topic_id=topic.id, 
                                                   name=topic.name,
@@ -128,21 +128,21 @@ async def load_chromadb_from_topics(topics:List[TanaTopicNode], model:str, obser
       else:
         node_id = content.id
 
-      new_node = prepare_node_for_embedding(node_id=node_id,
+      new_nodes = prepare_node_for_embedding(node_id=node_id,
                                             content_id=content_id,
                                             topic_id= topic_id, 
                                             name=content.content,
                                             tags='', # TODO: add tags to content nodes
                                             context=content.content + '\n')
-      index_nodes.append(new_node)
+      index_nodes.extend(new_nodes)
 
   logger.info(f'Gathered {len(index_nodes)} nodes for embedding')
 
   index_nodes, deletes = reduce_embeddings(index_nodes)
 
-  logger.info(f'Reduced to {len(index_nodes)} nodes for embedding')
+  logger.info(f'Reduced to {len(index_nodes)} new or changed nodes for embedding')
   # TODO: delete dead nodes, but NOT until we have properly implemented multi-workspace support
-  logger.info(f'Identified {len(deletes)} nodes for removal')
+  #logger.info(f'Identified {len(deletes)} nodes for removal')
 
   collection = get_collection()
 

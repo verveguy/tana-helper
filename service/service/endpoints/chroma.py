@@ -4,7 +4,7 @@ from fastapi.responses import HTMLResponse
 from typing import Dict, List, Optional
 
 from pydantic import BaseModel
-from service.dependencies import ChromaStoreRequest, QueueRequest, ChromaRequest, get_embedding, TANA_NODE, TanaInputAPIClient, SuperTag, Node, AddToNodeRequest
+from service.dependencies import OPENAI_MAX_EMBEDDING_SIZE, ChromaStoreRequest, QueueRequest, ChromaRequest, get_embedding, TANA_NODE, TanaInputAPIClient, SuperTag, Node, AddToNodeRequest
 from service.settings import settings
 from logging import getLogger
 from ratelimit import limits, RateLimitException, sleep_and_retry
@@ -57,32 +57,58 @@ def get_collection():
 
 def get_queue_collection():
   chroma = get_chroma()
-  # use cosine rather than l2 (should test this)
   collection = chroma.get_or_create_collection(name=INBOX_QUEUE)
   return collection
 
 
-def prepare_node_for_embedding(node_id, content_id, topic_id, name, tags, context, metadata=None) -> EmbeddableNode:
+def prepare_node_for_embedding(node_id, content_id, topic_id, name, tags, context) -> List[EmbeddableNode]:
   # we only want the direct children of the node as context
   # so we prune the context before embedding
   pruned_content = prune_reference_nodes(context)
   context = pruned_content
+
+  if len(context) < OPENAI_MAX_EMBEDDING_SIZE:
+    return [prepare_single(node_id, content_id, topic_id, name, tags, context)]
+
+  else:
+    embeddables = []
+    # what to do with really big contexts? Too much text and the embedding fails
+    # so let's chunk them up into smaller pieces.
+    # TODO: make this a language aware sentence splitter
+    # import stanza
+
+    #   stanza.download('multilinqual')
+    #   nlp = stanza.Pipeline(lang='en', processors='tokenize')
+
+    #   doc = nlp(t_en)
+    #   for sentence in doc.sentences:
+    #       print(sentence.text)
+
+    # chunk into 10,000 character chunks
+    context_chunks = [context[i:i + OPENAI_MAX_EMBEDDING_SIZE] for i in range(0, len(context), OPENAI_MAX_EMBEDDING_SIZE)]
+    counter = 0
+    for chunk in context_chunks:
+      fragment_id = f"{node_id}::{counter}"
+      embeddable = prepare_single(fragment_id, content_id, topic_id, name, tags, chunk)
+      embeddables.append(embeddable)
+      counter += 1
+    return embeddables
+  
+def prepare_single(node_id, content_id, topic_id, name, tags, context) -> EmbeddableNode:
+  
   hash_val = int(hashlib.sha1(context.encode("utf-8")).hexdigest(), 16) % (2 ** 62)
   
-  if not metadata:
-    metadata = TanaNodeMetadata(
-                category=TANA_NODE,
-                supertag=tags,
-                title=name,
-                # we put the pruned node context into the metadata
-                text=context,
-                node_id=content_id,
-                topic_id=topic_id,
-                hash=hash_val
-    )
-    metadatas = metadata.model_dump()
-  else:
-    metadatas = metadata
+  metadata = TanaNodeMetadata(
+              category=TANA_NODE,
+              supertag=tags,
+              title=name,
+              # we put the pruned node context into the metadata
+              text=context,
+              node_id=content_id,
+              topic_id=topic_id,
+              hash=hash_val
+  )
+  metadatas = metadata.model_dump()
 
   if context is None:
     logger.warning(f"Empty context for {node_id}")
@@ -105,8 +131,8 @@ async def chroma_upsert(req: ChromaRequest):
                                             topic_id=req.nodeId, 
                                             name=req.name, 
                                             tags=req.tags, 
-                                            context=req.context, 
-                                            metadata=req.metadata)
+                                            context=req.context
+                                            )[0]
 
     embedding = get_embedding(req)
     vector = embedding[0].embedding
