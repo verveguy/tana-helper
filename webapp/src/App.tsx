@@ -14,6 +14,8 @@ import ClassDiagram from './components/ClassDiagram';
 import Visualizer from './components/Visualizer';
 import RAGIndex from './components/RAGIndex';
 import RAGIndexControls from './components/RAGIndexControls';
+import ObsidianExport from './components/ObsidianExport';
+import ObsidianExportControls from './components/ObsidianExportControls';
 import Api from './components/Api';
 import Configure from './components/Configure';
 import Webhooks from './components/Webhooks';
@@ -98,6 +100,13 @@ const config = [
     key: 'ragindex',
     content: <RAGIndex />,
     control: <RAGIndexControls />
+  },
+  {
+    label: 'Obsidian Export',
+    link: '/ui/obsidianexport',
+    key: 'obsidianexport',
+    content: <ObsidianExport />,
+    control: <ObsidianExportControls />
   },
 ];
 

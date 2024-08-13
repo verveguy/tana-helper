@@ -5,6 +5,7 @@ export const TanaHelperContext = createContext({
   loading: false, setLoading: (a)=>{},
   mermaidText: undefined, setMermaidText: (a)=>{},
   ragIndexData: undefined, setRagIndexData: (a)=>{},
+  obsidianExportData: undefined, setObsidianExportData: (a)=>{},
   config: undefined, setConfig: (a)=>{},
   webhooks: undefined, setWebhooks: (a)=>{},
   twoDee: false, setTwoDee: (a)=>{},
@@ -15,6 +16,7 @@ export function TanaHelperContextProvider({ children }) {
   const [mermaidText, setMermaidText] = useState();
   const [loading, setLoading] = useState(false);
   const [ragIndexData, setRagIndexData] = useState();
+  const [obsidianExportData, setObsidianExportData] = useState();
   const [config, setConfig] = useState();
   const [webhooks, setWebhooks] = useState();
   const [twoDee, setTwoDee] = useState(false);
@@ -25,10 +27,11 @@ export function TanaHelperContextProvider({ children }) {
       loading, setLoading, 
       mermaidText, setMermaidText,
       ragIndexData, setRagIndexData,
+      obsidianExportData, setObsidianExportData,
       config, setConfig,
       webhooks, setWebhooks,
       twoDee, setTwoDee}),
-    [graphData, loading, mermaidText, ragIndexData, config, webhooks, twoDee]
+    [graphData, loading, mermaidText, ragIndexData, obsidianExportData, config, webhooks, twoDee]
   );
 
   return (
