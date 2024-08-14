@@ -98,3 +98,22 @@ async def export_to_file(req:Request, filename:str, format='json',
 async def echo(body:str=Body(...)):
   result = bytes(body, "utf-8").decode("unicode_escape")  
   return result
+
+@router.post("/childless", response_class=HTMLResponse, tags=["Conversions"])
+async def childless(req:Request, body:str=Body(...)):
+  tana_format = bytes(body, "utf-8").decode("unicode_escape")  
+  object_graph = tana_to_json(tana_format)
+  empty_nodes = []
+  # start with the root node of the context
+  root_list = object_graph[0]['children']
+  for each in root_list:
+    if not 'children' in each or len(each['children']) == 0:
+        # only append a reference to the node if it has NO children
+        empty_nodes.append(each['name'])
+  
+  tana_paste = f'- Childless nodes within {object_graph[0]["name"]}\n'
+  for ref in empty_nodes:
+    tana_paste += f'  - {ref}\n'
+    
+  return tana_paste
+
