@@ -43,7 +43,7 @@ def obsidian_reference(name:str) -> str:
 
 def convert_links(content:str) -> str:
   '''Convert all the Tana references in the content to Obsidian references'''
-  obs = re.sub(r'\[\[([^\[\^]*)\^([^\]]+)\]\](.*)', r'[[\2|\1]]\3', content)
+  obs = re.sub(r'\[\[([^\[\^]*)\^([^\]]+)\]\]', r'[[\2|\1]]', content)
   return obs
 
 def strip_links(content:str) -> str:
@@ -53,11 +53,11 @@ def strip_links(content:str) -> str:
 
 def unwrap_reference(content:str):
   '''Convert all the Tana references in the content to Obsidian references'''
-  obs = re.search(r'([ -]*)\[\[(.+)\^([^\]]+)\]\]', content)
+  obs = re.search(r'([ -]*)\[\[(.+)\^([^\]]+)\]\](.*)', content)
   if obs:
     return obs.groups()
   else:
-    return '', content, ''
+    return '', content, '', ''
 
 def obsidian_frontmatter_field(content:str) -> str:
   '''Convert all the Tana references in the content to Obsidian references'''
@@ -131,8 +131,8 @@ async def export_topics_to_obsidian(topics:List[TanaTopicNode]):
             continue
           else:
             if content.is_reference:
-              indent, name, id = unwrap_reference(content.content)
-              f.write(f'{indent}{convert_links(name)} [[{content.id}|reference]] \n')
+              indent, name, id, tags = unwrap_reference(content.content)
+              f.write(f'{indent}{convert_links(name)} {tags} ([[{content.id}|link]])\n')
             else:
               f.write(convert_links(content.content) + '\n')
 
