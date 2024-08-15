@@ -130,6 +130,19 @@ async def extract_topics(tana_dump:TanaDump, format:str='TANA') -> List[TanaTopi
           # and remove any structured fields
           topic.fields = None
 
+        elif format == 'OBSIDIAN':
+          # structure fields in Obsidian front matter format
+          if len(value_contents) > 0:
+            if len(value_contents) > 1:
+              topic.content.append(TanaContentElement(id=None, is_field=True, field_name=field_name, is_reference=False, content=f'{field_name}:'))
+              for value in value_contents:
+                topic.content.append(TanaContentElement(id=None, is_field=True, field_name=field_name, is_reference=False, content=f'  - {value}'))
+            else:
+              topic.content.append(TanaContentElement(id=None, is_field=True, field_name=field_name, is_reference=False, content=f'{field_name}: {value_contents[0]}'))
+
+          # and remove any structured fields
+          topic.fields = None
+
       # recursively build up child content for "sentence splitting"
       topic.content += recurse_content(index, source_id)
       

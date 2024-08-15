@@ -5,6 +5,9 @@ import re
 import tempfile
 from logging import getLogger
 from pathlib import Path
+from dateutil.parser import parse
+from datetime import datetime
+import pytz
 
 from fastapi import APIRouter, Request
 from fastapi.encoders import jsonable_encoder
@@ -22,6 +25,36 @@ logger = getLogger()
 
 router = APIRouter()
 
+def convert_partial_date(input_str: str, timezone:str) -> str:
+   # Parse the start and end times
+    input_dt = parse(input_str)
+
+    # Convert to the specified timezone
+    tz = pytz.timezone(timezone)
+    input_dt = input_dt.astimezone(tz)
+
+    # Format the datetime strings in ISO-8601 format
+    input_dt_str = input_dt.isoformat()
+    return input_dt_str
+
+def convert_to_iso8601(input_str: str) -> str:
+    # Parse the input string to a dictionary
+    data = json.loads(input_str)
+
+    # Extract the dateTimeString and timezone
+    date_time_string = data['dateTimeString']
+    timezone = data['timezone']
+
+    # Split the dateTimeString into start and end times
+    if '/' in date_time_string:
+      start_str, end_str = date_time_string.split('/')
+      start_dt_str = convert_partial_date(start_str, timezone)
+      end_dt_str = convert_partial_date(end_str, timezone)
+      result = f"{start_dt_str}/{end_dt_str}"
+    else:
+      result = convert_partial_date(date_time_string, timezone)
+
+    return result
 
 def simple_name(name:str) -> str:
   '''Convert a Tana node name to a simple string for a file name.
@@ -49,6 +82,8 @@ def convert_links(content:str) -> str:
 def strip_links(content:str) -> str:
   '''Convert all the Tana references in the content to Obsidian references'''
   obs = re.sub(r'\[\[([^\[\^]*)\^([^\]]+)\]\]', r'\1', content)
+  # strip all colons because they are not allowed in titles or filenames
+  obs = re.sub(r':', '', obs)
   return obs
 
 def unwrap_reference(content:str):
@@ -60,26 +95,13 @@ def unwrap_reference(content:str):
     return '', content, '', ''
 
 def obsidian_frontmatter_field(content:str) -> str:
-  '''Convert all the Tana references in the content to Obsidian references'''
-  obs = re.search(r'([ -]*)([^:]+)::(.*)', content)
-  if obs:
-    result = obs.groups()[1] + ': ' + strip_links(obs.groups()[2])
+  '''Fields need formatting with tags after the quotes'''
+  dt = re.search('({"dateTimeString":[^}]+})', content)
+  if dt:
+    obs = content.replace(dt.group(0), f'"{convert_to_iso8601(dt.group(0))}"')
   else:
-    result = content
-  return result
-
-def obsidian_field(content:str) -> str:
-  '''Convert all the Tana references in the content to Obsidian references'''
-  if content.find(':') > 0:
-    obs = re.search(r'([ -]*)([^:]+):?:?(.*)', content)
-    if obs:
-      grps = obs.groups()
-      result = f'{grps[0]}{grps[1]}:{convert_links(grps[2])}'
-    else:
-      result = content
-  else:
-    result = convert_links(content)
-  return result
+    obs = re.sub(r'\[\[([^\[\^]*)\^([^\]]+)\]\]', r'"[[\2|\1]]"', content)
+  return obs
 
 async def export_topics_to_obsidian(topics:List[TanaTopicNode]):
   '''Dump all the topics to markdown files for obsidian'''
@@ -110,15 +132,16 @@ async def export_topics_to_obsidian(topics:List[TanaTopicNode]):
         f.write('---\n')
         f.write(f'title: {strip_links(topic.name)}\n')
         f.write(f'id: {topic.id}\n')        
-        f.write('---\n')
-        f.write('Fields:\n')
+        #f.write('Fields:\n')
 
         # first, write all the fields to the properties section of the markdown file
         for content in topic.content[1:]:
           if content.is_field:
-            f.write(f'  {obsidian_field(content.content)}\n')
+            f.write(f'{obsidian_frontmatter_field(content.content)}\n')
 
-        # then the name of the topic
+        f.write('---\n')
+
+        # then the name of the topic with links embedded
         f.write(convert_links(topic.name) + '\n')
 
         # next write all the tags to this file
@@ -160,7 +183,7 @@ async def migrate_to_obsidian(request: Request, tana_dump:TanaDump):
   async with lock:
     messages = []
     async with capture_logs(logger) as logs:
-      topics = await extract_topics(tana_dump, 'TANA') # type: ignore
+      topics = await extract_topics(tana_dump, 'OBSIDIAN') # type: ignore
       logger.info('Extracted topics from Tana dump')
 
       # make a vault from the topics
