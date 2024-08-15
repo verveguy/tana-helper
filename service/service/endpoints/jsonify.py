@@ -107,7 +107,7 @@ async def childless(req:Request, body:str=Body(...)):
   # start with the root node of the context
   root_list = object_graph[0]['children']
   for each in root_list:
-    if not 'children' in each or len(each['children']) == 0:
+    if 'children' not in each or len(each['children']) == 0:
         # only append a reference to the node if it has NO children
         empty_nodes.append(each['name'])
   
