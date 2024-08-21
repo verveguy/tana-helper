@@ -130,8 +130,10 @@ async def export_topics_to_obsidian(topics:List[TanaTopicNode]):
       # write the topic content to the file
       with open(filename, 'w') as f:
         f.write('---\n')
-        f.write(f'title: {strip_links(topic.name)}\n')
-        f.write(f'id: {topic.id}\n')        
+        f.write(f'aliases:\n  - {strip_links(topic.name)}\n')
+        #f.write(f'title: {strip_links(topic.name)}\n')
+        f.write(f'id: {topic.id}\n')  
+        # f.write(f'tags:\n')      
         #f.write('Fields:\n')
 
         # first, write all the fields to the properties section of the markdown file
