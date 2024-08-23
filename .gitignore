@@ -111,6 +111,7 @@ __pycache__
 .vercel
 
 .space
+.venv
 test
 dist
 chroma.db
