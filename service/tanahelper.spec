@@ -31,10 +31,12 @@ hidden_imports += ['service.small_main', 'service.main', 'pkgutil']
 hidden_imports += collect_submodules('service')
 
 datas += [
-  ('service/dist', 'service/dist'), 
   ('icons', 'icons'), 
+  ('service/dist', 'service/dist'), 
   ('service/bin', 'service/bin'),
-  ('service/scripts', 'service/scripts')]
+  ('service/scripts', 'service/scripts'),
+  ('service/static', 'service/static'),
+  ]
 
 
 # chromadb, llamindex and ollama need things that aren't detected

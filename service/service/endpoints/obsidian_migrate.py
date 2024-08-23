@@ -2,7 +2,10 @@ import asyncio
 import json
 import os
 import re
+import shutil
 import tempfile
+import contextlib
+
 from logging import getLogger
 from pathlib import Path
 from dateutil.parser import parse
@@ -103,73 +106,77 @@ def obsidian_frontmatter_field(content:str) -> str:
     obs = re.sub(r'\[\[([^\[\^]*)\^([^\]]+)\]\]', r'"[[\2|\1]]"', content)
   return obs
 
+
+
+@contextlib.contextmanager
+#temporarily change to a different working directory
+def working_directory(path):
+    _oldcwd = os.getcwd()
+    os.chdir(os.path.abspath(path))
+
+    try:
+        yield
+    finally:
+        os.chdir(_oldcwd)
+
 async def export_topics_to_obsidian(topics:List[TanaTopicNode]):
   '''Dump all the topics to markdown files for obsidian'''
 
   logger.info('Building obsidian vault')
 
-  index_nodes = []
-
   # create a temporary directory for the vault
   tmpdirname = os.path.expanduser('~')
-  #with tempfile.TemporaryDirectory() as tmpdirname:
   if tmpdirname:
-    os.chdir(tmpdirname)
 
     # create a directory for the vault
+    # copy static vault template
     basedir = os.path.join(tmpdirname, 'vault')
-    Path(basedir).mkdir(parents=True, exist_ok=True)
-    os.chdir(basedir)
+    shutil.copytree(os.path.join('static', 'vault'), basedir)
 
-    logger.info(f'Created temporary directory {basedir}')
+    with working_directory(basedir):
 
-    # loop through all the topics and create a markdown file for each
-    for topic in topics:
-      filename = simple_name(topic.id) + '.md'
-      os.makedirs(os.path.dirname(os.path.join(basedir, filename)), exist_ok=True)
-      # write the topic content to the file
-      with open(filename, 'w') as f:
-        f.write('---\n')
-        f.write(f'aliases:\n  - {strip_links(topic.name)}\n')
-        #f.write(f'title: {strip_links(topic.name)}\n')
-        f.write(f'id: {topic.id}\n')  
-        # f.write(f'tags:\n')      
-        #f.write('Fields:\n')
+      logger.info(f'Created vault directory {basedir}')
 
-        # first, write all the fields to the properties section of the markdown file
-        for content in topic.content[1:]:
-          if content.is_field:
-            f.write(f'{obsidian_frontmatter_field(content.content)}\n')
+      # loop through all the topics and create a markdown file for each
+      for topic in topics:
+        filename = simple_name(topic.id) + '.md'
+        os.makedirs(os.path.dirname(os.path.join(basedir, filename)), exist_ok=True)
+        # write the topic content to the file
+        with open(filename, 'w') as f:
+          f.write('---\n')
+          f.write(f'aliases:\n  - {strip_links(topic.name)}\n')
+          #f.write(f'title: {strip_links(topic.name)}\n')
+          f.write(f'id: {topic.id}\n')  
+          # f.write(f'tags:\n')      
+          #f.write('Fields:\n')
 
-        f.write('---\n')
+          # first, write all the fields to the properties section of the markdown file
+          for content in topic.content[1:]:
+            if content.is_field:
+              f.write(f'{obsidian_frontmatter_field(content.content)}\n')
 
-        # then the name of the topic with links embedded
-        f.write(convert_links(topic.name) + '\n')
+          f.write('---\n')
 
-        # next write all the tags to this file
-        tags = ' '.join(topic.tags)
-        f.write(tags + '\n')
+          # then the name of the topic with links embedded
+          f.write(convert_links(topic.name) + '\n')
 
-        # now all the child nodes
-        for content in topic.content[1:]:
-          if content.is_field:
-            continue
-          else:
-            if content.is_reference:
-              indent, name, id, tags = unwrap_reference(content.content)
-              f.write(f'{indent}{convert_links(name)} {tags} ([[{content.id}|link]])\n')
+          # next write all the tags to this file
+          tags = ' '.join(topic.tags)
+          f.write(tags + '\n')
+
+          # now all the child nodes
+          for content in topic.content[1:]:
+            if content.is_field:
+              continue
             else:
-              f.write(convert_links(content.content) + '\n')
-
-    # keep the resulting temp directory
-    #os.chdir(tmpdirname)
-    #os.rename('vault', '/tmp/vault')
+              if content.is_reference:
+                indent, name, id, tags = unwrap_reference(content.content)
+                f.write(f'{indent}{convert_links(name)} {tags} ([[{content.id}|link]])\n')
+              else:
+                f.write(convert_links(content.content) + '\n')
 
     logger.info(f'Obsidian vault populated and ready at {basedir}')
-
-    
-  return index_nodes
-
+  
 
 # attempt to parallelize non-async code
 # see https://github.com/tiangolo/fastapi/discussions/6347
