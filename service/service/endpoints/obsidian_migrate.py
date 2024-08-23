@@ -142,7 +142,7 @@ async def export_topics_to_obsidian(topics:List[TanaTopicNode]):
         filename = simple_name(topic.id) + '.md'
         os.makedirs(os.path.dirname(os.path.join(basedir, filename)), exist_ok=True)
         # write the topic content to the file
-        with open(filename, 'w') as f:
+        with open(filename, 'w', encoding='utf-8') as f:
           f.write('---\n')
           f.write(f'aliases:\n  - {strip_links(topic.name)}\n')
           #f.write(f'title: {strip_links(topic.name)}\n')
