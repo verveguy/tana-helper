@@ -131,7 +131,7 @@ async def export_topics_to_obsidian(topics:List[TanaTopicNode]):
     # create a directory for the vault
     # copy static vault template
     basedir = os.path.join(tmpdirname, 'vault')
-    shutil.copytree(os.path.join('static', 'vault'), basedir)
+    shutil.copytree(os.path.join('static', 'vault'), basedir, dirs_exist_ok=True)
 
     with working_directory(basedir):
 
