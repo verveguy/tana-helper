@@ -1,0 +1,125 @@
+{
+  "version": "3.10.0",
+  "templates": {
+    "common": {
+      "main": "aliases",
+      "fallback": "fallback_title"
+    }
+  },
+  "rules": {
+    "paths": {
+      "mode": "black",
+      "values": []
+    },
+    "delimiter": {
+      "enabled": false,
+      "value": ""
+    }
+  },
+  "debug": false,
+  "boot": {
+    "delay": 1000
+  },
+  "features": {
+    "alias": {
+      "enabled": true,
+      "strategy": "ensure",
+      "validator": "fr",
+      "templates": {
+        "main": "",
+        "fallback": ""
+      }
+    },
+    "explorer": {
+      "enabled": true,
+      "sort": false,
+      "templates": {
+        "main": "",
+        "fallback": ""
+      }
+    },
+    "tab": {
+      "enabled": true,
+      "templates": {
+        "main": "",
+        "fallback": ""
+      }
+    },
+    "header": {
+      "enabled": true,
+      "templates": {
+        "main": "",
+        "fallback": ""
+      }
+    },
+    "graph": {
+      "enabled": true,
+      "templates": {
+        "main": "",
+        "fallback": ""
+      }
+    },
+    "bookmarks": {
+      "enabled": true,
+      "templates": {
+        "main": "",
+        "fallback": ""
+      }
+    },
+    "search": {
+      "enabled": true,
+      "templates": {
+        "main": "",
+        "fallback": ""
+      }
+    },
+    "suggest": {
+      "enabled": true,
+      "templates": {
+        "main": "",
+        "fallback": ""
+      }
+    },
+    "inlineTitle": {
+      "enabled": true,
+      "templates": {
+        "main": "",
+        "fallback": ""
+      }
+    },
+    "canvas": {
+      "enabled": true,
+      "templates": {
+        "main": "",
+        "fallback": ""
+      }
+    },
+    "backlink": {
+      "enabled": true,
+      "templates": {
+        "main": "",
+        "fallback": ""
+      }
+    },
+    "windowFrame": {
+      "enabled": true,
+      "templates": {
+        "main": "",
+        "fallback": ""
+      }
+    },
+    "noteLink": {
+      "enabled": true,
+      "strategy": "onlyEmpty",
+      "approval": true,
+      "templates": {
+        "main": "",
+        "fallback": ""
+      }
+    }
+  },
+  "processor": {
+    "args": [],
+    "type": null
+  }
+}

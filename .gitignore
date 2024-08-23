@@ -111,7 +111,6 @@ __pycache__
 .vercel
 
 .space
-templates
 test
 dist
 chroma.db
@@ -124,3 +123,4 @@ service/data
 service/pkgtree
 release/notarization_report.json
 service/service/bin
+templates
