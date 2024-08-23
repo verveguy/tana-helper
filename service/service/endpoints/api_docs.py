@@ -10,7 +10,7 @@ router = APIRouter()
 def get_api_metadata():
   return {
     'title':"Tana Helper",
-    'version':"0.2.2", # TODO: make this configured at build time somehow
+    'version':"0.3.0", # TODO: make this configured at build time somehow
     'description':"""
 Tana Helper helps you do awesome stuff. 🚀
 It's all done via API calls to this service.
