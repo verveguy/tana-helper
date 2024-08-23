@@ -1,6 +1,10 @@
 #!/bin/sh
 set -euo pipefail # return error if any command fails
 
+# make sure service/dist is clean
+rm -rf ../service/service/dist
+mkdir -p ../service/service/dist
+
 # first, build the webapp. It will push its artifacts to the service
 echo "Building webapp"
 (cd ../webapp; ./build.sh)
