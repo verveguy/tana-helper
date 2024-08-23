@@ -111,7 +111,7 @@ async def export_topics_to_obsidian(topics:List[TanaTopicNode]):
   index_nodes = []
 
   # create a temporary directory for the vault
-  tmpdirname = os.path.join('/', 'tmp')
+  tmpdirname = os.path.expanduser('~')
   #with tempfile.TemporaryDirectory() as tmpdirname:
   if tmpdirname:
     os.chdir(tmpdirname)
