@@ -2,7 +2,7 @@
 set -euo pipefail # return error if any command fails
 
 # activate correct python virtual env
-uv venv
+uv venv --allow-existing 
 case "$OSTYPE" in
   darwin*)  source .venv/bin/activate;; 
   linux*)   echo "LINUX" ;;
