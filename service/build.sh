@@ -9,7 +9,6 @@ case "$OSTYPE" in
   msys*)    source .venv/Scripts/activate ;;
 esac
 
-uv lock
 uv sync
 
 test -d "service/bin" && rm -r "service/bin"
