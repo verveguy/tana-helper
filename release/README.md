@@ -5,12 +5,12 @@ Make sure you have a few tools installed
 python
 create-dmg
 
-Create a copoy of the .env.template file, rename to `.env` and ensure your Apple ID, 
+Create a copy of the .env.template file, rename to `.env` and ensure your Apple ID, 
 app-specific password and Developer ID hash are all correct.
 
 ## To build a single arch locally
 
-`build_local.sh`
+`build_one.sh`
 
 ## To build all the archs using remote build machines
 
@@ -36,13 +36,8 @@ for multi-arch builds is typically to use an older MacOS as the base OS
 
 Operation not permitted during create_dmg phase: Terminal and VSCode need "Allow full filesystem access" permission. (via system settings app)
 
-# TODO
-Looks like notarization may still cause some pain. 
-Currently, we build the DMG and then notarize that, expecting that the whole thing will be notarized properly
-However, the ticket we get back is only stapled to the DMG. 
-
-We may need to staple it to the .app bundles inside the DMG as well.
-(So they can be copied off the DMG and then run)
+## Notarization
+Has caused pain in the past. Seems to be working now.
 
 See this [blog posting on notarization](https://deciphertools.com/blog/notarizing-dmg/)
 
