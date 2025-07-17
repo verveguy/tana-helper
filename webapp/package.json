@@ -71,5 +71,17 @@
     "rimraf": "^5.0.10",
     "typescript": "^5.8.3",
     "watch": "^1.0.2"
+  },
+  "pnpm": {
+    "overrides": {
+      "merge": ">=2.1.1",
+      "braces": ">=3.0.3",
+      "micromatch": ">=4.0.8",
+      "cross-spawn": ">=7.0.5",
+      "nanoid": ">=3.3.8",
+      "prismjs": ">=1.30.0",
+      "@babel/runtime": ">=7.26.10",
+      "@babel/runtime-corejs3": ">=7.26.10"
+    }
   }
 }
