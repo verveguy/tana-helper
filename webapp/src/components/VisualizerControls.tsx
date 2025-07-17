@@ -1,11 +1,12 @@
-import React, { SyntheticEvent, useContext, useEffect, useState } from "react";
+import React, { SyntheticEvent, useEffect, useState } from "react";
 import { Box, Button, Checkbox, Divider, FormControlLabel, FormGroup, TextField } from "@mui/material";
 
 import { GraphData } from 'react-force-graph-3d';
 // import ForceGraph2D, { GraphData } from 'react-force-graph-2d';
 import axios from 'axios';
-import { Id, Index } from "flexsearch-ts";
-import { TanaHelperContext } from "../TanaHelperContext";
+import FlexSearch from "flexsearch-ts";
+// Updated to use Zustand store instead of React Context
+import { useAppStore, useGraphActions, useAppActions } from "../hooks/useAppStore";
 
 interface GraphConfig {
   include_all_nodes: boolean;
@@ -27,14 +28,14 @@ const IS_CHILD_CONTENT_LINK = 'icl'
 
 
 export default function VisualizerControls() {
-  const { graphData, setGraphData, loading, setLoading, twoDee, setTwoDee } = useContext(TanaHelperContext)
+  const { graphData, setGraphData, loading, setLoading, twoDee, setTwoDee } = useAppStore();
   const [open, setOpen] = useState(true);
   const [rawGraphData, setRawGraphData] = useState<GraphData>();
   const [config, setConfig] = useState<GraphConfig>({ include_all_nodes: true, include_tag_nodes: false, include_tag_links: false, include_inline_ref_nodes: false, include_inline_refs: false });
   const [dumpFile, setDumpFile] = useState<File>();
   const [upload, setUpload] = useState(false);
   const [searchString, setSearchString] = useState('');
-  const [index, setIndex] = useState(new Index({}));
+  const [index, setIndex] = useState(new FlexSearch({}));
 
   const handleFileUpload = (event: React.FormEvent<HTMLInputElement>) => {
     const target = event.currentTarget;
@@ -64,9 +65,9 @@ export default function VisualizerControls() {
           // buld new search index
           if (new_graph) {
 
-            const index = new Index({ preset: "match" })
+            const index = new FlexSearch({ preset: "match" })
             new_graph.nodes.forEach((node) => {
-              index.add(node.id as Id, node.name)
+              index.add(node.id as string, node.name)
             })
 
             setIndex(index);

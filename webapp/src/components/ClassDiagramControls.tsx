@@ -1,66 +1,62 @@
-import React, { useContext, useEffect, useState } from "react";
-
+import React, { useState } from "react";
+import { Box, Button, TextField } from "@mui/material";
 import axios from 'axios';
-import { TanaHelperContext } from "../TanaHelperContext";
-import { Box, Button, Divider } from "@mui/material";
-
+// Replace context with Zustand store
+import { useAppActions } from "../hooks/useAppStore";
 
 export default function ClassDiagramControls() {
-  const { setMermaidText, setLoading } = useContext(TanaHelperContext)
+  // Use Zustand actions instead of context
+  const { setMermaidText, setLoading } = useAppActions();
+  
   const [dumpFile, setDumpFile] = useState<File>();
-  const [upload, setUpload] = useState(false);
 
   const handleFileUpload = (event: React.FormEvent<HTMLInputElement>) => {
     const target = event.currentTarget;
     const file = target.files?.[0];
-    setDumpFile(file);
-    setUpload(true);
-    // reset input field so we can upload another file later
-    event.currentTarget.value = "";
+    if (file) {
+      setDumpFile(file);
+    }
   };
 
-  useEffect(() => {
-    if (upload) {
-      setLoading(true);
-      setMermaidText(null);
-      axios.post('/mermaid_classes', dumpFile, {
+  const uploadFile = async () => {
+    if (!dumpFile) return;
+
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', dumpFile);
+      
+      const response = await axios.post('/class_diagram', formData, {
         headers: {
-          "Content-Type": "application/json",
-        }
-      })
-        .then(response => {
-          setMermaidText(response.data);
-        })
-        .catch(error => {
-          console.error(error);
-        })
-        .finally(() => {
-          setLoading(false);
-          setUpload(false);
-        })
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      
+      setMermaidText(response.data);
+    } catch (error) {
+      console.error('Error uploading file:', error);
+    } finally {
+      setLoading(false);
     }
-  }, [upload]);
+  };
 
   return (
-    <div>
-      <Divider />
-      <Box style={{ padding: 10, marginLeft: 'auto', marginRight: 'auto' }}>
-        <input hidden
-          id="raised-button-file"
-          accept="application/json"
-          style={{ display: 'none' }}
-          type="file"
-          onChange={handleFileUpload}
-        />
-        <label htmlFor="raised-button-file">
-          <Button component="span"  sx={{ width: '100%', alignContent:'center'}}>
-            <span style={{ fontSize: 14 }}>
-              Upload
-            </span>
-          </Button>
-        </label>
-      </Box>
-      <Divider />
-    </div>
-  )
+    <Box display="flex" flexDirection="column" gap={2} padding={2}>
+      <TextField
+        type="file"
+        onChange={handleFileUpload}
+        inputProps={{ accept: '.json' }}
+        helperText="Upload a Tana JSON export file"
+      />
+      
+      <Button
+        variant="contained"
+        color="primary"
+        onClick={uploadFile}
+        disabled={!dumpFile}
+      >
+        Generate Class Diagram
+      </Button>
+    </Box>
+  );
 }

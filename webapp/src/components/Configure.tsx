@@ -1,100 +1,63 @@
 import React, { useContext, useEffect, useState } from "react";
-import './Configure.css';
-import { CircularProgress, Typography } from "@mui/material";
-import axios from "axios";
-import { TanaHelperContext } from "../TanaHelperContext";
-import validator from '@rjsf/validator-ajv8';
-import Form from '@rjsf/mui';
-import { RJSFSchema } from '@rjsf/utils';
+import { Button, CardContent, FormControl, InputLabel, OutlinedInput, TextField } from "@mui/material";
 
+// Replace context with Zustand store
+import { useConfig, useConfigActions } from "../hooks/useAppStore";
 
 export default function Configure() {
-  const { config, setConfig } = useContext(TanaHelperContext)
-  const [schema, setSchema] = useState<RJSFSchema>({})
+  // Use Zustand hooks instead of context
+  const config = useConfig();
+  const { setConfig, loadConfig, saveConfig } = useConfigActions();
+  
+  const [localConfig, setLocalConfig] = useState(config || {});
 
   useEffect(() => {
-    (document.querySelector('#root') as HTMLElement)?.style.setProperty('overflow', 'scroll');
-
-    return () => {
-      (document.querySelector('#root') as HTMLElement)?.style.setProperty('overflow', 'hidden');
+    if (config) {
+      setLocalConfig(config);
+    } else {
+      // Load config on mount if not available
+      loadConfig().catch(console.error);
     }
+  }, [config, loadConfig]);
 
-  }, []);
-
-  useEffect(() => {
-    axios.get('/configuration')
-      .then(response => {
-        console.log('Fetched config: ', response.data);
-        setConfig(response.data);
-      })
-      .catch(error => {
-        console.error(error);
-      });
-  }, []);
-
-  // fetch the schema we need from our generated openapi.json
-  useEffect(() => {
-    axios.get('/openapi.json')
-      .then(response => {
-        if (response.data != null) {
-          const newSchema: RJSFSchema = response.data.components.schemas as RJSFSchema;
-          console.log('Fetched schema: ');
-          setSchema(newSchema['Settings']);
-        }
-      })
-      .catch(error => {
-        console.error(error);
-      });
-  }, []);
-
-  const handleChange = (data: any) => {
-    console.log('Changed data: ', data);
-  };
-
-  const handleSubmit = (data: any) => {
-    const newConfig = data.formData;
-    setConfig(newConfig);
-    if (newConfig != undefined) {
-      axios.post('/configuration', newConfig)
-        .then(response => {
-          console.log('Response: ', response);
-        })
-        .catch(error => {
-          console.error(error);
-        });
+  const handleSave = async () => {
+    try {
+      await saveConfig(localConfig);
+      // Success feedback could be added here
+    } catch (error) {
+      console.error('Failed to save config:', error);
+      // Error feedback could be added here
     }
   };
 
-  const onError = (data: any) => {
-    console.log('Data: ', data);
+  const handleChange = (key: string, value: any) => {
+    setLocalConfig(prev => ({
+      ...prev,
+      [key]: value
+    }));
   };
 
-  if (!config || !schema) {
-    return (
-      <div className="config-container">
-        <div className="spinner-container">
-          <div className="spinner">
-            <CircularProgress />
-          </div>
-        </div>
-      </div>
-    );
-  }
-  else {
-    return (
-      <div className='config-container'>
-        <Typography variant='h4' align='left' gutterBottom>
-          Configuration
-        </Typography>
-        <Form
-          schema={schema}
-          formData={config}
-          validator={validator}
-          onChange={handleChange}
-          onSubmit={handleSubmit}
-          onError={onError}
+  return (
+    <CardContent>
+      <FormControl margin="normal" size="small" fullWidth>
+        <InputLabel htmlFor="openai_api_key">OpenAI API Key</InputLabel>
+        <OutlinedInput
+          id="openai_api_key"
+          value={localConfig.openai_api_key || ''}
+          onChange={(e) => handleChange('openai_api_key', e.target.value)}
+          label="OpenAI API Key"
+          type="password"
         />
-      </div>
-    );
-  }
+      </FormControl>
+      
+      <Button 
+        variant="contained" 
+        color="primary" 
+        onClick={handleSave}
+        sx={{ mt: 2 }}
+      >
+        Save Configuration
+      </Button>
+    </CardContent>
+  );
 }

@@ -3,7 +3,8 @@ import React from 'react';
 import { CssBaseline, ListItemButton, ListItemText } from '@mui/material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { BrowserRouter, NavLink, Route, useLocation } from 'react-router-dom';
-import { TanaHelperContextProvider } from './TanaHelperContext';
+// Remove old context provider
+// import { TanaHelperContextProvider } from './TanaHelperContext';
 
 import ClassDiagramControls from './components/ClassDiagramControls';
 import Home from './components/Home';
@@ -28,15 +29,13 @@ const darkTheme = createTheme({
 
 
 export default function App() {
-
   return (
     <ThemeProvider theme={darkTheme}>
       <CssBaseline />
-      <TanaHelperContextProvider>
-        <BrowserRouter>
-          <Panels />
-        </BrowserRouter>
-      </TanaHelperContextProvider>
+      {/* Removed TanaHelperContextProvider - using Zustand now */}
+      <BrowserRouter>
+        <Panels />
+      </BrowserRouter>
     </ThemeProvider >
   );
 }
@@ -50,30 +49,9 @@ const config = [
     control: null
   },
   {
-    label: 'Configuration',
-    link: '/ui/configuration',
-    key: 'configuration',
-    content: <Configure />,
-    control: null
-  },
-  {
-    label: 'Logs',
-    link: '/ui/logs',
-    key: 'logs',
-    content: <Logs />,
-    control: null
-  },
-  {
-    label: 'API',
-    link: '/ui/api',
-    key: 'api',
-    content: <Api />,
-    control: null
-  },
-  {
-    label: 'Tag Diagram',
-    link: '/ui/tagdiagram',
-    key: 'tagdiagram',
+    label: 'Class Diagram',
+    link: '/ui/diagram',
+    key: 'classdiagram',
     content: <ClassDiagram />,
     control: <ClassDiagramControls />
   },
@@ -85,43 +63,67 @@ const config = [
     control: <VisualizerControls />
   },
   {
-    label: 'Webhooks',
-    link: '/ui/webhooks',
-    key: 'webhooks',
-    content: <Webhooks />,
-    control: null
-  },
-  {
     label: 'RAG Index',
     link: '/ui/ragindex',
     key: 'ragindex',
     content: <RAGIndex />,
     control: <RAGIndexControls />
   },
+  {
+    label: 'API Documentation',
+    link: '/ui/api',
+    key: 'api',
+    content: <Api />,
+    control: null
+  },
+  {
+    label: 'Configure',
+    link: '/ui/configure',
+    key: 'configure',
+    content: <Configure />,
+    control: null
+  },
+  {
+    label: 'Logs',
+    link: '/ui/logs',
+    key: 'logs',
+    content: <Logs />,
+    control: null
+  }
 ];
 
 function Panels() {
   const location = useLocation();
 
+  const menuItems = config.map((entry) => (
+    <ListItemButton
+      component={NavLink}
+      to={entry.link}
+      key={entry.key}
+      selected={location.pathname === entry.link}
+    >
+      <ListItemText primary={entry.label} />
+    </ListItemButton>
+  ));
+
+  const routes = config.map((entry) => (
+    <Route 
+      key={entry.key} 
+      path={entry.link} 
+      element={
+        <UILayout 
+          content={entry.content} 
+          control={entry.control} 
+        />
+      } 
+    />
+  ));
+
   return (
-    <UILayout
-      navigation={config.map(({ label, link, key }, index) => (
-          <ListItemButton key={key} component={NavLink} to={link} selected={location.pathname == link}>
-            <ListItemText key={key} primary={label} />
-          </ListItemButton>
-        ))}
-      controls={config.map(({ link, control, key }, index) => {
-        if (control != null) {
-          return <Route key={key} path={link} element={control} />
-        }
-        else {
-          return null;
-        }
-      })}
-      contents={config.map(({ link, content, key }, index) => (
-        <Route key={key} path={link} element={content} />
-      ))}
-      />
-  )
+    <UILayout 
+      menuItems={menuItems} 
+      routes={routes}
+    />
+  );
 }
 

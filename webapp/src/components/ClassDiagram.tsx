@@ -4,42 +4,103 @@
 
 */
 
-import { CircularProgress } from '@mui/material';
-import React, { useContext, useEffect } from "react";
-import './ClassDiagram.css';
-import { TanaHelperContext } from "../TanaHelperContext";
-import { Mermaid } from "./Mermaid";
+import React, { useEffect, useRef, useState } from 'react';
+import { Card, CardContent, Typography } from '@mui/material';
+import mermaid from 'mermaid';
+
+// Replace context with Zustand store
+import { useMermaidText, useLoading } from "../hooks/useAppStore";
 
 export default function ClassDiagram() {
-  const { mermaidText, loading } = useContext(TanaHelperContext)
+  // Use Zustand hooks instead of context  
+  const mermaidText = useMermaidText();
+  const loading = useLoading();
+  
+  const mermaidRef = useRef<HTMLDivElement>(null);
+  const [diagramRendered, setDiagramRendered] = useState(false);
 
   useEffect(() => {
-    (document.querySelector('#root') as HTMLElement)?.style.setProperty('overflow', 'scroll');
-
-    return () => {
-      (document.querySelector('#root') as HTMLElement)?.style.setProperty('overflow', 'hidden');
-    }
-
+    mermaid.initialize({ 
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose',
+    });
   }, []);
 
-  return (
-    <div className="diagram-container">
-      {(() => {
-        if (!mermaidText) {
-          return (
-            <div className="spinner-container">
-              <div className="spinner">
-                {loading ? <CircularProgress /> : "Upload your Tana JSON export file"}
-              </div>
+  useEffect(() => {
+    if (mermaidText && mermaidRef.current && !loading) {
+      const renderDiagram = async () => {
+        try {
+          setDiagramRendered(false);
+          mermaidRef.current!.innerHTML = '';
+          
+          const { svg } = await mermaid.render('mermaid-diagram', mermaidText);
+          mermaidRef.current!.innerHTML = svg;
+          setDiagramRendered(true);
+        } catch (error) {
+          console.error('Mermaid rendering error:', error);
+          mermaidRef.current!.innerHTML = `
+            <div style="color: red; padding: 20px;">
+              Error rendering diagram: ${error instanceof Error ? error.message : 'Unknown error'}
             </div>
-          );
-        } else {
-          return (
-            <Mermaid diagram={mermaidText} id="mermaid" style={{ width: '100%', height: '100%' }} />
-          )
+          `;
         }
-      })()}
-    </div>
+      };
+
+      renderDiagram();
+    }
+  }, [mermaidText, loading]);
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            Class Diagram
+          </Typography>
+          <Typography>Loading diagram...</Typography>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!mermaidText) {
+    return (
+      <Card>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            Class Diagram
+          </Typography>
+          <Typography color="textSecondary">
+            No diagram data available. Use the controls to generate a diagram.
+          </Typography>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardContent>
+        <Typography variant="h6" gutterBottom>
+          Class Diagram
+        </Typography>
+        <div 
+          ref={mermaidRef}
+          style={{ 
+            width: '100%', 
+            minHeight: '200px',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: diagramRendered ? 'flex-start' : 'center'
+          }}
+        >
+          {!diagramRendered && !loading && mermaidText && (
+            <Typography>Rendering diagram...</Typography>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

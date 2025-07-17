@@ -1,30 +1,48 @@
 {
-  "include": ["webapp"],
+  "include": ["src", "vite.config.ts"],
+  "exclude": ["node_modules", "dist"],
   "compilerOptions": {
+    // Build output
     "outDir": "dist",
-
-    "target": "esnext",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+    
+    // Language and module settings
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    
+    // JavaScript compatibility
     "allowJs": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
+    
+    // Type checking
     "strict": true,
-    "sourceMap": true,
-    "declaration": true,                              /* Generate .d.ts files from TypeScript and JavaScript files in your project. */
-    "declarationMap": true,                           /* Create sourcemaps for d.ts files. */
-    "forceConsistentCasingInFileNames": true,
+    "noImplicitAny": false,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "module": "esnext",
-    "moduleResolution": "node",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": true,
-    "noImplicitAny": false,                            /* Enable error reporting for expressions and declarations with an implied 'any' type. */
-    "jsx": "react-jsx"
+    "forceConsistentCasingInFileNames": true,
+    
+    // Path mapping for better imports
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@/components/*": ["src/components/*"],
+      "@/hooks/*": ["src/hooks/*"],
+      "@/store/*": ["src/store/*"],
+      "@/types/*": ["src/types/*"],
+      "@/utils/*": ["src/utils/*"]
+    }
   }
-  // "ts-node": {                                      /* use for node based services */
-  //   "esm": true,
-  //   "experimentalSpecifierResolution": "node"
-  // },
 }

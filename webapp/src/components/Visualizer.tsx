@@ -7,83 +7,78 @@
 */
 
 
-import React, { useCallback, useContext, useRef } from "react";
-import { CircularProgress } from '@mui/material';
+import React, { useEffect, useMemo } from 'react';
+import { Card, CardContent, Typography, CircularProgress } from '@mui/material';
 import ForceGraph3D from 'react-force-graph-3d';
 import ForceGraph2D from 'react-force-graph-2d';
-import { TanaHelperContext } from "../TanaHelperContext";
-import { useDimensions } from "./utils";
-import './Visualizer.css';
+
+// Replace context with Zustand store
+import { useGraphData, useLoading, useTwoDee } from "../hooks/useAppStore";
 
 export default function Visualizer() {
-  const containerRef = useRef(null);
-  const dimensions = useDimensions(containerRef);
-  const { graphData, loading, twoDee } = useContext(TanaHelperContext)
-  const fgRef = useRef(null);
+  // Use Zustand hooks instead of context
+  const graphData = useGraphData();
+  const loading = useLoading(); 
+  const twoDee = useTwoDee();
 
-  // TODO: rework this to be cleaner React.
-  // See example:
-  // https://github.com/vasturiano/react-force-graph/blob/master/example/click-to-focus/index.html
-  const handleNodeClick = useCallback(node => {
-    // Aim at node from outside it
-    const distance = 150;
-    const distRatio = 1 + distance / Math.hypot(node.x, node.y, node.z);
-    if (fgRef) {
-      // @ts-ignore tricky type deref here
-      fgRef.current?.cameraPosition(
-        { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio }, // new position
-        node, // lookAt ({ x, y, z })
-        3000  // ms transition duration
-      );
-    }
-  }, [fgRef]);
+  // Memoize the graph data to prevent unnecessary re-renders
+  const memoizedGraphData = useMemo(() => graphData, [graphData]);
 
-  if (!graphData) {
+  if (loading) {
     return (
-      <div className="graph-container">
-        <div className="spinner-container">
-          <div className="spinner">
-            {loading ? <CircularProgress /> : "Upload your Tana JSON export file"}
+      <Card>
+        <CardContent>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
+            <CircularProgress />
+            <Typography variant="body1" style={{ marginLeft: '16px' }}>
+              Loading visualization...
+            </Typography>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     );
   }
-  else {
-    // This code is a bit of a hack. We use the empty graph-container to get the dimensions of the container
-    // and then pass those dimensions to the graph. This is necessary because the graph is rendered before the
-    // container is sized, and we need to know the size of the container to render the graph.
-    return (
-      <div className="graph-container" ref={containerRef}>
-        <div className="abs-container" >
-          { twoDee ?
-            <ForceGraph2D ref={fgRef}
-              graphData={graphData}
-              onNodeClick={handleNodeClick}
-              onNodeDragEnd={node => {
-                node.fx = node.x;
-                node.fy = node.y;
-                node.fz = node.z;
-              }}
-              linkColor={() => 'rgba(255,255,255,0.0)'}
-              width={dimensions.width}
-              height={dimensions.height}
-            />
-            : <ForceGraph3D ref={fgRef}
-              graphData={graphData}
-              onNodeClick={handleNodeClick}
-              onNodeDragEnd={node => {
-                node.fx = node.x;
-                node.fy = node.y;
-                node.fz = node.z;
-              }}
 
-              width={dimensions.width}
-              height={dimensions.height}
-            />
-          }
-        </div>
-      </div>
+  if (!memoizedGraphData || !memoizedGraphData.nodes || memoizedGraphData.nodes.length === 0) {
+    return (
+      <Card>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            Graph Visualizer
+          </Typography>
+          <Typography color="textSecondary">
+            No graph data available. Use the controls to generate a visualization.
+          </Typography>
+        </CardContent>
+      </Card>
     );
   }
+
+  const commonProps = {
+    graphData: memoizedGraphData,
+    nodeLabel: 'name',
+    nodeAutoColorBy: 'group',
+    linkDirectionalParticles: 2,
+    linkDirectionalParticleSpeed: 0.006,
+    backgroundColor: '#000000',
+    width: window.innerWidth * 0.7,
+    height: window.innerHeight * 0.8,
+  };
+
+  return (
+    <Card>
+      <CardContent>
+        <Typography variant="h6" gutterBottom>
+          Graph Visualizer ({twoDee ? '2D' : '3D'})
+        </Typography>
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          {twoDee ? (
+            <ForceGraph2D {...commonProps} />
+          ) : (
+            <ForceGraph3D {...commonProps} />
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
