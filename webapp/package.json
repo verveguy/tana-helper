@@ -22,13 +22,13 @@
     "axios": "^1.10.0",
     "flexsearch-ts": "^0.7.35",
     "mermaid": "^11.9.0",
-    "rapidoc": "^9.3.4",
+    "rapidoc": "^9.3.8",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-force-graph-2d": "^1.25.4",
-    "react-force-graph-3d": "^1.24.2",
+    "react-force-graph-2d": "^1.28.0",
+    "react-force-graph-3d": "^1.28.0",
     "react-router-dom": "^6.22.1",
-    "react-zoom-pan-pinch": "^3.4.2",
+    "react-zoom-pan-pinch": "^3.7.0",
     "web-vitals": "^3.3.2",
     "xterm": "^5.3.0",
     "xterm-addon-fit": "^0.8.0"
@@ -56,8 +56,8 @@
     ]
   },
   "devDependencies": {
-    "@testing-library/dom": "^9.3.4",
-    "@testing-library/jest-dom": "^5.17.0",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^14.3.1",
     "@testing-library/user-event": "^14.4.3",
     "@types/chrome": "^0.0.237",
