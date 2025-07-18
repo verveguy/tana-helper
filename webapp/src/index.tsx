@@ -1,12 +1,12 @@
 /*
   Tana Helper React App Entry Point
   
-  Modern React 18 setup with Vite
+  Modern React 18 setup with Vite and Tailwind CSS
 */
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
-import './Root.css'
+import './globals.css'
 
 // Development tools
 if (import.meta.env.DEV) {

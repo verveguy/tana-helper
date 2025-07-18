@@ -5,7 +5,7 @@
 */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Card, CardContent, Typography } from '@mui/material';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import mermaid from 'mermaid';
 
 // Replace context with Zustand store
@@ -40,7 +40,7 @@ export default function ClassDiagram() {
         } catch (error) {
           console.error('Mermaid rendering error:', error);
           mermaidRef.current!.innerHTML = `
-            <div style="color: red; padding: 20px;">
+            <div class="text-destructive p-5 text-center">
               Error rendering diagram: ${error instanceof Error ? error.message : 'Unknown error'}
             </div>
           `;
@@ -54,11 +54,13 @@ export default function ClassDiagram() {
   if (loading) {
     return (
       <Card>
+        <CardHeader>
+          <CardTitle>Class Diagram</CardTitle>
+        </CardHeader>
         <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Class Diagram
-          </Typography>
-          <Typography>Loading diagram...</Typography>
+          <div className="flex items-center justify-center min-h-[200px] text-muted-foreground">
+            Loading diagram...
+          </div>
         </CardContent>
       </Card>
     );
@@ -67,13 +69,13 @@ export default function ClassDiagram() {
   if (!mermaidText) {
     return (
       <Card>
+        <CardHeader>
+          <CardTitle>Class Diagram</CardTitle>
+        </CardHeader>
         <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Class Diagram
-          </Typography>
-          <Typography color="textSecondary">
+          <div className="text-center text-muted-foreground py-8">
             No diagram data available. Use the controls to generate a diagram.
-          </Typography>
+          </div>
         </CardContent>
       </Card>
     );
@@ -81,22 +83,21 @@ export default function ClassDiagram() {
 
   return (
     <Card>
+      <CardHeader>
+        <CardTitle>Class Diagram</CardTitle>
+        <CardDescription>
+          Visual representation of your Tana data structure
+        </CardDescription>
+      </CardHeader>
       <CardContent>
-        <Typography variant="h6" gutterBottom>
-          Class Diagram
-        </Typography>
         <div 
           ref={mermaidRef}
-          style={{ 
-            width: '100%', 
-            minHeight: '200px',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: diagramRendered ? 'flex-start' : 'center'
-          }}
+          className={`w-full min-h-[200px] flex justify-center ${
+            diagramRendered ? 'items-start' : 'items-center'
+          }`}
         >
           {!diagramRendered && !loading && mermaidText && (
-            <Typography>Rendering diagram...</Typography>
+            <div className="text-muted-foreground">Rendering diagram...</div>
           )}
         </div>
       </CardContent>

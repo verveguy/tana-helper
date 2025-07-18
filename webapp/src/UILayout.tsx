@@ -1,158 +1,128 @@
-import React, { ReactNode } from "react";
-
+import React, { ReactNode, useState } from "react";
 import { Routes } from "react-router-dom";
+import { Menu, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "./components/ui/button";
+import { cn } from "./lib/utils";
 
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import MenuIcon from '@mui/icons-material/Menu';
-import MuiAppBar, { AppBarProps as MuiAppBarProps } from '@mui/material/AppBar';
-import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
-import Drawer from '@mui/material/Drawer';
-import IconButton from '@mui/material/IconButton';
-import List from '@mui/material/List';
-import Toolbar from '@mui/material/Toolbar';
-import Typography from '@mui/material/Typography';
-import { styled, useTheme } from '@mui/material/styles';
+const SIDEBAR_WIDTH = 240;
 
-import './UILayout.css';
-
-
-// TODO: can this be dynamic based on content?
-const drawerWidth = 150;
-
-// pass in the routes and views here
-
-interface MainUIProps {
-  navigation: ReactNode[];
-  controls: ReactNode[];
-  contents: ReactNode[];
+interface UILayoutProps {
+  menuItems?: ReactNode[];
+  routes?: ReactNode[];
+  content?: ReactNode;
+  control?: ReactNode;
 }
 
-const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })<{
-  open?: boolean;
-}>(({ theme, open }) => ({
-  flexGrow: 1,
-  padding: theme.spacing(1),
-  transition: theme.transitions.create('margin', {
-    easing: theme.transitions.easing.sharp,
-    duration: theme.transitions.duration.leavingScreen,
-  }),
-  marginLeft: `-${drawerWidth}px`,
-  ...(open && {
-    transition: theme.transitions.create('margin', {
-      easing: theme.transitions.easing.easeOut,
-      duration: theme.transitions.duration.enteringScreen,
-    }),
-    marginLeft: 0,
-  }),
-  height: '100%',
-}));
+export default function UILayout({ menuItems, routes, content, control }: UILayoutProps) {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
-interface AppBarProps extends MuiAppBarProps {
-  open?: boolean;
-}
+  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
-const AppBar = styled(MuiAppBar, {
-  shouldForwardProp: (prop) => prop !== 'open',
-})<AppBarProps>(({ theme, open }) => ({
-  transition: theme.transitions.create(['margin', 'width'], {
-    easing: theme.transitions.easing.sharp,
-    duration: theme.transitions.duration.leavingScreen,
-  }),
-  ...(open && {
-    width: `calc(100% - ${drawerWidth}px)`,
-    marginLeft: `${drawerWidth}px`,
-    transition: theme.transitions.create(['margin', 'width'], {
-      easing: theme.transitions.easing.easeOut,
-      duration: theme.transitions.duration.enteringScreen,
-    }),
-  }),
-}));
+  // If we have routes, render the full layout
+  if (routes) {
+    return (
+      <div className="flex h-screen bg-background">
+        {/* Sidebar */}
+        <div
+          className={cn(
+            "relative flex flex-col bg-card border-r border-border transition-all duration-300 ease-in-out",
+            sidebarOpen ? "w-60" : "w-16"
+          )}
+        >
+          {/* Sidebar Header */}
+          <div className="flex items-center justify-between p-4 border-b border-border">
+            {sidebarOpen && (
+              <h1 className="text-xl font-semibold text-foreground">
+                Tana Helper
+              </h1>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleSidebar}
+              className="ml-auto"
+            >
+              {sidebarOpen ? (
+                <ChevronLeft className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
 
-const DrawerHeader = styled('div')(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  padding: theme.spacing(0, 1),
-  // necessary for content to be below app bar
-  ...theme.mixins.toolbar,
-  justifyContent: 'flex-end',
-}));
+          {/* Navigation */}
+          {sidebarOpen && menuItems && (
+            <nav className="flex-1 p-4">
+              <div className="space-y-2">
+                {menuItems}
+              </div>
+            </nav>
+          )}
 
+          {/* Controls Section */}
+          {sidebarOpen && control && (
+            <div className="border-t border-border p-4">
+              <div className="text-sm font-medium text-muted-foreground mb-2">
+                Controls
+              </div>
+              {control}
+            </div>
+          )}
+        </div>
 
-export default function UILayout(props: MainUIProps) {
-  const { controls, contents, navigation } = props;
-  const theme = useTheme();
-  const [open, setOpen] = React.useState(true);
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Top bar for collapsed sidebar */}
+          {!sidebarOpen && (
+            <div className="flex items-center p-4 border-b border-border bg-card">
+              <Button variant="ghost" size="icon" onClick={toggleSidebar}>
+                <Menu className="h-4 w-4" />
+              </Button>
+              <h1 className="ml-4 text-xl font-semibold text-foreground">
+                Tana Helper
+              </h1>
+            </div>
+          )}
 
-  const handleDrawerOpen = () => {
-    setOpen(true);
-  };
+          {/* Content Area */}
+          <main className="flex-1 overflow-auto p-6">
+            <Routes>
+              {routes}
+            </Routes>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
-  const handleDrawerClose = () => {
-    setOpen(false);
-  };
-
+  // If we have individual content/control, render the simplified layout
   return (
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Control Panel */}
+          {control && (
+            <div className="lg:col-span-1">
+              <div className="sticky top-6">
+                <div className="bg-card border border-border rounded-lg p-4">
+                  <h2 className="text-lg font-semibold mb-4 text-foreground">
+                    Controls
+                  </h2>
+                  {control}
+                </div>
+              </div>
+            </div>
+          )}
 
-    <Box sx={{ display: 'flex' }} style={{ height: '100%' }}>
-      <AppBar position="fixed" open={open}>
-        <Toolbar>
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            onClick={handleDrawerOpen}
-            edge="start"
-            sx={{ mr: 2, ...(open && { display: 'none' }) }}
-          >
-            <MenuIcon />
-          </IconButton>
-          <Typography variant="h6" noWrap component="div">
-            Tana Helper
-          </Typography>
-        </Toolbar>
-      </AppBar>
-      <Drawer
-        sx={{
-          width: drawerWidth,
-          flexShrink: 0,
-          '& .MuiDrawer-paper': {
-            width: drawerWidth,
-            boxSizing: 'border-box',
-          },
-        }}
-        variant="persistent"
-        anchor="left"
-        open={open}
-      >
-        <DrawerHeader>
-          <IconButton onClick={handleDrawerClose}>
-            {theme.direction === 'ltr' ? <ChevronLeftIcon /> : <ChevronRightIcon />}
-          </IconButton>
-        </DrawerHeader>
-        <Divider />
-        <div className='nav-controls'>
-            <List aria-label="main panels" sx={{width:'100%'}}>
-              {navigation}
-            </List>
+          {/* Main Content */}
+          <div className={cn(
+            "w-full",
+            control ? "lg:col-span-3" : "lg:col-span-4"
+          )}>
+            {content}
+          </div>
         </div>
-        <Divider />
-        <div id="controls">
-          <Routes>
-            {controls}
-          </Routes>
-        </div>
-      </Drawer>
-      {/* TODO: Adjust width here on Main component*/}
-      <Main open={open} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-        {/* <DrawerHeader style={{height: 'auto'}}/> */}
-        <DrawerHeader />
-        <div className="content">
-          <Routes>
-            {contents}
-          </Routes>
-        </div>
-      </Main>
-    </Box>
+      </div>
+    </div>
   );
 }

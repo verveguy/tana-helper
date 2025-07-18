@@ -1,10 +1,5 @@
 import React from 'react';
-
-import { CssBaseline, ListItemButton, ListItemText } from '@mui/material';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { BrowserRouter, NavLink, Route, useLocation } from 'react-router-dom';
-// Remove old context provider
-// import { TanaHelperContextProvider } from './TanaHelperContext';
 
 import ClassDiagramControls from './components/ClassDiagramControls';
 import Home from './components/Home';
@@ -18,25 +13,13 @@ import RAGIndexControls from './components/RAGIndexControls';
 import Api from './components/Api';
 import Configure from './components/Configure';
 
-const darkTheme = createTheme({
-  palette: {
-    mode: 'dark',
-  },
-  typography: {
-    fontSize: 12,
-  },
-});
-
-
 export default function App() {
   return (
-    <ThemeProvider theme={darkTheme}>
-      <CssBaseline />
-      {/* Removed TanaHelperContextProvider - using Zustand now */}
+    <div className="min-h-screen bg-background text-foreground">
       <BrowserRouter>
         <Panels />
       </BrowserRouter>
-    </ThemeProvider >
+    </div>
   );
 }
 
@@ -96,14 +79,19 @@ function Panels() {
   const location = useLocation();
 
   const menuItems = config.map((entry) => (
-    <ListItemButton
-      component={NavLink}
+    <NavLink
       to={entry.link}
       key={entry.key}
-      selected={location.pathname === entry.link}
+      className={({ isActive }) =>
+        `flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+          isActive
+            ? 'bg-primary text-primary-foreground'
+            : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+        }`
+      }
     >
-      <ListItemText primary={entry.label} />
-    </ListItemButton>
+      {entry.label}
+    </NavLink>
   ));
 
   const routes = config.map((entry) => (

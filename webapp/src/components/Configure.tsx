@@ -1,5 +1,7 @@
-import React, { useContext, useEffect, useState } from "react";
-import { Button, CardContent, FormControl, InputLabel, OutlinedInput, TextField } from "@mui/material";
+import React, { useEffect, useState } from "react";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 
 // Replace context with Zustand store
 import { useConfig, useConfigActions } from "../hooks/useAppStore";
@@ -10,6 +12,7 @@ export default function Configure() {
   const { setConfig, loadConfig, saveConfig } = useConfigActions();
   
   const [localConfig, setLocalConfig] = useState(config || {});
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (config) {
@@ -21,12 +24,15 @@ export default function Configure() {
   }, [config, loadConfig]);
 
   const handleSave = async () => {
+    setIsLoading(true);
     try {
       await saveConfig(localConfig);
       // Success feedback could be added here
     } catch (error) {
       console.error('Failed to save config:', error);
       // Error feedback could be added here
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -38,26 +44,35 @@ export default function Configure() {
   };
 
   return (
-    <CardContent>
-      <FormControl margin="normal" size="small" fullWidth>
-        <InputLabel htmlFor="openai_api_key">OpenAI API Key</InputLabel>
-        <OutlinedInput
-          id="openai_api_key"
-          value={localConfig.openai_api_key || ''}
-          onChange={(e) => handleChange('openai_api_key', e.target.value)}
-          label="OpenAI API Key"
-          type="password"
-        />
-      </FormControl>
-      
-      <Button 
-        variant="contained" 
-        color="primary" 
-        onClick={handleSave}
-        sx={{ mt: 2 }}
-      >
-        Save Configuration
-      </Button>
-    </CardContent>
+    <Card className="w-full max-w-2xl">
+      <CardHeader>
+        <CardTitle>Configuration</CardTitle>
+        <CardDescription>
+          Configure your Tana Helper settings
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <label htmlFor="openai_api_key" className="text-sm font-medium">
+            OpenAI API Key
+          </label>
+          <Input
+            id="openai_api_key"
+            type="password"
+            value={localConfig.openai_api_key || ''}
+            onChange={(e) => handleChange('openai_api_key', e.target.value)}
+            placeholder="Enter your OpenAI API key"
+          />
+        </div>
+        
+        <Button 
+          onClick={handleSave}
+          disabled={isLoading}
+          className="w-full"
+        >
+          {isLoading ? 'Saving...' : 'Save Configuration'}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
