@@ -7,10 +7,11 @@
 */
 
 
-import React, { useEffect, useMemo } from 'react';
-import { Card, CardContent, Typography, CircularProgress } from '@mui/material';
+import React, { useMemo } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import ForceGraph3D from 'react-force-graph-3d';
 import ForceGraph2D from 'react-force-graph-2d';
+import { Loader2 } from 'lucide-react';
 
 // Replace context with Zustand store
 import { useGraphData, useLoading, useTwoDee } from "../hooks/useAppStore";
@@ -27,12 +28,15 @@ export default function Visualizer() {
   if (loading) {
     return (
       <Card>
+        <CardHeader>
+          <CardTitle>Graph Visualizer</CardTitle>
+        </CardHeader>
         <CardContent>
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
-            <CircularProgress />
-            <Typography variant="body1" style={{ marginLeft: '16px' }}>
-              Loading visualization...
-            </Typography>
+          <div className="flex items-center justify-center min-h-[400px] text-muted-foreground">
+            <div className="flex items-center space-x-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Loading visualization...</span>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -42,13 +46,18 @@ export default function Visualizer() {
   if (!memoizedGraphData || !memoizedGraphData.nodes || memoizedGraphData.nodes.length === 0) {
     return (
       <Card>
+        <CardHeader>
+          <CardTitle>Graph Visualizer</CardTitle>
+        </CardHeader>
         <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Graph Visualizer
-          </Typography>
-          <Typography color="textSecondary">
-            No graph data available. Use the controls to generate a visualization.
-          </Typography>
+          <div className="text-center text-muted-foreground py-12">
+            <div className="space-y-2">
+              <div className="text-lg">No graph data available</div>
+              <div className="text-sm">
+                Use the controls to generate a visualization from your Tana data.
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
     );
@@ -61,17 +70,22 @@ export default function Visualizer() {
     linkDirectionalParticles: 2,
     linkDirectionalParticleSpeed: 0.006,
     backgroundColor: '#000000',
-    width: window.innerWidth * 0.7,
-    height: window.innerHeight * 0.8,
+    width: Math.min(window.innerWidth * 0.7, 1200),
+    height: Math.min(window.innerHeight * 0.7, 600),
   };
 
   return (
     <Card>
-      <CardContent>
-        <Typography variant="h6" gutterBottom>
+      <CardHeader>
+        <CardTitle>
           Graph Visualizer ({twoDee ? '2D' : '3D'})
-        </Typography>
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
+        </CardTitle>
+        <CardDescription>
+          Interactive visualization of your Tana data relationships
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex justify-center bg-black rounded-lg overflow-hidden">
           {twoDee ? (
             <ForceGraph2D {...commonProps} />
           ) : (
