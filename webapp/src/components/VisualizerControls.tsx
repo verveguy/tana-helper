@@ -133,12 +133,37 @@ export default function VisualizerControls() {
               disabled={loading}
               className="flex-1"
             />
-            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+            {loading && (
+              <div className="flex items-center space-x-1">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                <span className="text-xs text-muted-foreground">Uploading...</span>
+              </div>
+            )}
           </div>
           <p className="text-xs text-muted-foreground">
             Upload Tana JSON export to visualize your workspace
           </p>
         </div>
+
+        {/* Loading Progress Indicator */}
+        {loading && (
+          <div className="border border-border rounded-lg p-4 bg-muted/50">
+            <div className="flex items-center space-x-3">
+              <Loader2 className="h-5 w-5 animate-spin text-primary flex-shrink-0" />
+              <div className="flex-1 space-y-1">
+                <div className="text-sm font-medium text-foreground">
+                  Processing File
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Reading JSON data and building graph structure...
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 w-full bg-border rounded-full h-1.5">
+              <div className="bg-primary h-1.5 rounded-full animate-pulse" style={{width: '60%'}}></div>
+            </div>
+          </div>
+        )}
 
         {/* 2D/3D Toggle */}
         <div className="flex items-center space-x-2">
@@ -172,13 +197,7 @@ export default function VisualizerControls() {
           </div>
         )}
 
-        {/* Status messages */}
-        {loading && (
-          <div className="text-sm text-muted-foreground flex items-center space-x-2">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            <span>Processing file...</span>
-          </div>
-        )}
+
 
         {/* Error display */}
         {error && (

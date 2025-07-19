@@ -31,12 +31,27 @@ export default function Visualizer() {
       <Card>
         <CardHeader>
           <CardTitle>Graph Visualizer</CardTitle>
+          <CardDescription>Processing your Tana data...</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center min-h-[400px] text-muted-foreground">
-            <div className="flex items-center space-x-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Loading visualization...</span>
+          <div className="flex flex-col items-center justify-center min-h-[500px] text-center">
+            <div className="space-y-4">
+              <div className="relative">
+                <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+              </div>
+              <div className="space-y-2">
+                <div className="text-lg font-medium text-foreground">
+                  Processing Tana Data
+                </div>
+                <div className="text-sm text-muted-foreground max-w-md">
+                  Analyzing your workspace structure and building the visualization graph. 
+                  This may take a few moments for large datasets.
+                </div>
+              </div>
+              <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+                <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                <span>Loading...</span>
+              </div>
             </div>
           </div>
         </CardContent>
