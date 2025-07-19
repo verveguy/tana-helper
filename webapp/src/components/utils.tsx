@@ -5,7 +5,10 @@ import { useEffect, useState } from "react";
 export function useWindowSize() {
   // Initialize state with undefined width/height so server and client renders match
   // Learn more here: https://joshwcomeau.com/react/the-perils-of-rehydration/
-  const [windowSize, setWindowSize] = useState({
+  const [windowSize, setWindowSize] = useState<{
+    windowWidth: number | undefined;
+    windowHeight: number | undefined;
+  }>({
     windowWidth: undefined,
     windowHeight: undefined
   });
@@ -35,8 +38,11 @@ export function useWindowSize() {
 
 
 /* observe changes in the container sizing */
-export function useDimensions(containerRef: React.MutableRefObject<null>) {
-  const [dimensions, setDimensions] = useState({
+export function useDimensions(containerRef: React.RefObject<HTMLElement | null>) {
+  const [dimensions, setDimensions] = useState<{
+    width: number | undefined;
+    height: number | undefined;
+  }>({
     width: undefined,
     height: undefined,
   });
@@ -45,8 +51,8 @@ export function useDimensions(containerRef: React.MutableRefObject<null>) {
     if (!containerRef || !containerRef.current) return;
     const resizeObserver = new ResizeObserver(() => {
       setDimensions({
-        width: containerRef.current.offsetWidth,
-        height: containerRef.current.offsetHeight,
+        width: containerRef.current!.offsetWidth,
+        height: containerRef.current!.offsetHeight,
       });
     });
     resizeObserver.observe(containerRef.current);
