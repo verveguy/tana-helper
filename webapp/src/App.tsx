@@ -106,38 +106,41 @@ function Panels() {
   ));
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-background overflow-hidden">
       {/* Sidebar */}
-      <div className="relative flex flex-col bg-card border-r border-border w-60">
+      <div className="relative flex flex-col bg-card border-r border-border w-60 h-full overflow-hidden">
         {/* Sidebar Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
+        <div className="flex items-center justify-between p-4 border-b border-border flex-shrink-0">
           <h1 className="text-xl font-semibold text-foreground">
             Tana Helper
           </h1>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 p-4">
-          <div className="space-y-2">
-            {menuItems}
-          </div>
-        </nav>
-
-        {/* Controls Section - Show controls for current route */}
-        {currentRoute?.control && (
-          <div className="border-t border-border p-4">
-            <div className="text-sm font-medium text-muted-foreground mb-2">
-              Controls
+        {/* Scrollable Sidebar Content */}
+        <div className="flex-1 overflow-y-auto">
+          {/* Navigation */}
+          <nav className="p-4">
+            <div className="space-y-2">
+              {menuItems}
             </div>
-            {currentRoute.control}
-          </div>
-        )}
+          </nav>
+
+          {/* Controls Section - Show controls for current route */}
+          {currentRoute?.control && (
+            <div className="border-t border-border p-4">
+              <div className="text-sm font-medium text-muted-foreground mb-2">
+                Controls
+              </div>
+              {currentRoute.control}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Content Area */}
-        <main className="flex-1 overflow-auto p-6">
+      {/* Main Content - Fixed position, fills remaining space */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
+        {/* Content Area - Full height, no padding for visualizations */}
+        <main className="flex-1 h-full w-full overflow-hidden">
           <Routes>
             {routes}
           </Routes>
