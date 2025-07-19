@@ -91,6 +91,10 @@
       "prismjs": ">=1.30.0",
       "@babel/runtime": ">=7.26.10",
       "@babel/runtime-corejs3": ">=7.26.10"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "@scarf/scarf",
+      "@tree-sitter-grammars/tree-sitter-yaml"
+    ]
   }
 }
