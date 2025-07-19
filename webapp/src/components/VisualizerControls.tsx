@@ -30,6 +30,7 @@ export default function VisualizerControls() {
   const { setGraphData, setTwoDee, setLoading, setError, clearError } = useAppActions();
   
   const [searchString, setSearchString] = useState('');
+  const [rawFileData, setRawFileData] = useState<any>(null);
   const [config, setConfig] = useState<VisualizerConfig>({ 
     include_tag_tag_links: true,
     include_node_tag_links: true,
@@ -40,30 +41,67 @@ export default function VisualizerControls() {
   });
 
   // Custom upload handler that stores the file data for regeneration
-  const handleUploadSuccess = (data: TanaGraphData) => {
+  const handleUploadSuccess = (data: TanaGraphData, rawData?: any) => {
     console.log("Graph data received:", data);
     setGraphData(data);
     clearError();
-    // We don't have the raw file data from this callback, but we enable the controls
-    // In a future enhancement, we'd modify TanaFileUpload to also return the raw data
+    
+    // Store the raw file data for automatic re-upload on config changes
+    if (rawData) {
+      setRawFileData(rawData);
+      console.log("Raw file data stored for automatic re-upload");
+    }
   };
 
   const handleUploadError = (errorMessage: string) => {
     setError(errorMessage);
   };
 
-  // Since we can't easily get the raw file data from TanaFileUpload,
-  // we'll implement a workaround where config changes show instructions
-  const handleConfigChange = (key: keyof VisualizerConfig, value: boolean) => {
+  // Handle config changes and automatically regenerate graph
+  const handleConfigChange = async (key: keyof VisualizerConfig, value: boolean) => {
     const newConfig = { ...config, [key]: value };
     setConfig(newConfig);
     
-    // Show a message that they need to re-upload
-    if (graphData) {
-      setError("Configuration changed. Please re-upload your file to apply the new settings.");
+    // If we have raw file data, automatically regenerate with new config
+    if (rawFileData) {
+      await regenerateGraphWithConfig(newConfig);
     }
   };
 
+  // Regenerate graph with new configuration
+  const regenerateGraphWithConfig = async (newConfig: VisualizerConfig) => {
+    if (!rawFileData) {
+      setError("No file data available for regeneration. Please upload a file first.");
+      return;
+    }
+
+    console.log("Automatically regenerating graph with config:", newConfig);
+    setLoading(true);
+    clearError();
+
+    try {
+      // Add the visualizer config to the file data
+      const dataWithConfig = {
+        ...rawFileData,
+        visualize: newConfig
+      };
+
+      const response = await axios.post('/graph', dataWithConfig, {
+        headers: {
+          "Content-Type": "application/json",
+        }
+      });
+
+      console.log("Graph regenerated successfully:", response.data);
+      setGraphData(response.data);
+    } catch (error: any) {
+      console.error("Failed to regenerate graph:", error);
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to regenerate graph';
+      setError(`Failed to regenerate graph: ${errorMessage}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
   return (
@@ -116,8 +154,7 @@ export default function VisualizerControls() {
               <label className="text-sm font-medium mb-3 block">Graph Elements</label>
               <div className="space-y-3">
                 <div className="text-xs text-muted-foreground mb-2 p-2 bg-muted/50 rounded">
-                  <strong>Note:</strong> Configuration changes require re-uploading your file. 
-                  Future versions will support dynamic filtering.
+                  <strong>Live Configuration:</strong> Changes are automatically applied to your visualization.
                 </div>
                 
                 {/* Include Tag-Tag Links */}
@@ -127,7 +164,7 @@ export default function VisualizerControls() {
                     id="include_tag_tag_links"
                     checked={config.include_tag_tag_links}
                     onChange={(e) => handleConfigChange('include_tag_tag_links', e.target.checked)}
-                    disabled={loading || !graphData}
+                    disabled={loading || !rawFileData}
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded disabled:opacity-50"
                   />
                   <label htmlFor="include_tag_tag_links" className="text-sm text-foreground">
@@ -142,7 +179,7 @@ export default function VisualizerControls() {
                     id="include_node_tag_links"
                     checked={config.include_node_tag_links}
                     onChange={(e) => handleConfigChange('include_node_tag_links', e.target.checked)}
-                    disabled={loading || !graphData}
+                    disabled={loading || !rawFileData}
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded disabled:opacity-50"
                   />
                   <label htmlFor="include_node_tag_links" className="text-sm text-foreground">
@@ -157,7 +194,7 @@ export default function VisualizerControls() {
                     id="include_inline_refs"
                     checked={config.include_inline_refs}
                     onChange={(e) => handleConfigChange('include_inline_refs', e.target.checked)}
-                    disabled={loading || !graphData}
+                    disabled={loading || !rawFileData}
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded disabled:opacity-50"
                   />
                   <label htmlFor="include_inline_refs" className="text-sm text-foreground">
@@ -172,7 +209,7 @@ export default function VisualizerControls() {
                     id="include_inline_ref_nodes"
                     checked={config.include_inline_ref_nodes}
                     onChange={(e) => handleConfigChange('include_inline_ref_nodes', e.target.checked)}
-                    disabled={loading || !graphData}
+                    disabled={loading || !rawFileData}
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded disabled:opacity-50"
                   />
                   <label htmlFor="include_inline_ref_nodes" className="text-sm text-foreground">
@@ -187,7 +224,7 @@ export default function VisualizerControls() {
                     id="include_content_nodes"
                     checked={config.include_content_nodes}
                     onChange={(e) => handleConfigChange('include_content_nodes', e.target.checked)}
-                    disabled={loading || !graphData}
+                    disabled={loading || !rawFileData}
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded disabled:opacity-50"
                   />
                   <label htmlFor="include_content_nodes" className="text-sm text-foreground">
@@ -202,7 +239,7 @@ export default function VisualizerControls() {
                     id="include_tag_schema_links"
                     checked={config.include_tag_schema_links}
                     onChange={(e) => handleConfigChange('include_tag_schema_links', e.target.checked)}
-                    disabled={loading || !graphData}
+                    disabled={loading || !rawFileData}
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded disabled:opacity-50"
                   />
                   <label htmlFor="include_tag_schema_links" className="text-sm text-foreground">

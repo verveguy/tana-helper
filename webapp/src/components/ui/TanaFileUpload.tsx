@@ -11,7 +11,7 @@ export interface TanaFileUploadProps {
   buttonText: string;
   endpoint: string;
   uploadType: 'json' | 'formdata'; // Whether to send as JSON or FormData
-  onSuccess: (data: any) => void;
+  onSuccess: (data: any, rawFileData?: any) => void; // Add optional rawFileData parameter
   onError: (error: string) => void;
   loading: boolean;
   setLoading: (loading: boolean) => void;
@@ -72,6 +72,7 @@ export default function TanaFileUpload({
 
     try {
       let response;
+      let rawFileData: any = null;
       
       if (uploadType === 'json') {
         // Read file as JSON and send as application/json
@@ -82,6 +83,7 @@ export default function TanaFileUpload({
             try {
               const fileContent = event.target?.result as string;
               const jsonData = JSON.parse(fileContent);
+              rawFileData = jsonData; // Store the parsed JSON data
               console.log("File parsed successfully, sending to server...");
               
               const response = await axios.post(endpoint, jsonData, {
@@ -112,10 +114,14 @@ export default function TanaFileUpload({
             'Content-Type': 'multipart/form-data',
           },
         });
+        
+        // For FormData uploads, we can't easily get the raw data back
+        // but we can store the file for potential re-upload
+        rawFileData = dumpFile;
       }
 
       console.log("Upload successful, response:", response);
-      onSuccess(response.data);
+      onSuccess(response.data, rawFileData); // Pass both response and raw data
       
     } catch (error: any) {
       console.error("Upload failed:", error);

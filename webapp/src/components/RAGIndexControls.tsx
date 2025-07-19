@@ -7,10 +7,11 @@ export default function RAGIndexControls() {
   const { loading, error } = useAppStore();
   const { setRagIndexData, setLoading, setError, clearError } = useAppActions();
 
-  const handleUploadSuccess = (data: any) => {
+  const handleUploadSuccess = (data: any, rawFileData?: any) => {
     console.log("RAG index data received:", data);
     setRagIndexData(data);
     clearError();
+    // Note: rawFileData not needed for RAG index as it doesn't have live config changes
   };
 
   const handleUploadError = (errorMessage: string) => {

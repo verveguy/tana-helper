@@ -8,10 +8,11 @@ export default function ClassDiagramControls() {
   const { loading, error } = useAppStore();
   const { setMermaidText, setLoading, setError, clearError } = useAppActions();
 
-  const handleUploadSuccess = (data: string) => {
+  const handleUploadSuccess = (data: string, rawFileData?: any) => {
     console.log("Class diagram data received:", data);
     setMermaidText(data);
     clearError();
+    // Note: rawFileData not needed for class diagrams as they don't have live config changes
   };
 
   const handleUploadError = (errorMessage: string) => {
