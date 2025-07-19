@@ -27,9 +27,16 @@ async def graph(tana_dump:TanaDump):
 
   links = []  # final results we build into
 
-  config = tana_dump.visualize
-  if config is None:
-    config = Visualizer()
+  # For client-side filtering, we ignore the visualizer config and return ALL links
+  # The client will filter based on reason codes
+  config = Visualizer(
+    include_tag_tag_links=True,
+    include_node_tag_links=True, 
+    include_inline_refs=True,
+    include_inline_ref_nodes=True,
+    include_content_nodes=True,
+    include_tag_schema_links=True
+  )
 
   index = NodeIndex(tana_dump=tana_dump, config=config)
 
@@ -45,13 +52,14 @@ async def graph(tana_dump:TanaDump):
 
   # strip the links down to the unique set
   candidate_pairs = set(index.master_pairs)
+
   final_pairs = set()
 
   # also remove redundant bidirectional links
   [final_pairs.add((a, b, r)) for (a, b, r) in candidate_pairs
     if (a, b, r) not in final_pairs and (b, a, r) not in final_pairs]
 
-  # build links
+  # build links - include ALL links for client-side filtering
   for pair in final_pairs:
     add_linkage(index, links, pair[0], pair[1], pair[2])
 
@@ -75,7 +83,6 @@ async def graph(tana_dump:TanaDump):
     new_name = patch_node_name(index, node_id)
     render_node = RenderNode(id=node.id, name=new_name, color=node.color)
     graph.nodes.append(render_node)
-
 
   return graph
 

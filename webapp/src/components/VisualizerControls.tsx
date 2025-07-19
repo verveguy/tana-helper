@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import TanaFileUpload from "./ui/TanaFileUpload";
-import axios from 'axios';
 
 import { GraphData } from 'react-force-graph-3d';
 // Updated to use Zustand store instead of React Context
@@ -30,7 +29,7 @@ export default function VisualizerControls() {
   const { setGraphData, setTwoDee, setLoading, setError, clearError } = useAppActions();
   
   const [searchString, setSearchString] = useState('');
-  const [rawFileData, setRawFileData] = useState<any>(null);
+  const [rawGraphData, setRawGraphData] = useState<any>(null);
   const [config, setConfig] = useState<VisualizerConfig>({ 
     include_tag_tag_links: true,
     include_node_tag_links: true,
@@ -40,68 +39,69 @@ export default function VisualizerControls() {
     include_tag_schema_links: false
   });
 
-  // Custom upload handler that stores the file data for regeneration
+  // Upload handler that stores raw data and applies initial filtering
   const handleUploadSuccess = (data: TanaGraphData, rawData?: any) => {
     console.log("Graph data received:", data);
-    setGraphData(data);
+    setRawGraphData(data); // Store the raw data with all links
     clearError();
     
-    // Store the raw file data for automatic re-upload on config changes
-    if (rawData) {
-      setRawFileData(rawData);
-      console.log("Raw file data stored for automatic re-upload");
-    }
+    // Apply initial filtering based on current config
+    const filteredData = applyClientSideFiltering(data, config);
+    setGraphData(filteredData);
   };
 
   const handleUploadError = (errorMessage: string) => {
     setError(errorMessage);
   };
 
-  // Handle config changes and automatically regenerate graph
-  const handleConfigChange = async (key: keyof VisualizerConfig, value: boolean) => {
+  // Client-side filtering based on reason codes (like the original implementation)
+  const applyClientSideFiltering = (data: TanaGraphData, filterConfig: VisualizerConfig): TanaGraphData => {
+    if (!data || !data.links) return data;
+
+    console.log("Applying client-side filtering with config:", filterConfig);
+
+    // Filter links based on reason codes
+    const filteredLinks = data.links.filter((link: any) => {
+      // Map reason codes to configuration flags
+      switch (link.reason) {
+        case 'itn': // tag-to-tag links
+          return filterConfig.include_tag_tag_links;
+        case 'itl': // node-to-tag links  
+          return filterConfig.include_node_tag_links;
+        case 'iir': // indirect/inline reference links
+          return filterConfig.include_inline_refs;
+        case 'iin': // inline reference node links
+          return filterConfig.include_inline_ref_nodes;
+        case 'icl': // content links
+          return filterConfig.include_content_nodes;
+        case 'its': // tag schema links
+          return filterConfig.include_tag_schema_links;
+        default:
+          return true; // Include unknown link types
+      }
+    });
+
+    // Create filtered graph data
+    return {
+      ...data,
+      links: filteredLinks
+    };
+  };
+
+  // Handle config changes with immediate client-side filtering
+  const handleConfigChange = (key: keyof VisualizerConfig, value: boolean) => {
     const newConfig = { ...config, [key]: value };
     setConfig(newConfig);
     
-    // If we have raw file data, automatically regenerate with new config
-    if (rawFileData) {
-      await regenerateGraphWithConfig(newConfig);
+    // Apply filtering immediately if we have raw data
+    if (rawGraphData) {
+      console.log("Applying immediate client-side filtering for", key, "=", value);
+      const filteredData = applyClientSideFiltering(rawGraphData, newConfig);
+      setGraphData(filteredData);
     }
   };
 
-  // Regenerate graph with new configuration
-  const regenerateGraphWithConfig = async (newConfig: VisualizerConfig) => {
-    if (!rawFileData) {
-      setError("No file data available for regeneration. Please upload a file first.");
-      return;
-    }
 
-    console.log("Automatically regenerating graph with config:", newConfig);
-    setLoading(true);
-    clearError();
-
-    try {
-      // Add the visualizer config to the file data
-      const dataWithConfig = {
-        ...rawFileData,
-        visualize: newConfig
-      };
-
-      const response = await axios.post('/graph', dataWithConfig, {
-        headers: {
-          "Content-Type": "application/json",
-        }
-      });
-
-      console.log("Graph regenerated successfully:", response.data);
-      setGraphData(response.data);
-    } catch (error: any) {
-      console.error("Failed to regenerate graph:", error);
-      const errorMessage = error.response?.data?.detail || error.message || 'Failed to regenerate graph';
-      setError(`Failed to regenerate graph: ${errorMessage}`);
-    } finally {
-      setLoading(false);
-    }
-  };
 
 
   return (
@@ -164,7 +164,7 @@ export default function VisualizerControls() {
                     id="include_tag_tag_links"
                     checked={config.include_tag_tag_links}
                     onChange={(e) => handleConfigChange('include_tag_tag_links', e.target.checked)}
-                    disabled={loading || !rawFileData}
+                    disabled={loading || !rawGraphData}
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded disabled:opacity-50"
                   />
                   <label htmlFor="include_tag_tag_links" className="text-sm text-foreground">
@@ -179,7 +179,7 @@ export default function VisualizerControls() {
                     id="include_node_tag_links"
                     checked={config.include_node_tag_links}
                     onChange={(e) => handleConfigChange('include_node_tag_links', e.target.checked)}
-                    disabled={loading || !rawFileData}
+                    disabled={loading || !rawGraphData}
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded disabled:opacity-50"
                   />
                   <label htmlFor="include_node_tag_links" className="text-sm text-foreground">
@@ -194,7 +194,7 @@ export default function VisualizerControls() {
                     id="include_inline_refs"
                     checked={config.include_inline_refs}
                     onChange={(e) => handleConfigChange('include_inline_refs', e.target.checked)}
-                    disabled={loading || !rawFileData}
+                    disabled={loading || !rawGraphData}
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded disabled:opacity-50"
                   />
                   <label htmlFor="include_inline_refs" className="text-sm text-foreground">
@@ -209,7 +209,7 @@ export default function VisualizerControls() {
                     id="include_inline_ref_nodes"
                     checked={config.include_inline_ref_nodes}
                     onChange={(e) => handleConfigChange('include_inline_ref_nodes', e.target.checked)}
-                    disabled={loading || !rawFileData}
+                    disabled={loading || !rawGraphData}
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded disabled:opacity-50"
                   />
                   <label htmlFor="include_inline_ref_nodes" className="text-sm text-foreground">
@@ -224,7 +224,7 @@ export default function VisualizerControls() {
                     id="include_content_nodes"
                     checked={config.include_content_nodes}
                     onChange={(e) => handleConfigChange('include_content_nodes', e.target.checked)}
-                    disabled={loading || !rawFileData}
+                    disabled={loading || !rawGraphData}
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded disabled:opacity-50"
                   />
                   <label htmlFor="include_content_nodes" className="text-sm text-foreground">
@@ -239,7 +239,7 @@ export default function VisualizerControls() {
                     id="include_tag_schema_links"
                     checked={config.include_tag_schema_links}
                     onChange={(e) => handleConfigChange('include_tag_schema_links', e.target.checked)}
-                    disabled={loading || !rawFileData}
+                    disabled={loading || !rawGraphData}
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded disabled:opacity-50"
                   />
                   <label htmlFor="include_tag_schema_links" className="text-sm text-foreground">
