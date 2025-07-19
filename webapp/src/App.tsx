@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, NavLink, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 
 import ClassDiagramControls from './components/ClassDiagramControls';
 import Home from './components/Home';
@@ -16,7 +16,7 @@ import Configure from './components/Configure';
 export default function App() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <BrowserRouter>
+      <BrowserRouter basename="/ui">
         <Panels />
       </BrowserRouter>
     </div>
@@ -26,49 +26,49 @@ export default function App() {
 const config = [
   {
     label: 'Home',
-    link: '/ui',
+    link: '/',
     key: 'home',
     content: <Home />,
     control: null
   },
   {
     label: 'Class Diagram',
-    link: '/ui/diagram',
+    link: '/diagram',
     key: 'classdiagram',
     content: <ClassDiagram />,
     control: <ClassDiagramControls />
   },
   {
     label: 'Visualizer',
-    link: '/ui/visualizer',
+    link: '/visualizer',
     key: 'visualizer',
     content: <Visualizer />,
     control: <VisualizerControls />
   },
   {
     label: 'RAG Index',
-    link: '/ui/ragindex',
+    link: '/ragindex',
     key: 'ragindex',
     content: <RAGIndex />,
     control: <RAGIndexControls />
   },
   {
     label: 'API Documentation',
-    link: '/ui/api',
+    link: '/api',
     key: 'api',
     content: <Api />,
     control: null
   },
   {
     label: 'Configure',
-    link: '/ui/configure',
+    link: '/configure',
     key: 'configure',
     content: <Configure />,
     control: null
   },
   {
     label: 'Logs',
-    link: '/ui/logs',
+    link: '/logs',
     key: 'logs',
     content: <Logs />,
     control: null
@@ -108,10 +108,34 @@ function Panels() {
   ));
 
   return (
-    <UILayout 
-      menuItems={menuItems} 
-      routes={routes}
-    />
+    <div className="flex h-screen bg-background">
+      {/* Sidebar */}
+      <div className="relative flex flex-col bg-card border-r border-border w-60">
+        {/* Sidebar Header */}
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <h1 className="text-xl font-semibold text-foreground">
+            Tana Helper
+          </h1>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 p-4">
+          <div className="space-y-2">
+            {menuItems}
+          </div>
+        </nav>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Content Area */}
+        <main className="flex-1 overflow-auto p-6">
+          <Routes>
+            {routes}
+          </Routes>
+        </main>
+      </div>
+    </div>
   );
 }
 

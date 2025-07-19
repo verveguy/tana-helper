@@ -43,11 +43,11 @@ export default function Home() {
           <div className="mt-6 p-4 bg-muted rounded-lg">
             <h3 className="font-semibold mb-2">Available Features:</h3>
             <ul className="space-y-1 text-sm">
-              <li>• <Link to="/ui/visualizer" className="text-primary hover:underline">Graph Visualization</Link> - Interactive 2D/3D network graphs</li>
-              <li>• <Link to="/ui/diagram" className="text-primary hover:underline">Class Diagrams</Link> - Generate Mermaid diagrams from your data</li>
-              <li>• <Link to="/ui/ragindex" className="text-primary hover:underline">RAG Index</Link> - AI-powered search and analysis</li>
-              <li>• <Link to="/ui/api" className="text-primary hover:underline">API Documentation</Link> - Explore the REST API</li>
-              <li>• <Link to="/ui/configure" className="text-primary hover:underline">Configuration</Link> - Set up API keys and preferences</li>
+              <li>• <Link to="/visualizer" className="text-primary hover:underline">Graph Visualization</Link> - Interactive 2D/3D network graphs</li>
+              <li>• <Link to="/diagram" className="text-primary hover:underline">Class Diagrams</Link> - Generate Mermaid diagrams from your data</li>
+              <li>• <Link to="/ragindex" className="text-primary hover:underline">RAG Index</Link> - AI-powered search and analysis</li>
+              <li>• <Link to="/api" className="text-primary hover:underline">API Documentation</Link> - Explore the REST API</li>
+              <li>• <Link to="/configure" className="text-primary hover:underline">Configuration</Link> - Set up API keys and preferences</li>
             </ul>
           </div>
         </CardContent>
