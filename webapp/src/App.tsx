@@ -94,16 +94,14 @@ function Panels() {
     </NavLink>
   ));
 
+  // Find the current route config based on location
+  const currentRoute = config.find(entry => entry.link === location.pathname);
+
   const routes = config.map((entry) => (
     <Route 
       key={entry.key} 
       path={entry.link} 
-      element={
-        <UILayout 
-          content={entry.content} 
-          control={entry.control} 
-        />
-      } 
+      element={entry.content}
     />
   ));
 
@@ -124,6 +122,16 @@ function Panels() {
             {menuItems}
           </div>
         </nav>
+
+        {/* Controls Section - Show controls for current route */}
+        {currentRoute?.control && (
+          <div className="border-t border-border p-4">
+            <div className="text-sm font-medium text-muted-foreground mb-2">
+              Controls
+            </div>
+            {currentRoute.control}
+          </div>
+        )}
       </div>
 
       {/* Main Content */}
