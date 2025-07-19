@@ -7,7 +7,7 @@
 */
 
 
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { useMemo, useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import ForceGraph3D from 'react-force-graph-3d';
 import ForceGraph2D from 'react-force-graph-2d';
@@ -15,6 +15,19 @@ import { Loader2 } from 'lucide-react';
 
 // Replace context with Zustand store
 import { useGraphData, useLoading, useTwoDee, useError } from "../hooks/useAppStore";
+
+// Debounce utility to prevent excessive resize calculations
+const debounce = (func: Function, wait: number) => {
+  let timeout: NodeJS.Timeout;
+  return function executedFunction(...args: any[]) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+};
 
 export default function Visualizer() {
   // Use Zustand hooks instead of context
@@ -26,30 +39,60 @@ export default function Visualizer() {
   // Track viewport dimensions for full-screen visualization
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
+  // Memoized dimension calculation to prevent unnecessary recalculations
+  const calculateDimensions = useCallback(() => {
+    const sidebarWidth = 240; // 60 * 4 = 240px (w-60 in Tailwind)
+    const availableWidth = window.innerWidth - sidebarWidth;
+    const availableHeight = window.innerHeight;
+    
+    return {
+      width: availableWidth,
+      height: availableHeight
+    };
+  }, []);
+
+  // Debounced dimension update to prevent excessive re-renders during resize
+  const debouncedUpdateDimensions = useMemo(
+    () => debounce(() => {
+      const newDimensions = calculateDimensions();
+      setDimensions(prevDimensions => {
+        // Only update if dimensions actually changed significantly (avoid tiny changes)
+        if (
+          Math.abs(prevDimensions.width - newDimensions.width) > 10 ||
+          Math.abs(prevDimensions.height - newDimensions.height) > 10
+        ) {
+          return newDimensions;
+        }
+        return prevDimensions; // Return same reference to prevent re-render
+      });
+    }, 100), // 100ms debounce
+    [calculateDimensions]
+  );
+
   // Update dimensions on mount and resize
   useEffect(() => {
-    const updateDimensions = () => {
-      // Calculate available space (full viewport minus sidebar width)
-      const sidebarWidth = 240; // 60 * 4 = 240px (w-60 in Tailwind)
-      const availableWidth = window.innerWidth - sidebarWidth;
-      const availableHeight = window.innerHeight;
-      
-      setDimensions({
-        width: availableWidth,
-        height: availableHeight
-      });
-    };
-
     // Set initial dimensions
-    updateDimensions();
+    setDimensions(calculateDimensions());
 
-    // Listen for window resize
-    window.addEventListener('resize', updateDimensions);
-    return () => window.removeEventListener('resize', updateDimensions);
-  }, []);
+    // Listen for window resize with debouncing
+    window.addEventListener('resize', debouncedUpdateDimensions);
+    return () => window.removeEventListener('resize', debouncedUpdateDimensions);
+  }, [calculateDimensions, debouncedUpdateDimensions]);
 
   // Memoize the graph data to prevent unnecessary re-renders
   const memoizedGraphData = useMemo(() => graphData, [graphData]);
+
+  // Memoize common props to prevent creating new objects on every render
+  const commonProps = useMemo(() => ({
+    graphData: memoizedGraphData,
+    nodeLabel: 'name',
+    nodeAutoColorBy: 'group',
+    linkDirectionalParticles: 2,
+    linkDirectionalParticleSpeed: 0.006,
+    backgroundColor: '#000000',
+    width: dimensions.width,
+    height: dimensions.height,
+  }), [memoizedGraphData, dimensions.width, dimensions.height]);
 
   if (loading) {
     return (
@@ -99,20 +142,9 @@ export default function Visualizer() {
     );
   }
 
-  const commonProps = {
-    graphData: memoizedGraphData,
-    nodeLabel: 'name',
-    nodeAutoColorBy: 'group',
-    linkDirectionalParticles: 2,
-    linkDirectionalParticleSpeed: 0.006,
-    backgroundColor: '#000000',
-    width: dimensions.width,
-    height: dimensions.height,
-  };
-
   return (
     <div className="relative h-full w-full bg-black">
-      {/* Title overlay */}
+      {/* Title overlay - memoized to prevent re-renders */}
       <div className="absolute top-4 left-4 z-10 bg-black/80 px-3 py-2 rounded-lg border border-gray-700">
         <h2 className="text-lg font-semibold text-white">
           Graph Visualizer ({twoDee ? '2D' : '3D'})

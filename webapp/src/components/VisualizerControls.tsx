@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -39,28 +39,13 @@ export default function VisualizerControls() {
     include_tag_schema_links: false
   });
 
-  // Upload handler that stores raw data and applies initial filtering
-  const handleUploadSuccess = (data: TanaGraphData, rawData?: any) => {
-    console.log("Graph data received:", data);
-    setRawGraphData(data); // Store the raw data with all links
-    clearError();
-    
-    // Apply initial filtering based on current config
-    const filteredData = applyClientSideFiltering(data, config);
-    setGraphData(filteredData);
-  };
-
-  const handleUploadError = (errorMessage: string) => {
-    setError(errorMessage);
-  };
-
-  // Client-side filtering based on reason codes (like the original implementation)
-  const applyClientSideFiltering = (data: TanaGraphData, filterConfig: VisualizerConfig): TanaGraphData => {
+  // Memoized client-side filtering function to prevent expensive re-computations
+  const applyClientSideFiltering = useCallback((data: TanaGraphData, filterConfig: VisualizerConfig): TanaGraphData => {
     if (!data || !data.links) return data;
 
     console.log("Applying client-side filtering with config:", filterConfig);
 
-    // Filter links based on reason codes
+    // Filter links based on reason codes - avoid creating new objects unnecessarily
     const filteredLinks = data.links.filter((link: any) => {
       // Map reason codes to configuration flags
       switch (link.reason) {
@@ -81,25 +66,56 @@ export default function VisualizerControls() {
       }
     });
 
-    // Create filtered graph data
+    // Only create new object if links actually changed
+    if (filteredLinks.length === data.links.length) {
+      return data; // No filtering needed, return original data
+    }
+
+    // Create filtered graph data only when necessary
     return {
-      ...data,
+      nodes: data.nodes, // Reuse nodes array reference
       links: filteredLinks
     };
-  };
+  }, []); // Empty deps - function is pure
 
-  // Handle config changes with immediate client-side filtering
-  const handleConfigChange = (key: keyof VisualizerConfig, value: boolean) => {
-    const newConfig = { ...config, [key]: value };
-    setConfig(newConfig);
-    
-    // Apply filtering immediately if we have raw data
-    if (rawGraphData) {
-      console.log("Applying immediate client-side filtering for", key, "=", value);
-      const filteredData = applyClientSideFiltering(rawGraphData, newConfig);
-      setGraphData(filteredData);
+  // Memoize filtered graph data to prevent unnecessary re-renders
+  const filteredGraphData = useMemo(() => {
+    if (!rawGraphData) return null;
+    return applyClientSideFiltering(rawGraphData, config);
+  }, [rawGraphData, config, applyClientSideFiltering]);
+
+  // Update graph data only when filtered data actually changes
+  React.useEffect(() => {
+    if (filteredGraphData) {
+      setGraphData(filteredGraphData);
     }
-  };
+  }, [filteredGraphData, setGraphData]);
+
+  // Upload handler that stores raw data
+  const handleUploadSuccess = useCallback((data: TanaGraphData, rawData?: any) => {
+    console.log("Graph data received:", data);
+    setRawGraphData(data); // Store the raw data with all links
+    clearError();
+  }, [clearError]);
+
+  const handleUploadError = useCallback((errorMessage: string) => {
+    setError(errorMessage);
+  }, [setError]);
+
+  // Handle config changes - now memoized to prevent excessive re-renders
+  const handleConfigChange = useCallback((key: keyof VisualizerConfig, value: boolean) => {
+    setConfig(prevConfig => {
+      // Only update if value actually changed
+      if (prevConfig[key] === value) {
+        return prevConfig; // Return same reference to prevent re-renders
+      }
+      
+      return {
+        ...prevConfig,
+        [key]: value
+      };
+    });
+  }, []);
 
 
 
