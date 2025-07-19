@@ -1,15 +1,15 @@
 #!/bin/sh
 set -euo pipefail # return error if any command fails
 
-# activate correct python virtual env
-poetry env use 3.11
+# activate correct python virtual env using uv
+uv venv --python 3.11
 case "$OSTYPE" in
   darwin*)  source .venv/bin/activate;; 
-  linux*)   echo "LINUX" ;;
+  linux*)   source .venv/bin/activate ;;
   msys*)    source .venv/Scripts/activate ;;
 esac
 
-poetry install --no-root
+uv sync
 
 test -d "service/bin" && rm -r "service/bin"
 mkdir -p service/bin
