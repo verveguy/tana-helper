@@ -30,7 +30,9 @@ export default function Logs() {
       theme: {
         background: '#1a1a1a',
         foreground: '#ffffff'
-      }
+      },
+      scrollback: 1000,
+      convertEol: true  // Convert line endings for proper wrapping
     });
     
     const fitAddon = new FitAddon();
@@ -38,11 +40,17 @@ export default function Logs() {
 
     // Open terminal in the DOM element
     terminal.open(termRef.current);
-    fitAddon.fit();
-
+    
     // Store references
     terminalRef.current = terminal;
     fitAddonRef.current = fitAddon;
+
+    // Initial fit after a short delay to ensure DOM is ready
+    setTimeout(() => {
+      if (fitAddonRef.current) {
+        fitAddonRef.current.fit();
+      }
+    }, 50);
 
     // Initialize WebSocket connection
     const ws = new WebSocket("ws://localhost:8000/ws/log");
@@ -51,6 +59,12 @@ export default function Logs() {
     ws.onopen = () => {
       console.log("WebSocket connected for log streaming");
       terminal.writeln("Connected to log stream...\r\n");
+      // Ensure fit after connection message
+      setTimeout(() => {
+        if (fitAddonRef.current) {
+          fitAddonRef.current.fit();
+        }
+      }, 100);
     };
 
     ws.onmessage = (event) => {
@@ -84,18 +98,29 @@ export default function Logs() {
     };
   }, []);
 
-  // Handle window resizing
+  // Handle window resizing and initial sizing
   useEffect(() => {
-    if (!dimensions || !fitAddonRef.current) return;
+    if (!fitAddonRef.current) return;
     
     const resizeTimeout = setTimeout(() => {
       if (fitAddonRef.current) {
         fitAddonRef.current.fit();
       }
-    }, 100);
+    }, 50);
 
     return () => clearTimeout(resizeTimeout);
   }, [dimensions]);
+
+  // Additional effect to ensure proper fitting after component mounts
+  useEffect(() => {
+    const fitTimeout = setTimeout(() => {
+      if (fitAddonRef.current) {
+        fitAddonRef.current.fit();
+      }
+    }, 200);
+
+    return () => clearTimeout(fitTimeout);
+  }, []);
 
   return (
     <div className="terminal-container" ref={containerRef}>
