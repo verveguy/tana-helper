@@ -5,6 +5,7 @@ import { resolve } from 'path'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  base: '/ui/',
   root: '.',
   publicDir: 'public',
   build: {
@@ -19,7 +20,7 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    open: true,
+    open: '/ui/',
     cors: true,
     proxy: {
       // Proxy API requests to FastAPI backend during development
@@ -27,6 +28,48 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true,
         secure: false
+      },
+      // Proxy specific backend endpoints
+      '/configure': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false
+      },
+      '/configuration': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false
+      },
+      '/graph': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false
+      },
+      '/class_diagram': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false
+      },
+      '/rag_index': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false
+      },
+      '/openapi.json': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false
+      },
+      '/docs': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false
+      },
+      // WebSocket for logs
+      '/ws': {
+        target: 'ws://localhost:8000',
+        ws: true,
+        changeOrigin: true
       }
     }
   },

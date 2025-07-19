@@ -3,10 +3,10 @@
   
   Modern React 18 setup with Vite and Tailwind CSS
 */
-import React from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 import './globals.css'
+import { ReactScan } from './components/ReactScan';
 
 // Development tools
 if (import.meta.env.DEV) {
@@ -24,9 +24,12 @@ if (!rootElement) {
 const root = createRoot(rootElement)
 
 root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
+  // <StrictMode>
+  <>
+    <ReactScan/>
+      <App />
+  </>
+  // </StrictMode>
 )
 
 // Hot module replacement for better development experience

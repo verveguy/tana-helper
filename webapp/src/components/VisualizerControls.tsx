@@ -5,11 +5,13 @@ import { Input } from "./ui/input";
 import TanaFileUpload from "./ui/TanaFileUpload";
 
 import { GraphData } from 'react-force-graph-3d';
+import { Index } from "flexsearch";
 // Updated to use Zustand store instead of React Context
 import { useAppStore, useAppActions } from "../hooks/useAppStore";
 
 // Server-side Visualizer configuration - matches service/service/tana_types.py
 interface VisualizerConfig {
+  include_all_nodes: boolean;
   include_tag_tag_links: boolean;
   include_node_tag_links: boolean;
   include_inline_refs: boolean;
@@ -30,59 +32,136 @@ export default function VisualizerControls() {
   
   const [searchString, setSearchString] = useState('');
   const [rawGraphData, setRawGraphData] = useState<any>(null);
+  const [searchIndex, setSearchIndex] = useState(new Index({ preset: "match" }));
   const [config, setConfig] = useState<VisualizerConfig>({ 
-    include_tag_tag_links: true,
-    include_node_tag_links: true,
-    include_inline_refs: true,
-    include_inline_ref_nodes: true,
-    include_content_nodes: false,
-    include_tag_schema_links: false
+    include_all_nodes: false,           // KEY: Only show nodes connected by enabled links
+    include_tag_tag_links: true,        // Show tag hierarchy relationships
+    include_node_tag_links: true,       // Show which nodes have which tags
+    include_inline_refs: false,         // Hide indirect references (reduces noise)
+    include_inline_ref_nodes: false,    // Hide inline reference nodes (reduces noise)
+    include_content_nodes: false,       // Hide child content nodes (detail nodes)
+    include_tag_schema_links: false     // Hide tag schema relationships
   });
 
-  // Memoized client-side filtering function to prevent expensive re-computations
-  const applyClientSideFiltering = useCallback((data: TanaGraphData, filterConfig: VisualizerConfig): TanaGraphData => {
+  // Helper to get ID from polymorphic object (links can be mutated by force graph)
+  const getIdFrom = useCallback((obj: any): string => {
+    let id: string = obj as string;
+    if (id && typeof id !== 'string') {
+      id = obj['id'];
+    }
+    return id;
+  }, []);
+
+  // Restored original filtering logic from pre-migration with search integration
+  const applyClientSideFiltering = useCallback((data: TanaGraphData, filterConfig: VisualizerConfig, searchStr: string): TanaGraphData => {
     if (!data || !data.links) return data;
 
-    console.log("Applying client-side filtering with config:", filterConfig);
+    console.log("Applying client-side filtering with config:", filterConfig, "search:", searchStr);
+    
+    // Debug: Check what link types we're receiving
+    const linkTypes = new Set(data.links.map(link => link.reason));
+    console.log("Link types in data:", Array.from(linkTypes));
 
-    // Filter links based on reason codes - avoid creating new objects unnecessarily
+    // Start with a copy of raw data
+    let newGraph = { ...data };
+    let connectedNodeIds = {};
+
+    // Build search result set if there's a search string
+    let searchResultIds = {};
+    let hasSearch = searchStr && searchStr.trim() !== '';
+    
+    if (hasSearch && searchIndex) {
+      const searchResults = searchIndex.search(searchStr.trim());
+      console.log(`Search for "${searchStr}" found ${searchResults.length} matches`);
+      
+      // Convert search results to a lookup dictionary
+      searchResultIds = searchResults.reduce((dict, nodeId) => {
+        dict[nodeId as string] = {};
+        return dict;
+      }, {} as Record<string, {}>);
+    }
+
+    // Filter links based on reason codes AND build connected nodes dictionary
     const filteredLinks = data.links.filter((link: any) => {
-      // Map reason codes to configuration flags
+      let found = false;
+
+      // First check if link type is enabled
       switch (link.reason) {
         case 'itn': // tag-to-tag links
-          return filterConfig.include_tag_tag_links;
+          found = filterConfig.include_tag_tag_links;
+          break;
         case 'itl': // node-to-tag links  
-          return filterConfig.include_node_tag_links;
+          found = filterConfig.include_node_tag_links;
+          break;
         case 'iir': // indirect/inline reference links
-          return filterConfig.include_inline_refs;
+          found = filterConfig.include_inline_refs;
+          break;
         case 'iin': // inline reference node links
-          return filterConfig.include_inline_ref_nodes;
+          found = filterConfig.include_inline_ref_nodes;
+          break;
         case 'icl': // content links
-          return filterConfig.include_content_nodes;
+          found = filterConfig.include_content_nodes;
+          break;
         case 'its': // tag schema links
-          return filterConfig.include_tag_schema_links;
+          found = filterConfig.include_tag_schema_links;
+          break;
         default:
-          return true; // Include unknown link types
+          found = false; // Exclude unknown link types
+      }
+
+      // If link type is enabled, check search filter
+      if (found && hasSearch) {
+        const sourceId = getIdFrom(link.source);
+        const targetId = getIdFrom(link.target);
+        
+        // Only include link if at least one endpoint matches search
+        found = (sourceId in searchResultIds) || (targetId in searchResultIds);
+      }
+
+      // If this link passed all filters, add its endpoints to connected nodes
+      if (found) {
+        const sourceId = getIdFrom(link.source);
+        const targetId = getIdFrom(link.target);
+        connectedNodeIds[sourceId] = {};
+        connectedNodeIds[targetId] = {};
+      }
+
+      return found;
+    });
+
+    newGraph.links = filteredLinks;
+    
+    console.log(`Filtered links: ${data.links.length} -> ${filteredLinks.length}`);
+
+    // Filter nodes based on include_all_nodes OR being connected by included links OR search results
+    const filteredNodes = data.nodes.filter((node) => {
+      // If "show all nodes" is checked, show everything (but still respect search)
+      if (filterConfig.include_all_nodes) {
+        return hasSearch ? (node.id && node.id in searchResultIds) : true;
+      }
+      
+      // Otherwise, show nodes that are either:
+      // 1. In search results (if searching), OR
+      // 2. Connected by enabled links
+      if (hasSearch) {
+        return node.id && ((node.id in searchResultIds) || (node.id in connectedNodeIds));
+      } else {
+        return node.id && node.id in connectedNodeIds;
       }
     });
 
-    // Only create new object if links actually changed
-    if (filteredLinks.length === data.links.length) {
-      return data; // No filtering needed, return original data
-    }
+    newGraph.nodes = filteredNodes;
+    
+    console.log(`Filtered nodes: ${data.nodes.length} -> ${filteredNodes.length}`);
 
-    // Create filtered graph data only when necessary
-    return {
-      nodes: data.nodes, // Reuse nodes array reference
-      links: filteredLinks
-    };
-  }, []); // Empty deps - function is pure
+    return newGraph;
+  }, [getIdFrom, searchIndex]);
 
   // Memoize filtered graph data to prevent unnecessary re-renders
   const filteredGraphData = useMemo(() => {
     if (!rawGraphData) return null;
-    return applyClientSideFiltering(rawGraphData, config);
-  }, [rawGraphData, config, applyClientSideFiltering]);
+    return applyClientSideFiltering(rawGraphData, config, searchString);
+  }, [rawGraphData, config, searchString, applyClientSideFiltering]);
 
   // Update graph data only when filtered data actually changes
   React.useEffect(() => {
@@ -91,10 +170,23 @@ export default function VisualizerControls() {
     }
   }, [filteredGraphData, setGraphData]);
 
-  // Upload handler that stores raw data
+  // Upload handler that stores raw data and builds search index
   const handleUploadSuccess = useCallback((data: TanaGraphData, rawData?: any) => {
     console.log("Graph data received:", data);
     setRawGraphData(data); // Store the raw data with all links
+    
+    // Build search index from node names
+    if (data && data.nodes) {
+      const newIndex = new Index({ preset: "match" });
+      data.nodes.forEach((node) => {
+        if (node.id && node.name) {
+          newIndex.add(node.id, node.name);
+        }
+      });
+      setSearchIndex(newIndex);
+      console.log(`Built search index with ${data.nodes.length} nodes`);
+    }
+    
     clearError();
   }, [clearError]);
 
@@ -171,6 +263,25 @@ export default function VisualizerControls() {
               <div className="space-y-3">
                 <div className="text-xs text-muted-foreground mb-2 p-2 bg-muted/50 rounded">
                   <strong>Live Configuration:</strong> Changes are automatically applied to your visualization.
+                </div>
+                
+                {/* Show All Nodes - Primary Control */}
+                <div className="flex items-center space-x-2 p-2 bg-primary/10 rounded border">
+                  <input
+                    type="checkbox"
+                    id="include_all_nodes"
+                    checked={config.include_all_nodes}
+                    onChange={(e) => handleConfigChange('include_all_nodes', e.target.checked)}
+                    disabled={loading || !rawGraphData}
+                    className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded disabled:opacity-50"
+                  />
+                  <label htmlFor="include_all_nodes" className="text-sm font-medium text-foreground">
+                    Show all nodes (including unconnected detail nodes)
+                  </label>
+                </div>
+                
+                <div className="text-xs text-muted-foreground mb-2">
+                  When unchecked, only shows nodes connected by the link types selected below.
                 </div>
                 
                 {/* Include Tag-Tag Links */}

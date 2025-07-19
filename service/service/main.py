@@ -183,7 +183,7 @@ app.mount("/assets", StaticFiles(directory="dist/assets"), name="assets")
 
 @app.get('/favicon.ico', include_in_schema=False)
 async def favicon():
-  favicon_path = os.path.join(basedir,'dist','assets','favicon.ico')
+  favicon_path = os.path.join(basedir,'dist','favicon.ico')
   return FileResponse(favicon_path)
 
 
