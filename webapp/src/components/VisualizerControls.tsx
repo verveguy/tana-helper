@@ -6,7 +6,7 @@ import { Upload } from "lucide-react";
 
 import { GraphData } from 'react-force-graph-3d';
 import axios from 'axios';
-import FlexSearch from "flexsearch-ts";
+// import FlexSearch from "flexsearch-ts";
 // Updated to use Zustand store instead of React Context
 import { useAppStore, useGraphActions, useAppActions } from "../hooks/useAppStore";
 
@@ -18,12 +18,18 @@ interface GraphConfig {
   include_inline_ref_nodes: boolean;
 }
 
+// Define our expected graph data structure
+interface TanaGraphData extends GraphData {
+  nodes: Array<{ id: string; name: string; [key: string]: any }>;
+  links: Array<{ source: string; target: string; [key: string]: any }>;
+}
+
 export default function VisualizerControls() {
   const { graphData, loading, twoDee } = useAppStore();
   const { setGraphData, setTwoDee } = useAppActions();
   
   const [open, setOpen] = useState(true);
-  const [rawGraphData, setRawGraphData] = useState<GraphData>();
+  const [rawGraphData, setRawGraphData] = useState<TanaGraphData>();
   const [config, setConfig] = useState<GraphConfig>({ 
     include_all_nodes: true, 
     include_tag_nodes: false, 
@@ -34,7 +40,7 @@ export default function VisualizerControls() {
   const [dumpFile, setDumpFile] = useState<File>();
   const [upload, setUpload] = useState(false);
   const [searchString, setSearchString] = useState('');
-  const [index, setIndex] = useState(new FlexSearch({}));
+  // const [index, setIndex] = useState(new FlexSearch({ preset: "match" } as any));
 
   const handleFileUpload = (event: React.FormEvent<HTMLInputElement>) => {
     const target = event.currentTarget;
@@ -47,23 +53,23 @@ export default function VisualizerControls() {
   useEffect(() => {
     if (upload && dumpFile) {
       setGraphData(undefined);
-      axios.post('/graph_view', dumpFile, {
+      axios.post('/graph', dumpFile, {
         headers: {
           "Content-Type": "application/json",
         }
       })
         .then(response => {
-          const new_graph = response.data as GraphData;
+          const new_graph = response.data as TanaGraphData;
           setRawGraphData(new_graph);
           
           // Build search index
-          if (new_graph) {
-            const index = new FlexSearch({ preset: "match" });
-            new_graph.nodes.forEach((node) => {
-              index.add(node.id as string, node.name);
-            });
-            setIndex(index);
-          }
+          // if (new_graph) {
+          //   const index = new FlexSearch({ preset: "match" } as any);
+          //   new_graph.nodes.forEach((node) => {
+          //     index.add(node.id as string, node.name);
+          //   });
+          //   setIndex(index);
+          // }
           
           setGraphData(new_graph);
         })

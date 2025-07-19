@@ -175,6 +175,8 @@ cwd = os.getcwd()
 
 # for local file serving (favicon, etc)
 app.mount("/static", StaticFiles(directory="dist"), name="static")
+# Mount assets separately for Vite-generated files
+app.mount("/assets", StaticFiles(directory="dist/assets"), name="assets")
 
 # for HTML template responses
 # settings.templates = Jinja2Templates(directory=os.path.join(basedir,'dist','templates'))
@@ -214,12 +216,12 @@ def root_ui():
 
 @app.get("/ui", response_class=HTMLResponse, tags=["UI"])
 async def new_app_ui():
-  # return a completely generic index.html that assumes the app is
-  # available on App_file.js (note initial cap)
-  return await app_ui('root')
+  # Serve the actual Vite-generated index.html file
+  index_path = os.path.join(basedir, 'dist', 'index.html')
+  return FileResponse(index_path, media_type="text/html")
 
 @app.get("/ui/{full_path:path}", response_class=HTMLResponse, tags=["UI"])
 async def new_app_ui_path(full_path:str):
-  # return a completely generic index.html that assumes the app is
-  # available on App_file.js (note initial cap)
-  return await app_ui('root')
+  # For SPA routing, also serve the index.html for any sub-paths
+  index_path = os.path.join(basedir, 'dist', 'index.html')
+  return FileResponse(index_path, media_type="text/html")
