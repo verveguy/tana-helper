@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 import { useAppStore as useAppStoreBase } from '../store'
 import { AppSelector } from '../store/types'
 
@@ -33,40 +34,68 @@ export const useWebhooks = () =>
 export const useTwoDee = () => 
   useAppStoreBase(state => state.twoDee)
 
-// Action hooks for cleaner component code
-export const useAppActions = () => 
-  useAppStoreBase(state => ({
-    setGraphData: state.setGraphData,
-    setLoading: state.setLoading,
-    setMermaidText: state.setMermaidText,
-    setRagIndexData: state.setRagIndexData,
-    setConfig: state.setConfig,
-    setWebhooks: state.setWebhooks,
-    setTwoDee: state.setTwoDee,
-    setError: state.setError,
-    clearError: state.clearError,
-    resetState: state.resetState,
-    loadConfig: state.loadConfig,
-    saveConfig: state.saveConfig,
-  }))
+// Action hooks for cleaner component code - fixed to prevent infinite re-renders
+export const useAppActions = () => {
+  const setGraphData = useAppStoreBase(state => state.setGraphData)
+  const setLoading = useAppStoreBase(state => state.setLoading)
+  const setMermaidText = useAppStoreBase(state => state.setMermaidText)
+  const setRagIndexData = useAppStoreBase(state => state.setRagIndexData)
+  const setConfig = useAppStoreBase(state => state.setConfig)
+  const setWebhooks = useAppStoreBase(state => state.setWebhooks)
+  const setTwoDee = useAppStoreBase(state => state.setTwoDee)
+  const setError = useAppStoreBase(state => state.setError)
+  const clearError = useAppStoreBase(state => state.clearError)
+  const resetState = useAppStoreBase(state => state.resetState)
+  const loadConfig = useAppStoreBase(state => state.loadConfig)
+  const saveConfig = useAppStoreBase(state => state.saveConfig)
 
-// Specific action hooks
-export const useConfigActions = () => 
-  useAppStoreBase(state => ({
-    loadConfig: state.loadConfig,
-    saveConfig: state.saveConfig,
-    setConfig: state.setConfig,
-  }))
+  return {
+    setGraphData,
+    setLoading,
+    setMermaidText,
+    setRagIndexData,
+    setConfig,
+    setWebhooks,
+    setTwoDee,
+    setError,
+    clearError,
+    resetState,
+    loadConfig,
+    saveConfig,
+  }
+}
 
-export const useGraphActions = () => 
-  useAppStoreBase(state => ({
-    setGraphData: state.setGraphData,
-    setMermaidText: state.setMermaidText,
-    setTwoDee: state.setTwoDee,
-  }))
+// Specific action hooks - also fixed for stability
+export const useConfigActions = () => {
+  const loadConfig = useAppStoreBase(state => state.loadConfig)
+  const saveConfig = useAppStoreBase(state => state.saveConfig)
+  const setConfig = useAppStoreBase(state => state.setConfig)
 
-export const useErrorActions = () => 
-  useAppStoreBase(state => ({
-    setError: state.setError,
-    clearError: state.clearError,
-  }))
+  return {
+    loadConfig,
+    saveConfig,
+    setConfig,
+  }
+}
+
+export const useGraphActions = () => {
+  const setGraphData = useAppStoreBase(state => state.setGraphData)
+  const setMermaidText = useAppStoreBase(state => state.setMermaidText)
+  const setTwoDee = useAppStoreBase(state => state.setTwoDee)
+
+  return {
+    setGraphData,
+    setMermaidText,
+    setTwoDee,
+  }
+}
+
+export const useErrorActions = () => {
+  const setError = useAppStoreBase(state => state.setError)
+  const clearError = useAppStoreBase(state => state.clearError)
+
+  return {
+    setError,
+    clearError,
+  }
+}
