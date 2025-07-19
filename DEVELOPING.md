@@ -10,12 +10,12 @@ Install homebrew (will install XCode tools if required)
 ### Install base toolset
 `brew install pyenv`
 `brew install node`
-`brew install yarn`
+`brew install pnpm`
 `brew install create-dmg`
 
 `pyenv install 3.11.7`
 
-`pipx install poetry`
+`pip install uv`
 
 ### Build everything, including .app and .dmg
 `cd release`
@@ -42,7 +42,7 @@ Add these as remotes to your local git repo in whatever fashion you've set up (s
 Requires GitBash to be installed for build script support
 
 install node
-install yarn
+install pnpm
 install pyenv
 
 Use pyenv to install Python versions:
@@ -56,10 +56,7 @@ using powershell administrator:
 Set up VSCode to use gitbash terminal
 
 Using VSCode terminal:
-`pipx install poetry`
-
-Using VSCode terminal in the `release` directory
-`./build.sh`
+`pip install uv`
 
 
 
