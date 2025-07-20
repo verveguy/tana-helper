@@ -1,10 +1,26 @@
 {
+  // Python configuration specific to service
   "python.analysis.typeCheckingMode": "basic",
+  "python.defaultInterpreterPath": "./.venv/bin/python",
   "python.testing.pytestArgs": [
     "tests"
   ],
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,
+
+  // Ruff configuration (modern Python linting and formatting)
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "explicit",
+      "source.organizeImports.ruff": "explicit"
+    },
+    "editor.rulers": [88]
+  },
+  "ruff.importStrategy": "fromEnvironment",
+
+  // YAML configuration for MkDocs
   "yaml.schemas": {
     "https://squidfunk.github.io/mkdocs-material/schema.json": "mkdocs.yml"
   },
@@ -15,5 +31,6 @@
     "tag:yaml.org,2002:python/name:material.extensions.emoji.to_svg",
     "tag:yaml.org,2002:python/name:material.extensions.emoji.twemoji",
     "tag:yaml.org,2002:python/name:pymdownx.superfences.fence_code_format"
-  ]
+  ],
+  "cursorpyright.analysis.typeCheckingMode": "basic"
 }

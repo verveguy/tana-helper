@@ -1,5 +1,4 @@
-
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react';
 
 /* observe changes in the window sizing */
 export function useWindowSize() {
@@ -10,7 +9,7 @@ export function useWindowSize() {
     windowHeight: number | undefined;
   }>({
     windowWidth: undefined,
-    windowHeight: undefined
+    windowHeight: undefined,
   });
 
   useEffect(() => {
@@ -19,23 +18,22 @@ export function useWindowSize() {
       // Set window width/height to state
       setWindowSize({
         windowWidth: window.innerWidth,
-        windowHeight: window.innerHeight
+        windowHeight: window.innerHeight,
       });
     }
 
     // Add event listener
-    window.addEventListener("resize", handleResize);
+    window.addEventListener('resize', handleResize);
 
     // Call handler right away so state gets updated with initial window size
     handleResize();
 
     // Remove event listener on cleanup
-    return () => window.removeEventListener("resize", handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []); // Empty array ensures that effect is only run on mount
 
   return windowSize;
 }
-
 
 /* observe changes in the container sizing */
 export function useDimensions(containerRef: React.RefObject<HTMLElement | null>) {
@@ -46,7 +44,7 @@ export function useDimensions(containerRef: React.RefObject<HTMLElement | null>)
     width: undefined,
     height: undefined,
   });
-  
+
   useEffect(() => {
     if (!containerRef || !containerRef.current) return;
     const resizeObserver = new ResizeObserver(() => {
@@ -56,10 +54,8 @@ export function useDimensions(containerRef: React.RefObject<HTMLElement | null>)
       });
     });
     resizeObserver.observe(containerRef.current);
-    return () => resizeObserver.disconnect(); // clean up 
+    return () => resizeObserver.disconnect(); // clean up
   }, [containerRef]);
 
   return dimensions;
 }
-
-

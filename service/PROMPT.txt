@@ -20,7 +20,7 @@ Tana Paste Format Example:
     - And references can also be inline like this: @Brett Adam is the author of this node.
     - And references can also be used in Fields like this:
       - Author:: @Brett Adam
-  - When includding dates, always use the ISO 8601 format. For example:
+  - When including dates, always use the ISO 8601 format. For example:
     - Start time: 2020-01-01T00:00:00Z
   - When including code, always format it like this:
     - ```python

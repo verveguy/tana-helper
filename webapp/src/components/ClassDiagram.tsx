@@ -4,25 +4,25 @@
 
 */
 
-import React, { useEffect, useRef, useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { useEffect, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Loader2 } from 'lucide-react';
 import mermaid from 'mermaid';
 
 // Replace context with Zustand store
-import { useMermaidText, useClassLoading, useClassError } from "../hooks/useAppStore";
+import { useMermaidText, useClassLoading, useClassError } from '../hooks/useAppStore';
 
 export default function ClassDiagram() {
-  // Use Zustand hooks instead of context  
+  // Use Zustand hooks instead of context
   const mermaidText = useMermaidText();
   const loading = useClassLoading();
   const error = useClassError();
-  
+
   const [renderedSvg, setRenderedSvg] = useState<string>('');
   const [diagramRendered, setDiagramRendered] = useState(false);
 
   useEffect(() => {
-    mermaid.initialize({ 
+    mermaid.initialize({
       startOnLoad: true,
       theme: 'dark',
       securityLevel: 'loose',
@@ -35,7 +35,7 @@ export default function ClassDiagram() {
         try {
           setDiagramRendered(false);
           setRenderedSvg('');
-          
+
           const { svg } = await mermaid.render('mermaid-diagram-' + Date.now(), mermaidText);
           setRenderedSvg(svg);
           setDiagramRendered(true);
@@ -107,9 +107,7 @@ export default function ClassDiagram() {
     <div className="relative h-full w-full bg-background overflow-auto">
       {/* Title overlay */}
       <div className="absolute top-4 left-4 z-10 bg-background/90 px-3 py-2 rounded-lg border border-border shadow-lg">
-        <h2 className="text-lg font-semibold text-foreground">
-          Class Diagram
-        </h2>
+        <h2 className="text-lg font-semibold text-foreground">Class Diagram</h2>
         <p className="text-sm text-muted-foreground">
           Visual representation of your Tana data structure
         </p>
@@ -118,16 +116,19 @@ export default function ClassDiagram() {
       {/* Full-screen diagram container */}
       <div className="h-full w-full p-4 pt-20">
         {!diagramRendered && !loading && mermaidText && (
-          <div className="w-full h-full flex justify-center items-center" style={{ minHeight: 'calc(100vh - 120px)' }}>
+          <div
+            className="w-full h-full flex justify-center items-center"
+            style={{ minHeight: 'calc(100vh - 120px)' }}
+          >
             <div className="flex items-center space-x-2 text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span>Rendering diagram...</span>
             </div>
           </div>
         )}
-        
+
         {diagramRendered && (
-          <div 
+          <div
             className="w-full h-full flex justify-center items-start overflow-auto"
             style={{ minHeight: 'calc(100vh - 120px)' }}
             dangerouslySetInnerHTML={{ __html: renderedSvg }}
@@ -137,4 +138,3 @@ export default function ClassDiagram() {
     </div>
   );
 }
-

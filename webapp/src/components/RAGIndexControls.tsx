@@ -1,16 +1,16 @@
-import React, { useEffect } from "react";
-import TanaFileUpload from "./ui/TanaFileUpload";
+// React import not needed for JSX in React 17+
+import TanaFileUpload from './ui/TanaFileUpload';
 // Replace context with Zustand store
-import { useAppStore, useAppActions } from "../hooks/useAppStore";
+import { useAppStore, useAppActions } from '../hooks/useAppStore';
 
 export default function RAGIndexControls() {
-  const { ragLoading, ragError } = useAppStore();
+  const { ragLoading } = useAppStore();
   const { setRagIndexData, setRagLoading, setRagError } = useAppActions();
 
   // Note: Removed automatic state reset - global state should persist across component lifecycle
 
-  const handleUploadSuccess = (data: any, rawFileData?: any) => {
-    console.log("RAG index data received:", data);
+  const handleUploadSuccess = (data: any, _rawFileData?: any) => {
+    console.log('RAG index data received:', data);
     setRagIndexData(data);
     setRagError(null); // Clear RAG-specific error
     // Note: rawFileData not needed for RAG index as it doesn't have live config changes

@@ -4,90 +4,92 @@
 #
 #   "Set quicktype target language"
 
-from enum import Enum
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional, Union, List, Dict, Any
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Props(BaseModel):
-  created: int
-  name: str = ''
-  description: Optional[str] = None
-  ownerId: Optional[str] = Field(default=None, alias='_ownerId')
-  metaNodeId: Optional[str] = Field(default=None, alias='_metaNodeId')
-  docType: Optional[str] = Field(default=None, alias='_docType')
-  sourceId: Optional[str] = Field(default=None, alias='_sourceId')
-  view: Optional[str] = None
-  editMode: Optional[bool] = False
-  done: Optional[Union[bool, int, None]] = None
+    created: int
+    name: str = ""
+    description: str | None = None
+    ownerId: str | None = Field(default=None, alias="_ownerId")
+    metaNodeId: str | None = Field(default=None, alias="_metaNodeId")
+    docType: str | None = Field(default=None, alias="_docType")
+    sourceId: str | None = Field(default=None, alias="_sourceId")
+    view: str | None = None
+    editMode: bool | None = False
+    done: bool | int | None | None = None
 
 
 class NodeDump(BaseModel):
-  id: str
-  props: Props
-  touchCounts: Optional[List[int]] = None
-  modifiedTs: Optional[List[int]] = None
-  children: Optional[List[str]] = None
-  associationMap: Optional[Dict[str, str]] = None
-  underConstruction: Optional[bool] = None
-  inbound_refs: Optional[List[str]] = []
-  outbound_refs: Optional[List[str]] = []
-  color: Optional[str] = None
-  tags: List[str] = []
-  content: List[str] = []
-  fields:List[dict] = []
-  
+    id: str
+    props: Props
+    touchCounts: list[int] | None = None
+    modifiedTs: list[int] | None = None
+    children: list[str] | None = None
+    associationMap: dict[str, str] | None = None
+    underConstruction: bool | None = None
+    inbound_refs: list[str] | None = []
+    outbound_refs: list[str] | None = []
+    color: str | None = None
+    tags: list[str] = []
+    content: list[str] = []
+    fields: list[dict] = []
+
 
 # config for graph visualization.
 # By default, we inlucde all linkages
 class Visualizer(BaseModel):
-  include_tag_tag_links: bool = True
-  include_node_tag_links: bool = True
-  include_inline_refs: bool = True
-  include_inline_ref_nodes: bool = True
-  include_content_nodes: bool = False
-  include_tag_schema_links: Optional[bool] = False
-  # make this hashable
-  model_config = ConfigDict(frozen = True)
+    include_tag_tag_links: bool = True
+    include_node_tag_links: bool = True
+    include_inline_refs: bool = True
+    include_inline_ref_nodes: bool = True
+    include_content_nodes: bool = False
+    include_tag_schema_links: bool | None = False
+    # make this hashable
+    model_config = ConfigDict(frozen=True)
 
 
 class TanaDump(BaseModel):
-  formatVersion: int
-  docs: List[NodeDump]
-  editors: List[List[Union[int, str]]]
-  workspaces: Dict[str, str]
-  lastTxid: Optional[int] = None
-  lastFbKey: Optional[str] = None
-  optimisticTransIds: Optional[List[Any]] = None
-  currentWorkspaceId: Optional[str] = None
+    formatVersion: int
+    docs: list[NodeDump]
+    editors: list[list[int | str]]
+    workspaces: dict[str, str]
+    lastTxid: int | None = None
+    lastFbKey: str | None = None
+    optimisticTransIds: list[Any] | None = None
+    currentWorkspaceId: str | None = None
 
-  visualize: Optional[Visualizer] = None
+    visualize: Visualizer | None = None
 
 
 class TanaField(BaseModel):
-  field_id: str
-  name: str
-  value_id: str
-  value: str
-  #tag_id: str = ''
+    field_id: str
+    name: str
+    value_id: str
+    value: str
+    # tag_id: str = ''
+
 
 class TanaTag(BaseModel):
-  id: str
-  name: str
-  description: Optional[str] = None
-  color: Optional[str] = None
+    id: str
+    name: str
+    description: str | None = None
+    color: str | None = None
+
 
 class TanaDocument(BaseModel):
-  id: str # the tana node id
-  name: str
-  description: Optional[str]
-  tags: List[str] = []
-  fields: Optional[List[TanaField]]
-  # TODO: consider whether we should preserve more node structure here
-  content: list[tuple[str|None, bool, str]] = []
+    id: str  # the tana node id
+    name: str
+    description: str | None
+    tags: list[str] = []
+    fields: list[TanaField] | None
+    # TODO: consider whether we should preserve more node structure here
+    content: list[tuple[str | None, bool, str]] = []
 
 
 class GraphLink(BaseModel):
-  source: str
-  target: str
-  reason: str
+    source: str
+    target: str
+    reason: str

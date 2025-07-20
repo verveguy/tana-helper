@@ -4,12 +4,12 @@
 
 */
 
-import React from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { Loader2 } from "lucide-react";
+// React import not needed for JSX in React 17+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Loader2 } from 'lucide-react';
 
 // Replace context with Zustand store
-import { useRagIndexData, useRagLoading } from "../hooks/useAppStore";
+import { useRagIndexData, useRagLoading } from '../hooks/useAppStore';
 
 export default function RAGIndex() {
   // Use Zustand hooks instead of context
@@ -77,4 +77,3 @@ export default function RAGIndex() {
     </Card>
   );
 }
-

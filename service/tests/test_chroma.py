@@ -1,10 +1,9 @@
 import requests
-from pydantic import BaseModel
-from pydantic import ValidationError as PydanticValidationError
-from typing import List, Union
-from service.dependencies import ChromaRequest, CalendarRequest
+
+from service.dependencies import ChromaRequest
 from service.settings import settings
-from .test_types import BASE_URL, APIValidationError, HTTPValidationError
+
+from .test_types import BASE_URL, HTTPValidationError
 
 
 def test_chroma_upsert_success():
@@ -19,11 +18,12 @@ def test_chroma_upsert_success():
         index="tana-helper",
         score=0.8,
         top=10,
-        tags="test"
+        tags="test",
     ).model_dump(exclude_none=True)
     response = requests.post(f"{BASE_URL}/chroma/upsert", json=payload)
     assert response.status_code == 204
     # Additional assertions can be added based on expected response content
+
 
 def test_chroma_upsert_validation_error():
     payload = {"invalid": "data"}
@@ -31,6 +31,7 @@ def test_chroma_upsert_validation_error():
     assert response.status_code == 422
     error_response = HTTPValidationError.model_validate(response.json())
     # Additional assertions can be added to check the content of the error response
+
 
 def test_chroma_delete_success():
     payload = ChromaRequest(
@@ -44,11 +45,12 @@ def test_chroma_delete_success():
         index="tana-helper",
         score=0.8,
         top=10,
-        tags="test"
+        tags="test",
     ).model_dump(exclude_none=True)
     response = requests.post(f"{BASE_URL}/chroma/delete", json=payload)
     assert response.status_code == 204
     # Additional assertions can be added based on expected response content
+
 
 def test_chroma_delete_validation_error():
     payload = {"invalid": "data"}
@@ -56,6 +58,7 @@ def test_chroma_delete_validation_error():
     assert response.status_code == 422
     error_response = HTTPValidationError.model_validate(response.json())
     # Additional assertions can be added to check the content of the error response
+
 
 def test_chroma_query():
     query_payload = ChromaRequest(
@@ -69,7 +72,7 @@ def test_chroma_query():
         index="tana-helper",
         score=0.8,
         top=10,
-        tags="test"
+        tags="test",
     ).model_dump(exclude_none=True)
     response = requests.post(f"{BASE_URL}/chroma/query", json=query_payload)
     assert response.status_code == 200
@@ -86,7 +89,9 @@ def test_chroma_upsert_delete_query_flow():
     assert upsert_response.status_code == 204
 
     # Delete the node
-    delete_payload = ChromaRequest(nodeId="unique-node-id").model_dump(exclude_none=True)
+    delete_payload = ChromaRequest(nodeId="unique-node-id").model_dump(
+        exclude_none=True
+    )
     delete_response = requests.post(f"{BASE_URL}/chroma/delete", json=delete_payload)
     assert delete_response.status_code == 204
 

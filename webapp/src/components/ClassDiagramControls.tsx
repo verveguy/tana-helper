@@ -1,17 +1,17 @@
-import React, { useEffect } from "react";
-import TanaFileUpload from "./ui/TanaFileUpload";
+// React import not needed for JSX in React 17+
+import TanaFileUpload from './ui/TanaFileUpload';
 // Replace context with Zustand store
-import { useAppStore, useAppActions } from "../hooks/useAppStore";
+import { useAppStore, useAppActions } from '../hooks/useAppStore';
 
 export default function ClassDiagramControls() {
   // Use Zustand actions instead of context
-  const { classLoading, classError } = useAppStore();
+  const { classLoading } = useAppStore();
   const { setMermaidText, setClassLoading, setClassError } = useAppActions();
 
   // Note: Removed automatic state reset - global state should persist across component lifecycle
 
-  const handleUploadSuccess = (data: string, rawFileData?: any) => {
-    console.log("Class diagram data received:", data);
+  const handleUploadSuccess = (data: string, _rawFileData?: any) => {
+    console.log('Class diagram data received:', data);
     setMermaidText(data);
     setClassError(null); // Clear class-specific error
     // Note: rawFileData not needed for class diagrams as they don't have live config changes

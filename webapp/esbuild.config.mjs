@@ -1,10 +1,8 @@
 import { copy } from 'esbuild-plugin-copy';
-import { build } from 'esbuild'
+import { build } from 'esbuild';
 
 const res = await build({
-  entryPoints: [
-    'src/Root.tsx',
-  ],
+  entryPoints: ['src/Root.tsx'],
 
   platform: 'browser',
   bundle: true,
@@ -25,7 +23,7 @@ const res = await build({
       assets: {
         from: ['./assets/**/*'],
         to: ['./dist/assets/'],
-      }
+      },
     }),
     copy({
       // this is equal to process.cwd(), which means we use cwd path as base path to resolve `to` path
@@ -36,6 +34,5 @@ const res = await build({
         to: ['./dist/templates/'],
       },
     }),
-  ]
-})
-
+  ],
+});

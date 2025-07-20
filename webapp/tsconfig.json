@@ -1,5 +1,5 @@
 {
-  "include": ["src", "vite.config.ts"],
+  "include": ["src", "src/types/global.d.ts", "vite.config.ts"],
   "exclude": ["node_modules", "dist"],
   "compilerOptions": {
     // Build output
@@ -7,7 +7,7 @@
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
-    
+
     // Language and module settings
     "target": "ES2020",
     "useDefineForClassFields": true,
@@ -19,13 +19,13 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    
+
     // JavaScript compatibility
     "allowJs": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    
+
     // Type checking
     "strict": true,
     "noImplicitAny": false,
@@ -33,7 +33,7 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,
-    
+
     // Path mapping for better imports
     "baseUrl": ".",
     "paths": {

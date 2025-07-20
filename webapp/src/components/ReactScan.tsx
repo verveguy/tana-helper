@@ -1,6 +1,6 @@
-"use client";
-import { JSX, useEffect } from "react";
-import { scan } from "react-scan";
+'use client';
+import { JSX, useEffect } from 'react';
+import { scan } from 'react-scan';
 
 /**
  * ReactScan Component

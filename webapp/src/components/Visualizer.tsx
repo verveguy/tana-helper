@@ -6,15 +6,20 @@
 
 */
 
-
-import React, { useMemo, useEffect, useState, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { useMemo, useEffect, useState, useCallback } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import ForceGraph3D from 'react-force-graph-3d';
 import ForceGraph2D from 'react-force-graph-2d';
 import { Loader2 } from 'lucide-react';
 
 // Replace context with Zustand store
-import { useGraphData, useVisualizerLoading, useTwoDee, useVisualizerError, useSidebarCollapsed } from "../hooks/useAppStore";
+import {
+  useGraphData,
+  useVisualizerLoading,
+  useTwoDee,
+  useVisualizerError,
+  useSidebarCollapsed,
+} from '../hooks/useAppStore';
 
 // Debounce utility to prevent excessive resize calculations
 const debounce = (func: Function, wait: number) => {
@@ -32,7 +37,7 @@ const debounce = (func: Function, wait: number) => {
 export default function Visualizer() {
   // Use Zustand hooks instead of context
   const graphData = useGraphData();
-  const loading = useVisualizerLoading(); 
+  const loading = useVisualizerLoading();
   const twoDee = useTwoDee();
   const error = useVisualizerError();
   const sidebarCollapsed = useSidebarCollapsed();
@@ -46,28 +51,29 @@ export default function Visualizer() {
     const sidebarWidth = sidebarCollapsed ? 64 : 240; // w-16 vs w-60 in Tailwind
     const availableWidth = window.innerWidth - sidebarWidth;
     const availableHeight = window.innerHeight;
-    
+
     return {
       width: availableWidth,
-      height: availableHeight
+      height: availableHeight,
     };
   }, [sidebarCollapsed]);
 
   // Debounced dimension update to prevent excessive re-renders during resize
   const debouncedUpdateDimensions = useMemo(
-    () => debounce(() => {
-      const newDimensions = calculateDimensions();
-      setDimensions(prevDimensions => {
-        // Only update if dimensions actually changed significantly (avoid tiny changes)
-        if (
-          Math.abs(prevDimensions.width - newDimensions.width) > 10 ||
-          Math.abs(prevDimensions.height - newDimensions.height) > 10
-        ) {
-          return newDimensions;
-        }
-        return prevDimensions; // Return same reference to prevent re-render
-      });
-    }, 100), // 100ms debounce
+    () =>
+      debounce(() => {
+        const newDimensions = calculateDimensions();
+        setDimensions(prevDimensions => {
+          // Only update if dimensions actually changed significantly (avoid tiny changes)
+          if (
+            Math.abs(prevDimensions.width - newDimensions.width) > 10 ||
+            Math.abs(prevDimensions.height - newDimensions.height) > 10
+          ) {
+            return newDimensions;
+          }
+          return prevDimensions; // Return same reference to prevent re-render
+        });
+      }, 100), // 100ms debounce
     [calculateDimensions]
   );
 
@@ -90,16 +96,19 @@ export default function Visualizer() {
   const memoizedGraphData = useMemo(() => graphData, [graphData]);
 
   // Memoize common props to prevent creating new objects on every render
-  const commonProps = useMemo(() => ({
-    graphData: memoizedGraphData,
-    nodeLabel: 'name',
-    nodeAutoColorBy: 'group',
-    linkDirectionalParticles: 2,
-    linkDirectionalParticleSpeed: 0.006,
-    backgroundColor: '#000000',
-    width: dimensions.width,
-    height: dimensions.height,
-  }), [memoizedGraphData, dimensions.width, dimensions.height]);
+  const commonProps = useMemo(
+    () => ({
+      graphData: memoizedGraphData,
+      nodeLabel: 'name',
+      nodeAutoColorBy: 'group',
+      linkDirectionalParticles: 2,
+      linkDirectionalParticleSpeed: 0.006,
+      backgroundColor: '#000000',
+      width: dimensions.width,
+      height: dimensions.height,
+    }),
+    [memoizedGraphData, dimensions.width, dimensions.height]
+  );
 
   if (loading) {
     return (
@@ -157,16 +166,12 @@ export default function Visualizer() {
           Graph Visualizer ({twoDee ? '2D' : '3D'})
         </h2>
         <p className="text-sm text-gray-300">
-          Interactive visualization of your Tana data relationships
+          Interactive visualization of your Tana node relationships
         </p>
       </div>
 
       {/* Full-screen visualization */}
-      {twoDee ? (
-        <ForceGraph2D {...commonProps} />
-      ) : (
-        <ForceGraph3D {...commonProps} />
-      )}
+      {twoDee ? <ForceGraph2D {...commonProps} /> : <ForceGraph3D {...commonProps} />}
     </div>
   );
 }

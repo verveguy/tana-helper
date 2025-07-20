@@ -1,6 +1,7 @@
 {
   "name": "tana-helper",
   "version": "0.1.1",
+  "type": "module",
   "license": "MIT",
   "author": "Brett Adam",
   "repository": {
@@ -10,11 +11,6 @@
   "private": false,
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.3",
-    "@react-hook/window-size": "^3.1.1",
-    "@rjsf/core": "^5.24.12",
-    "@rjsf/mui": "^5.24.12",
-    "@rjsf/utils": "^5.24.12",
-    "@rjsf/validator-ajv8": "^5.24.12",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/xterm": "^5.5.0",
     "axios": "^1.10.0",
@@ -30,9 +26,7 @@
     "react-force-graph-3d": "^1.28.0",
     "react-router-dom": "^6.22.1",
     "react-scan": "^0.4.3",
-    "react-zoom-pan-pinch": "^3.7.0",
     "tailwind-merge": "^3.3.1",
-    "web-vitals": "^3.3.2",
     "zustand": "^5.0.6"
   },
   "scripts": {
@@ -40,7 +34,10 @@
     "build": "vite build",
     "preview": "vite preview",
     "type-check": "tsc --noEmit",
-    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint:fix": "eslint src --ext ts,tsx --fix"
   },
   "eslintConfig": {
     "extends": [
@@ -61,6 +58,7 @@
     ]
   },
   "devDependencies": {
+    "@eslint/js": "^9.31.0",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^14.3.1",
@@ -70,17 +68,19 @@
     "@types/node": "^20.19.8",
     "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.7",
+    "@typescript-eslint/eslint-plugin": "^8.37.0",
+    "@typescript-eslint/parser": "^8.37.0",
     "@vitejs/plugin-react": "^4.6.0",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.25.6",
     "esbuild-plugin-copy": "^2.1.1",
-    "nodemon": "^3.1.10",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.3",
     "postcss": "^8.5.6",
-    "rimraf": "^5.0.10",
+    "prettier": "^3.6.2",
     "tailwindcss": "3.4.16",
     "typescript": "^5.8.3",
-    "vite": "^7.0.5",
-    "watch": "^1.0.2"
+    "vite": "^7.0.5"
   },
   "pnpm": {
     "overrides": {

@@ -6,11 +6,9 @@ from logging import getLogger
 
 from fastapi import APIRouter, Request
 from fastapi.encoders import jsonable_encoder
-from typing import List, Tuple
 
-# This is here to satisfy runtime import needs 
+# This is here to satisfy runtime import needs
 # that pyinstaller appears to miss
-
 from snowflake import SnowflakeGenerator
 
 from service.dependencies import (
@@ -20,7 +18,6 @@ from service.dependencies import (
     TanaNodeMetadata,
     capture_logs,
 )
-
 from service.endpoints.chroma import chroma_upsert
 from service.endpoints.topics import TanaDocument, extract_topics
 from service.tana_types import TanaDump
@@ -42,154 +39,171 @@ minutes = 1000 * 60
 # TODO: change this to remove LLamaindex and simply go directly to ChromaDB
 
 
-async def load_chromadb_from_topics(topics:List[TanaDocument], model:str, observe=False):
-  '''Load the topic index from the topic array directly.'''
+async def load_chromadb_from_topics(
+    topics: list[TanaDocument], model: str, observe=False
+):
+    """Load the topic index from the topic array directly."""
 
-  logger.info('Building ChromaDB vectors from nodes')
+    logger.info("Building ChromaDB vectors from nodes")
 
-  index_nodes = []
-  # loop through all the topics and create a Document for each
-  for topic in topics:
-    (doc_node, text_nodes) = document_from_topic(topic)
-    index_nodes.append(doc_node)
-    index_nodes.extend(text_nodes)
+    index_nodes = []
+    # loop through all the topics and create a Document for each
+    for topic in topics:
+        (doc_node, text_nodes) = document_from_topic(topic)
+        index_nodes.append(doc_node)
+        index_nodes.extend(text_nodes)
 
-  logger.info(f'Gathered {len(index_nodes)} tana nodes')
-  logger.info("Preparing storage context")
+    logger.info(f"Gathered {len(index_nodes)} tana nodes")
+    logger.info("Preparing storage context")
 
-  for node in index_nodes:
-    logger.info(f'Node {node.id} {node.metadata}')
-    chroma_req = ChromaRequest(context=node.text, nodeId=node.id, model=model)
-    upsert = await chroma_upsert(chroma_req)
-    
-  logger.info("ChromaDB populated and ready")
-  return index_nodes
+    for node in index_nodes:
+        logger.info(f"Node {node.id} {node.metadata}")
+        chroma_req = ChromaRequest(context=node.text, nodeId=node.id, model=model)
+        upsert = await chroma_upsert(chroma_req)
+
+    logger.info("ChromaDB populated and ready")
+    return index_nodes
+
 
 class Document:
-  def __init__(self, id:str, text:str, metadata:dict=None):
-    if not id:
-      raise ValueError('Document must have an id')
-    if not text:
-      raise ValueError('Document must have text')
-    self.id = id 
-    self.text = text
-    self.metadata = metadata if metadata else {}
+    def __init__(self, id: str, text: str, metadata: dict = None):
+        if not id:
+            raise ValueError("Document must have an id")
+        if not text:
+            raise ValueError("Document must have text")
+        self.id = id
+        self.text = text
+        self.metadata = metadata if metadata else {}
+
 
 class TextNode(Document):
-  def __init__(self, id:str, text:str, relationships:dict=None, metadata:dict=None):
-    super().__init__(id, text, metadata)
-    self.relationships = relationships if relationships else {}
+    def __init__(
+        self, id: str, text: str, relationships: dict = None, metadata: dict = None
+    ):
+        super().__init__(id, text, metadata)
+        self.relationships = relationships if relationships else {}
+
 
 class NodeRelationship:
-  SOURCE = 'source'
-  NEXT = 'next'
-  PREVIOUS = 'previous'
+    SOURCE = "source"
+    NEXT = "next"
+    PREVIOUS = "previous"
 
-def document_from_topic(topic) -> Tuple[Document, List[TextNode]]:
-  '''Load a single topic into the index_nodes list.'''
-  text_nodes = []
 
-  metadata = {
-    'category': TANA_NODE,
-    'supertag': ' '.join([tag for tag in topic.tags]),
-    'title': topic.name,
+def document_from_topic(topic) -> tuple[Document, list[TextNode]]:
+    """Load a single topic into the index_nodes list."""
+    text_nodes = []
+
+    metadata = {
+        "category": TANA_NODE,
+        "supertag": " ".join([tag for tag in topic.tags]),
+        "title": topic.name,
     }
-  
-  if topic.fields:
-    # get all the fields as metdata as well
-    fields = set([field.name for field in topic.fields])
-    for field_name in fields:
-      metadata[field_name] = ' '.join([field.value for field in topic.fields if field.name == field_name])
 
-  # what other props do we need to create?
-  # document = Document(id_=topic.id, text=topic.name) # type: ignore
-  # we only add the ffirst line and fields to the document payload
-  # anything else and we blow out the token limits (and cost a lot!)
-  text = topic.content[0][2]
-  document_node = Document(id=topic.id, text=text, metadata=metadata) # first line only
+    if topic.fields:
+        # get all the fields as metdata as well
+        fields = set([field.name for field in topic.fields])
+        for field_name in fields:
+            metadata[field_name] = " ".join(
+                [field.value for field in topic.fields if field.name == field_name]
+            )
 
-  # # make a note of the document in our nodes list
-  # index_nodes.append(document_node)
+    # what other props do we need to create?
+    # document = Document(id_=topic.id, text=topic.name) # type: ignore
+    # we only add the ffirst line and fields to the document payload
+    # anything else and we blow out the token limits (and cost a lot!)
+    text = topic.content[0][2]
+    document_node = Document(
+        id=topic.id, text=text, metadata=metadata
+    )  # first line only
 
-  # now iterate all the remaining topic.content and create a node for each
-  # each of these is simply a string, being the name of a tana child node
-  # but with [[]name^id]] reference syntax used for references
-  # TODO: make these tana_nodes richer structurally
-  # TODO: use actual tana node id here perhaps?
-  previous_text_node = None
-  if len(topic.content) > 30:
-    logger.warning(f'Large topic {topic.id} with {len(topic.content)} children')
+    # # make a note of the document in our nodes list
+    # index_nodes.append(document_node)
 
-  # process all the child content records...
-  for (content_id, is_ref, tana_element) in topic.content[1:]:
-    content_metadata = TanaNodeMetadata(
-      category=TANA_TEXT,
-      title=topic.name,
-      topic_id=topic.id,
-      # TODO: ? 'supertag': ' '.join(['#' + tag for tag in topic.tags]),
-      # text gets added below...
-    )
-    
-    # wire up the tana_node as an index_node with the text as the payload
-    if is_ref:
-      ref_id = next(snowflakes)
-      current_text_node = TextNode(id=ref_id, text=tana_element) # type: ignore
-      current_text_node.metadata['tana_ref_id'] = content_id
-    else:
-      current_text_node = TextNode(id=content_id, text=tana_element)
+    # now iterate all the remaining topic.content and create a node for each
+    # each of these is simply a string, being the name of a tana child node
+    # but with [[]name^id]] reference syntax used for references
+    # TODO: make these tana_nodes richer structurally
+    # TODO: use actual tana node id here perhaps?
+    previous_text_node = None
+    if len(topic.content) > 30:
+        logger.warning(f"Large topic {topic.id} with {len(topic.content)} children")
 
-    current_text_node.metadata = content_metadata.model_dump()
+    # process all the child content records...
+    for content_id, is_ref, tana_element in topic.content[1:]:
+        content_metadata = TanaNodeMetadata(
+            category=TANA_TEXT,
+            title=topic.name,
+            topic_id=topic.id,
+            # TODO: ? 'supertag': ' '.join(['#' + tag for tag in topic.tags]),
+            # text gets added below...
+        )
 
-    # check if this is a reference node and add additional metadata
-    # TODO: backport this to chroma upsert...?
+        # wire up the tana_node as an index_node with the text as the payload
+        if is_ref:
+            ref_id = next(snowflakes)
+            current_text_node = TextNode(id=ref_id, text=tana_element)  # type: ignore
+            current_text_node.metadata["tana_ref_id"] = content_id
+        else:
+            current_text_node = TextNode(id=content_id, text=tana_element)
 
-    current_text_node.relationships[NodeRelationship.SOURCE] = document_node.id
-    # wire up next/previous
-    if previous_text_node:
-      current_text_node.relationships[NodeRelationship.PREVIOUS] = previous_text_node.id
-      previous_text_node.relationships[NodeRelationship.NEXT] = current_text_node.id
+        current_text_node.metadata = content_metadata.model_dump()
 
-    text_nodes.append(current_text_node)
-    previous_text_node = current_text_node
-  
-  return (document_node, text_nodes)
+        # check if this is a reference node and add additional metadata
+        # TODO: backport this to chroma upsert...?
+
+        current_text_node.relationships[NodeRelationship.SOURCE] = document_node.id
+        # wire up next/previous
+        if previous_text_node:
+            current_text_node.relationships[NodeRelationship.PREVIOUS] = (
+                previous_text_node.id
+            )
+            previous_text_node.relationships[NodeRelationship.NEXT] = (
+                current_text_node.id
+            )
+
+        text_nodes.append(current_text_node)
+        previous_text_node = current_text_node
+
+    return (document_node, text_nodes)
+
 
 # attempt to parallelize non-async code
 # see https://github.com/tiangolo/fastapi/discussions/6347
 lock = asyncio.Lock()
 
+
 # Note: accepts ?model= query param
 @router.post("/chroma/preload", tags=["preload"])
-async def chroma_preload(request: Request, tana_dump:TanaDump, model:str="openai"):
-  '''Accepts a Tana dump JSON payload and builds the index from it.
-  Uses the topic extraction code from the topics endpoint to build
-  an object tree in memory, then loads that into ChromaDB via LLamaIndex.
-  
-  Returns a list of log messages from the process.
-  '''
-  async with lock:
-    messages = []
-    async with capture_logs(logger) as logs:
-      result = await extract_topics(tana_dump, 'JSON') # type: ignore
-      logger.info('Extracted topics from Tana dump')
+async def chroma_preload(request: Request, tana_dump: TanaDump, model: str = "openai"):
+    """Accepts a Tana dump JSON payload and builds the index from it.
+    Uses the topic extraction code from the topics endpoint to build
+    an object tree in memory, then loads that into ChromaDB via LLamaIndex.
 
-      # save output to a temporary file
-      with tempfile.TemporaryDirectory() as tmp:
-        path = os.path.join(tmp, 'topics.json')
-        logger.info(f'Saving topics to {path}')
-        # use path
-        with open(path, "w") as f:
-          json_result = jsonable_encoder(result)
-          f.write(json.dumps(json_result))
-        
-        logger.info('Loading index ...')
-      # don't use file anymore...
-      # load_index_from_file(path)
-      # load directly from in-memory representation
-      await load_chromadb_from_topics(result, model=model)
-      # load_index_from_topics(result, model=model)
-    
-      # logger.info(f'Deleted temp file {path}')
-      messages = logs.getvalue()
-    return messages
+    Returns a list of log messages from the process.
+    """
+    async with lock:
+        messages = []
+        async with capture_logs(logger) as logs:
+            result = await extract_topics(tana_dump, "JSON")  # type: ignore
+            logger.info("Extracted topics from Tana dump")
 
+            # save output to a temporary file
+            with tempfile.TemporaryDirectory() as tmp:
+                path = os.path.join(tmp, "topics.json")
+                logger.info(f"Saving topics to {path}")
+                # use path
+                with open(path, "w") as f:
+                    json_result = jsonable_encoder(result)
+                    f.write(json.dumps(json_result))
+
+                logger.info("Loading index ...")
+            # don't use file anymore...
+            # load_index_from_file(path)
+            # load directly from in-memory representation
+            await load_chromadb_from_topics(result, model=model)
+            # load_index_from_topics(result, model=model)
+
+            # logger.info(f'Deleted temp file {path}')
+            messages = logs.getvalue()
+        return messages

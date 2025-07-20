@@ -3,12 +3,12 @@
   Connects to the WebSocket log stream endpoint
 */
 
-import React, { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import './Logs.css';
-import { useDimensions } from "./utils";
+import { useDimensions } from './utils';
 
 export default function Logs() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -29,18 +29,18 @@ export default function Logs() {
       fontFamily: 'Monaco, Menlo, "DejaVu Sans Mono", monospace',
       theme: {
         background: '#1a1a1a',
-        foreground: '#ffffff'
+        foreground: '#ffffff',
       },
       scrollback: 1000,
-      convertEol: true  // Convert line endings for proper wrapping
+      convertEol: true, // Convert line endings for proper wrapping
     });
-    
+
     const fitAddon = new FitAddon();
     terminal.loadAddon(fitAddon);
 
     // Open terminal in the DOM element
     terminal.open(termRef.current);
-    
+
     // Store references
     terminalRef.current = terminal;
     fitAddonRef.current = fitAddon;
@@ -53,12 +53,12 @@ export default function Logs() {
     }, 50);
 
     // Initialize WebSocket connection
-    const ws = new WebSocket("ws://localhost:8000/ws/log");
+    const ws = new WebSocket('ws://localhost:8000/ws/log');
     wsRef.current = ws;
 
     ws.onopen = () => {
-      console.log("WebSocket connected for log streaming");
-      terminal.writeln("Connected to log stream...\r\n");
+      console.log('WebSocket connected for log streaming');
+      terminal.writeln('Connected to log stream...\r\n');
       // Ensure fit after connection message
       setTimeout(() => {
         if (fitAddonRef.current) {
@@ -67,23 +67,23 @@ export default function Logs() {
       }, 100);
     };
 
-    ws.onmessage = (event) => {
+    ws.onmessage = event => {
       if (terminalRef.current) {
         terminalRef.current.write(event.data);
       }
     };
 
     ws.onclose = () => {
-      console.log("WebSocket disconnected");
+      console.log('WebSocket disconnected');
       if (terminalRef.current) {
-        terminalRef.current.writeln("\r\nDisconnected from log stream.");
+        terminalRef.current.writeln('\r\nDisconnected from log stream.');
       }
     };
 
-    ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
+    ws.onerror = error => {
+      console.error('WebSocket error:', error);
       if (terminalRef.current) {
-        terminalRef.current.writeln("\r\nError connecting to log stream.");
+        terminalRef.current.writeln('\r\nError connecting to log stream.');
       }
     };
 
@@ -101,7 +101,7 @@ export default function Logs() {
   // Handle window resizing and initial sizing
   useEffect(() => {
     if (!fitAddonRef.current) return;
-    
+
     const resizeTimeout = setTimeout(() => {
       if (fitAddonRef.current) {
         fitAddonRef.current.fit();

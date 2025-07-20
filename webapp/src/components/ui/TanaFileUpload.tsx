@@ -1,8 +1,6 @@
-import React, { useState, useCallback, useEffect } from "react";
-import { Button } from "./button";
-import { Input } from "./input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./card";
-import { Upload, Loader2, X } from "lucide-react";
+import React, { useState, useCallback, useEffect } from 'react';
+import { Input } from './input';
+import { Upload, Loader2 } from 'lucide-react';
 import axios from 'axios';
 
 export interface TanaFileUploadProps {
@@ -20,7 +18,7 @@ export default function TanaFileUpload({
   onSuccess,
   onError,
   loading,
-  setLoading
+  setLoading,
 }: TanaFileUploadProps) {
   const [dumpFile, setDumpFile] = useState<File | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -29,10 +27,10 @@ export default function TanaFileUpload({
     const target = event.currentTarget;
     const file = target.files?.[0];
     if (file) {
-      console.log("File selected:", file.name, file.size, file.type);
+      console.log('File selected:', file.name, file.size, file.type);
       setDumpFile(file);
     }
-    event.currentTarget.value = "";
+    event.currentTarget.value = '';
   }, []);
 
   const handleDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
@@ -40,7 +38,7 @@ export default function TanaFileUpload({
     setIsDragOver(false);
     const file = event.dataTransfer.files[0];
     if (file && file.type === 'application/json') {
-      console.log("File dropped:", file.name, file.size);
+      console.log('File dropped:', file.name, file.size);
       setDumpFile(file);
     }
   }, []);
@@ -54,9 +52,10 @@ export default function TanaFileUpload({
     setIsDragOver(false);
   }, []);
 
-  const clearFile = useCallback(() => {
-    setDumpFile(null);
-  }, []);
+  // Commented out clearFile as it's not used
+  // const clearFile = useCallback(() => {
+  //   setDumpFile(null);
+  // }, []);
 
   const uploadFile = useCallback(async () => {
     if (!dumpFile) return;
@@ -67,59 +66,58 @@ export default function TanaFileUpload({
     try {
       let response;
       let rawFileData: any = null;
-      
+
       if (uploadType === 'json') {
         // Read file as JSON and send as application/json
         const reader = new FileReader();
-        
+
         const uploadPromise = new Promise((resolve, reject) => {
-          reader.onload = async (event) => {
+          reader.onload = async event => {
             try {
               const fileContent = event.target?.result as string;
               const jsonData = JSON.parse(fileContent);
               rawFileData = jsonData; // Store the parsed JSON data
-              console.log("File parsed successfully, sending to server...");
-              
+              console.log('File parsed successfully, sending to server...');
+
               const response = await axios.post(endpoint, jsonData, {
                 headers: {
-                  "Content-Type": "application/json",
-                }
+                  'Content-Type': 'application/json',
+                },
               });
               resolve(response);
-            } catch (parseError) {
-              reject(new Error("Invalid JSON file. Please check your file format."));
+            } catch {
+              reject(new Error('Invalid JSON file. Please check your file format.'));
             }
           };
-          
+
           reader.onerror = () => {
-            reject(new Error("Failed to read file. Please try again."));
+            reject(new Error('Failed to read file. Please try again.'));
           };
         });
-        
+
         reader.readAsText(dumpFile);
         response = await uploadPromise;
       } else {
         // Send as FormData (multipart/form-data)
         const formData = new FormData();
         formData.append('file', dumpFile);
-        
+
         response = await axios.post(endpoint, formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
         });
-        
+
         // For FormData uploads, we can't easily get the raw data back
         // but we can store the file for potential re-upload
         rawFileData = dumpFile;
       }
 
-      console.log("Upload successful, response:", response);
+      console.log('Upload successful, response:', response);
       onSuccess(response.data, rawFileData); // Pass both response and raw data
       setDumpFile(null); // Clear file after successful upload
-      
     } catch (error: any) {
-      console.error("Upload failed:", error);
+      console.error('Upload failed:', error);
       const errorMessage = error.response?.data?.detail || error.message || 'Upload failed';
       onError(`Failed to process file: ${errorMessage}`);
     } finally {
@@ -155,12 +153,10 @@ export default function TanaFileUpload({
         ) : (
           <>
             <Upload className="mx-auto h-6 w-6 text-muted-foreground mb-2" />
-            <div className="text-sm text-muted-foreground">
-              Drop file or click to browse
-            </div>
+            <div className="text-sm text-muted-foreground">Drop file or click to browse</div>
           </>
         )}
-        
+
         <Input
           type="file"
           accept=".json"
@@ -173,4 +169,4 @@ export default function TanaFileUpload({
       </div>
     </div>
   );
-} 
+}

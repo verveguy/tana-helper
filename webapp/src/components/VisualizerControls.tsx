@@ -1,13 +1,13 @@
-import React, { useState, useMemo, useCallback, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import TanaFileUpload from "./ui/TanaFileUpload";
+import React, { useState, useMemo, useCallback } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import TanaFileUpload from './ui/TanaFileUpload';
 
 import { GraphData } from 'react-force-graph-3d';
-import { Index } from "flexsearch";
+import { Index } from 'flexsearch';
 // Updated to use Zustand store instead of React Context
-import { useAppStore, useAppActions } from "../hooks/useAppStore";
+import { useAppStore, useAppActions } from '../hooks/useAppStore';
 
 // Server-side Visualizer configuration - matches service/service/tana_types.py
 interface VisualizerConfig {
@@ -29,18 +29,18 @@ interface TanaGraphData extends GraphData {
 export default function VisualizerControls() {
   const { graphData, visualizerLoading, twoDee, visualizerError } = useAppStore();
   const { setGraphData, setTwoDee, setVisualizerLoading, setVisualizerError } = useAppActions();
-  
+
   const [searchString, setSearchString] = useState('');
   const [rawGraphData, setRawGraphData] = useState<any>(null);
-  const [searchIndex, setSearchIndex] = useState(new Index({ preset: "match" }));
-  const [config, setConfig] = useState<VisualizerConfig>({ 
-    include_all_nodes: false,           // KEY: Only show nodes connected by enabled links
-    include_tag_tag_links: true,        // Show tag hierarchy relationships
-    include_node_tag_links: true,       // Show which nodes have which tags
-    include_inline_refs: false,         // Hide indirect references (reduces noise)
-    include_inline_ref_nodes: false,    // Hide inline reference nodes (reduces noise)
-    include_content_nodes: false,       // Hide child content nodes (detail nodes)
-    include_tag_schema_links: false     // Hide tag schema relationships
+  const [searchIndex, setSearchIndex] = useState(new Index({ preset: 'match' }));
+  const [config, setConfig] = useState<VisualizerConfig>({
+    include_all_nodes: false, // KEY: Only show nodes connected by enabled links
+    include_tag_tag_links: true, // Show tag hierarchy relationships
+    include_node_tag_links: true, // Show which nodes have which tags
+    include_inline_refs: false, // Hide indirect references (reduces noise)
+    include_inline_ref_nodes: false, // Hide inline reference nodes (reduces noise)
+    include_content_nodes: false, // Hide child content nodes (detail nodes)
+    include_tag_schema_links: false, // Hide tag schema relationships
   });
 
   // Note: Removed automatic state reset - global state should persist across component lifecycle
@@ -55,109 +55,120 @@ export default function VisualizerControls() {
   }, []);
 
   // Restored original filtering logic from pre-migration with search integration
-  const applyClientSideFiltering = useCallback((data: TanaGraphData, filterConfig: VisualizerConfig, searchStr: string): TanaGraphData => {
-    if (!data || !data.links) return data;
+  const applyClientSideFiltering = useCallback(
+    (data: TanaGraphData, filterConfig: VisualizerConfig, searchStr: string): TanaGraphData => {
+      if (!data || !data.links) return data;
 
-    console.log("Applying client-side filtering with config:", filterConfig, "search:", searchStr);
-    
-    // Debug: Check what link types we're receiving
-    const linkTypes = new Set(data.links.map(link => link.reason));
-    console.log("Link types in data:", Array.from(linkTypes));
+      console.log(
+        'Applying client-side filtering with config:',
+        filterConfig,
+        'search:',
+        searchStr
+      );
 
-    // Start with a copy of raw data
-    let newGraph = { ...data };
-    let connectedNodeIds = {};
+      // Debug: Check what link types we're receiving
+      const linkTypes = new Set(data.links.map(link => link.reason));
+      console.log('Link types in data:', Array.from(linkTypes));
 
-    // Build search result set if there's a search string
-    let searchResultIds = {};
-    let hasSearch = searchStr && searchStr.trim() !== '';
-    
-    if (hasSearch && searchIndex) {
-      const searchResults = searchIndex.search(searchStr.trim());
-      console.log(`Search for "${searchStr}" found ${searchResults.length} matches`);
-      
-      // Convert search results to a lookup dictionary
-      searchResultIds = searchResults.reduce((dict, nodeId) => {
-        dict[nodeId as string] = {};
-        return dict;
-      }, {} as Record<string, {}>);
-    }
+      // Start with a copy of raw data
+      let newGraph = { ...data };
+      let connectedNodeIds = {};
 
-    // Filter links based on reason codes AND build connected nodes dictionary
-    const filteredLinks = data.links.filter((link: any) => {
-      let found = false;
+      // Build search result set if there's a search string
+      let searchResultIds = {};
+      let hasSearch = searchStr && searchStr.trim() !== '';
 
-      // First check if link type is enabled
-      switch (link.reason) {
-        case 'itn': // tag-to-tag links
-          found = filterConfig.include_tag_tag_links;
-          break;
-        case 'itl': // node-to-tag links  
-          found = filterConfig.include_node_tag_links;
-          break;
-        case 'iir': // indirect/inline reference links
-          found = filterConfig.include_inline_refs;
-          break;
-        case 'iin': // inline reference node links
-          found = filterConfig.include_inline_ref_nodes;
-          break;
-        case 'icl': // content links
-          found = filterConfig.include_content_nodes;
-          break;
-        case 'its': // tag schema links
-          found = filterConfig.include_tag_schema_links;
-          break;
-        default:
-          found = false; // Exclude unknown link types
+      if (hasSearch && searchIndex) {
+        const searchResults = searchIndex.search(searchStr.trim());
+        console.log(`Search for "${searchStr}" found ${searchResults.length} matches`);
+
+        // Convert search results to a lookup dictionary
+        searchResultIds = searchResults.reduce(
+          (dict, nodeId) => {
+            dict[nodeId as string] = {};
+            return dict;
+          },
+          {} as Record<string, {}>
+        );
       }
 
-      // If link type is enabled, check search filter
-      if (found && hasSearch) {
-        const sourceId = getIdFrom(link.source);
-        const targetId = getIdFrom(link.target);
-        
-        // Only include link if at least one endpoint matches search
-        found = (sourceId in searchResultIds) || (targetId in searchResultIds);
-      }
+      // Filter links based on reason codes AND build connected nodes dictionary
+      const filteredLinks = data.links.filter((link: any) => {
+        let found = false;
 
-      // If this link passed all filters, add its endpoints to connected nodes
-      if (found) {
-        const sourceId = getIdFrom(link.source);
-        const targetId = getIdFrom(link.target);
-        connectedNodeIds[sourceId] = {};
-        connectedNodeIds[targetId] = {};
-      }
+        // First check if link type is enabled
+        switch (link.reason) {
+          case 'itn': // tag-to-tag links
+            found = filterConfig.include_tag_tag_links;
+            break;
+          case 'itl': // node-to-tag links
+            found = filterConfig.include_node_tag_links;
+            break;
+          case 'iir': // indirect/inline reference links
+            found = filterConfig.include_inline_refs;
+            break;
+          case 'iin': // inline reference node links
+            found = filterConfig.include_inline_ref_nodes;
+            break;
+          case 'icl': // content links
+            found = filterConfig.include_content_nodes;
+            break;
+          case 'its': // tag schema links
+            found = filterConfig.include_tag_schema_links;
+            break;
+          default:
+            found = false; // Exclude unknown link types
+        }
 
-      return found;
-    });
+        // If link type is enabled, check search filter
+        if (found && hasSearch) {
+          const sourceId = getIdFrom(link.source);
+          const targetId = getIdFrom(link.target);
 
-    newGraph.links = filteredLinks;
-    
-    console.log(`Filtered links: ${data.links.length} -> ${filteredLinks.length}`);
+          // Only include link if at least one endpoint matches search
+          found = sourceId in searchResultIds || targetId in searchResultIds;
+        }
 
-    // Filter nodes based on include_all_nodes OR being connected by included links OR search results
-    const filteredNodes = data.nodes.filter((node) => {
-      // If "show all nodes" is checked, show everything (but still respect search)
-      if (filterConfig.include_all_nodes) {
-        return hasSearch ? (node.id && node.id in searchResultIds) : true;
-      }
-      
-      // Otherwise, show nodes that are either:
-      // 1. In search results (if searching), OR
-      // 2. Connected by enabled links
-      if (hasSearch) {
-        return node.id && ((node.id in searchResultIds) || (node.id in connectedNodeIds));
-      } else {
-        return node.id && node.id in connectedNodeIds;
-      }
-    });
+        // If this link passed all filters, add its endpoints to connected nodes
+        if (found) {
+          const sourceId = getIdFrom(link.source);
+          const targetId = getIdFrom(link.target);
+          connectedNodeIds[sourceId] = {};
+          connectedNodeIds[targetId] = {};
+        }
 
-    newGraph.nodes = filteredNodes;
-    
-    console.log(`Filtered nodes: ${data.nodes.length} -> ${filteredNodes.length}`);
+        return found;
+      });
 
-    return newGraph;
-  }, [getIdFrom, searchIndex]);
+      newGraph.links = filteredLinks;
+
+      console.log(`Filtered links: ${data.links.length} -> ${filteredLinks.length}`);
+
+      // Filter nodes based on include_all_nodes OR being connected by included links OR search results
+      const filteredNodes = data.nodes.filter(node => {
+        // If "show all nodes" is checked, show everything (but still respect search)
+        if (filterConfig.include_all_nodes) {
+          return hasSearch ? node.id && node.id in searchResultIds : true;
+        }
+
+        // Otherwise, show nodes that are either:
+        // 1. In search results (if searching), OR
+        // 2. Connected by enabled links
+        if (hasSearch) {
+          return node.id && (node.id in searchResultIds || node.id in connectedNodeIds);
+        } else {
+          return node.id && node.id in connectedNodeIds;
+        }
+      });
+
+      newGraph.nodes = filteredNodes;
+
+      console.log(`Filtered nodes: ${data.nodes.length} -> ${filteredNodes.length}`);
+
+      return newGraph;
+    },
+    [getIdFrom, searchIndex]
+  );
 
   // Memoize filtered graph data to prevent unnecessary re-renders
   const filteredGraphData = useMemo(() => {
@@ -173,28 +184,34 @@ export default function VisualizerControls() {
   }, [filteredGraphData, setGraphData]);
 
   // Upload handler that stores raw data and builds search index
-  const handleUploadSuccess = useCallback((data: TanaGraphData, rawData?: any) => {
-    console.log("Graph data received:", data);
-    setRawGraphData(data); // Store the raw data with all links
-    
-    // Build search index from node names
-    if (data && data.nodes) {
-      const newIndex = new Index({ preset: "match" });
-      data.nodes.forEach((node) => {
-        if (node.id && node.name) {
-          newIndex.add(node.id, node.name);
-        }
-      });
-      setSearchIndex(newIndex);
-      console.log(`Built search index with ${data.nodes.length} nodes`);
-    }
-    
-    setVisualizerError(null); // Clear visualizer-specific error
-  }, [setVisualizerError]);
+  const handleUploadSuccess = useCallback(
+    (data: TanaGraphData, _rawData?: any) => {
+      console.log('Graph data received:', data);
+      setRawGraphData(data); // Store the raw data with all links
 
-  const handleUploadError = useCallback((errorMessage: string) => {
-    setVisualizerError(errorMessage); // Set visualizer-specific error
-  }, [setVisualizerError]);
+      // Build search index from node names
+      if (data && data.nodes) {
+        const newIndex = new Index({ preset: 'match' });
+        data.nodes.forEach(node => {
+          if (node.id && node.name) {
+            newIndex.add(node.id, node.name);
+          }
+        });
+        setSearchIndex(newIndex);
+        console.log(`Built search index with ${data.nodes.length} nodes`);
+      }
+
+      setVisualizerError(null); // Clear visualizer-specific error
+    },
+    [setVisualizerError]
+  );
+
+  const handleUploadError = useCallback(
+    (errorMessage: string) => {
+      setVisualizerError(errorMessage); // Set visualizer-specific error
+    },
+    [setVisualizerError]
+  );
 
   // Handle config changes - now memoized to prevent excessive re-renders
   const handleConfigChange = useCallback((key: keyof VisualizerConfig, value: boolean) => {
@@ -203,16 +220,13 @@ export default function VisualizerControls() {
       if (prevConfig[key] === value) {
         return prevConfig; // Return same reference to prevent re-renders
       }
-      
+
       return {
         ...prevConfig,
-        [key]: value
+        [key]: value,
       };
     });
   }, []);
-
-
-
 
   return (
     <>
@@ -238,7 +252,7 @@ export default function VisualizerControls() {
               <label className="text-sm font-medium mb-2 block">View Mode</label>
               <div className="flex items-center space-x-2">
                 <Button
-                  variant={twoDee ? "default" : "outline"}
+                  variant={twoDee ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setTwoDee(true)}
                   disabled={visualizerLoading}
@@ -246,7 +260,7 @@ export default function VisualizerControls() {
                   2D
                 </Button>
                 <Button
-                  variant={!twoDee ? "default" : "outline"}
+                  variant={!twoDee ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setTwoDee(false)}
                   disabled={visualizerLoading}
@@ -261,35 +275,39 @@ export default function VisualizerControls() {
               <label className="text-sm font-medium mb-3 block">Graph Elements</label>
               <div className="space-y-3">
                 <div className="text-xs text-muted-foreground mb-2 p-2 bg-muted/50 rounded">
-                  <strong>Live Configuration:</strong> Changes are automatically applied to your visualization.
+                  <strong>Live Configuration:</strong> Changes are automatically applied to your
+                  visualization.
                 </div>
-                
+
                 {/* Show All Nodes - Primary Control */}
                 <div className="flex items-center space-x-2 p-2 bg-primary/10 rounded border">
                   <input
                     type="checkbox"
                     id="include_all_nodes"
                     checked={config.include_all_nodes}
-                    onChange={(e) => handleConfigChange('include_all_nodes', e.target.checked)}
+                    onChange={e => handleConfigChange('include_all_nodes', e.target.checked)}
                     disabled={visualizerLoading || !rawGraphData}
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded disabled:opacity-50"
                   />
-                  <label htmlFor="include_all_nodes" className="text-sm font-medium text-foreground">
+                  <label
+                    htmlFor="include_all_nodes"
+                    className="text-sm font-medium text-foreground"
+                  >
                     Show all nodes (including unconnected detail nodes)
                   </label>
                 </div>
-                
+
                 <div className="text-xs text-muted-foreground mb-2">
                   When unchecked, only shows nodes connected by the link types selected below.
                 </div>
-                
+
                 {/* Include Tag-Tag Links */}
                 <div className="flex items-center space-x-2">
                   <input
                     type="checkbox"
                     id="include_tag_tag_links"
                     checked={config.include_tag_tag_links}
-                    onChange={(e) => handleConfigChange('include_tag_tag_links', e.target.checked)}
+                    onChange={e => handleConfigChange('include_tag_tag_links', e.target.checked)}
                     disabled={visualizerLoading || !rawGraphData}
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded disabled:opacity-50"
                   />
@@ -304,7 +322,7 @@ export default function VisualizerControls() {
                     type="checkbox"
                     id="include_node_tag_links"
                     checked={config.include_node_tag_links}
-                    onChange={(e) => handleConfigChange('include_node_tag_links', e.target.checked)}
+                    onChange={e => handleConfigChange('include_node_tag_links', e.target.checked)}
                     disabled={visualizerLoading || !rawGraphData}
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded disabled:opacity-50"
                   />
@@ -319,7 +337,7 @@ export default function VisualizerControls() {
                     type="checkbox"
                     id="include_inline_refs"
                     checked={config.include_inline_refs}
-                    onChange={(e) => handleConfigChange('include_inline_refs', e.target.checked)}
+                    onChange={e => handleConfigChange('include_inline_refs', e.target.checked)}
                     disabled={visualizerLoading || !rawGraphData}
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded disabled:opacity-50"
                   />
@@ -334,7 +352,7 @@ export default function VisualizerControls() {
                     type="checkbox"
                     id="include_inline_ref_nodes"
                     checked={config.include_inline_ref_nodes}
-                    onChange={(e) => handleConfigChange('include_inline_ref_nodes', e.target.checked)}
+                    onChange={e => handleConfigChange('include_inline_ref_nodes', e.target.checked)}
                     disabled={visualizerLoading || !rawGraphData}
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded disabled:opacity-50"
                   />
@@ -349,7 +367,7 @@ export default function VisualizerControls() {
                     type="checkbox"
                     id="include_content_nodes"
                     checked={config.include_content_nodes}
-                    onChange={(e) => handleConfigChange('include_content_nodes', e.target.checked)}
+                    onChange={e => handleConfigChange('include_content_nodes', e.target.checked)}
                     disabled={visualizerLoading || !rawGraphData}
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded disabled:opacity-50"
                   />
@@ -364,7 +382,7 @@ export default function VisualizerControls() {
                     type="checkbox"
                     id="include_tag_schema_links"
                     checked={config.include_tag_schema_links}
-                    onChange={(e) => handleConfigChange('include_tag_schema_links', e.target.checked)}
+                    onChange={e => handleConfigChange('include_tag_schema_links', e.target.checked)}
                     disabled={visualizerLoading || !rawGraphData}
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded disabled:opacity-50"
                   />
@@ -382,7 +400,7 @@ export default function VisualizerControls() {
                 <Input
                   placeholder="Search nodes..."
                   value={searchString}
-                  onChange={(e) => setSearchString(e.target.value)}
+                  onChange={e => setSearchString(e.target.value)}
                   disabled={visualizerLoading}
                 />
               </div>
@@ -397,9 +415,7 @@ export default function VisualizerControls() {
           <CardContent className="pt-6">
             <div className="p-3 bg-red-50 border border-red-200 rounded-md">
               <div className="flex items-start justify-between">
-                <div className="text-sm text-red-800">
-                  {visualizerError}
-                </div>
+                <div className="text-sm text-red-800">{visualizerError}</div>
                 <Button
                   variant="ghost"
                   size="sm"

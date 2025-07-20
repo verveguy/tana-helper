@@ -1,6 +1,6 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import { resolve } from 'path'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { resolve } from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -14,9 +14,9 @@ export default defineConfig({
     sourcemap: true,
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'index.html')
-      }
-    }
+        main: resolve(__dirname, 'index.html'),
+      },
+    },
   },
   server: {
     port: 3000,
@@ -27,56 +27,56 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
-        secure: false
+        secure: false,
       },
       // Proxy specific backend endpoints
       '/configure': {
         target: 'http://localhost:8000',
         changeOrigin: true,
-        secure: false
+        secure: false,
       },
       '/configuration': {
         target: 'http://localhost:8000',
         changeOrigin: true,
-        secure: false
+        secure: false,
       },
       '/graph': {
         target: 'http://localhost:8000',
         changeOrigin: true,
-        secure: false
+        secure: false,
       },
       '/class_diagram': {
         target: 'http://localhost:8000',
         changeOrigin: true,
-        secure: false
+        secure: false,
       },
       '/mermaid_classes': {
         target: 'http://localhost:8000',
         changeOrigin: true,
-        secure: false
+        secure: false,
       },
       '/rag_index': {
         target: 'http://localhost:8000',
         changeOrigin: true,
-        secure: false
+        secure: false,
       },
       '/openapi.json': {
         target: 'http://localhost:8000',
         changeOrigin: true,
-        secure: false
+        secure: false,
       },
       '/docs': {
         target: 'http://localhost:8000',
         changeOrigin: true,
-        secure: false
+        secure: false,
       },
       // WebSocket for logs
       '/ws': {
         target: 'ws://localhost:8000',
         ws: true,
-        changeOrigin: true
-      }
-    }
+        changeOrigin: true,
+      },
+    },
   },
   resolve: {
     alias: {
@@ -85,13 +85,13 @@ export default defineConfig({
       '@hooks': resolve(__dirname, 'src/hooks'),
       '@store': resolve(__dirname, 'src/store'),
       '@types': resolve(__dirname, 'src/types'),
-      '@utils': resolve(__dirname, 'src/utils')
-    }
+      '@utils': resolve(__dirname, 'src/utils'),
+    },
   },
   define: {
     // Only expose specific environment variables, not the entire process.env
     'import.meta.env.MODE': JSON.stringify(process.env.NODE_ENV || 'development'),
     'import.meta.env.DEV': process.env.NODE_ENV !== 'production',
-    'import.meta.env.PROD': process.env.NODE_ENV === 'production'
-  }
-})
+    'import.meta.env.PROD': process.env.NODE_ENV === 'production',
+  },
+});
