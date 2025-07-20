@@ -24,8 +24,8 @@ export default function ClassDiagramControls() {
       title="Class Diagram Generator"
       description="Upload a Tana JSON export to generate a class diagram"
       buttonText="Generate Class Diagram"
-      endpoint="/class_diagram"
-      uploadType="formdata"
+      endpoint="/mermaid_classes"
+      uploadType="json"
       onSuccess={handleUploadSuccess}
       onError={handleUploadError}
       loading={loading}

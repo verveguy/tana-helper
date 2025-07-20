@@ -50,6 +50,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false
       },
+      '/mermaid_classes': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false
+      },
       '/rag_index': {
         target: 'http://localhost:8000',
         changeOrigin: true,

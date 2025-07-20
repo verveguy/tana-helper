@@ -18,7 +18,7 @@ export default function ClassDiagram() {
   const loading = useLoading();
   const error = useError();
   
-  const mermaidRef = useRef<HTMLDivElement>(null);
+  const [renderedSvg, setRenderedSvg] = useState<string>('');
   const [diagramRendered, setDiagramRendered] = useState(false);
 
   useEffect(() => {
@@ -30,22 +30,24 @@ export default function ClassDiagram() {
   }, []);
 
   useEffect(() => {
-    if (mermaidText && mermaidRef.current && !loading) {
+    if (mermaidText && !loading) {
       const renderDiagram = async () => {
         try {
           setDiagramRendered(false);
-          mermaidRef.current!.innerHTML = '';
+          setRenderedSvg('');
           
-          const { svg } = await mermaid.render('mermaid-diagram', mermaidText);
-          mermaidRef.current!.innerHTML = svg;
+          const { svg } = await mermaid.render('mermaid-diagram-' + Date.now(), mermaidText);
+          setRenderedSvg(svg);
           setDiagramRendered(true);
         } catch (error) {
           console.error('Mermaid rendering error:', error);
-          mermaidRef.current!.innerHTML = `
+          const errorHtml = `
             <div class="text-red-400 p-5 text-center">
               Error rendering diagram: ${error instanceof Error ? error.message : 'Unknown error'}
             </div>
           `;
+          setRenderedSvg(errorHtml);
+          setDiagramRendered(true);
         }
       };
 
@@ -115,20 +117,22 @@ export default function ClassDiagram() {
 
       {/* Full-screen diagram container */}
       <div className="h-full w-full p-4 pt-20">
-        <div 
-          ref={mermaidRef}
-          className={`w-full h-full flex justify-center ${
-            diagramRendered ? 'items-start' : 'items-center'
-          } overflow-auto`}
-          style={{ minHeight: 'calc(100vh - 120px)' }}
-        >
-          {!diagramRendered && !loading && mermaidText && (
+        {!diagramRendered && !loading && mermaidText && (
+          <div className="w-full h-full flex justify-center items-center" style={{ minHeight: 'calc(100vh - 120px)' }}>
             <div className="flex items-center space-x-2 text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span>Rendering diagram...</span>
             </div>
-          )}
-        </div>
+          </div>
+        )}
+        
+        {diagramRendered && (
+          <div 
+            className="w-full h-full flex justify-center items-start overflow-auto"
+            style={{ minHeight: 'calc(100vh - 120px)' }}
+            dangerouslySetInnerHTML={{ __html: renderedSvg }}
+          />
+        )}
       </div>
     </div>
   );
