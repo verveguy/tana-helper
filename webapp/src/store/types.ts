@@ -37,30 +37,51 @@ export interface Webhook {
 export interface AppState {
   // Core application state
   graphData?: GraphData
-  loading: boolean
+  loading: boolean // Legacy - kept for backward compatibility
+  visualizerLoading: boolean
+  classLoading: boolean
+  ragLoading: boolean
+  configLoading: boolean
   mermaidText?: string
   ragIndexData?: RAGIndexData
   config?: Config
   webhooks?: Webhook[]
   twoDee: boolean
-  error: string | null
+  sidebarCollapsed: boolean
+  error: string | null // Legacy - kept for backward compatibility
+  visualizerError: string | null
+  classError: string | null
+  ragError: string | null
+  configError: string | null
 }
 
 // Store actions interface
 export interface AppActions {
   // Basic setters
   setGraphData: (graphData?: GraphData) => void
-  setLoading: (loading: boolean) => void
+  setLoading: (loading: boolean) => void // Legacy - kept for backward compatibility
+  setVisualizerLoading: (loading: boolean) => void
+  setClassLoading: (loading: boolean) => void
+  setRagLoading: (loading: boolean) => void
+  setConfigLoading: (loading: boolean) => void
   setMermaidText: (mermaidText?: string) => void
   setRagIndexData: (ragIndexData?: RAGIndexData) => void
   setConfig: (config?: Config) => void
   setWebhooks: (webhooks?: Webhook[]) => void
   setTwoDee: (twoDee: boolean) => void
-  setError: (error: string | null) => void
+  setSidebarCollapsed: (collapsed: boolean) => void
+  setError: (error: string | null) => void // Legacy - kept for backward compatibility
+  setVisualizerError: (error: string | null) => void
+  setClassError: (error: string | null) => void
+  setRagError: (error: string | null) => void
+  setConfigError: (error: string | null) => void
   
   // Utility actions
   clearError: () => void
   resetState: () => void
+  resetVisualizerState: () => void
+  resetClassDiagramState: () => void
+  resetRAGIndexState: () => void
   
   // Async actions
   loadConfig: () => Promise<Config>

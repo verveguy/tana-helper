@@ -1,18 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 
 // Replace context with Zustand store
-import { useConfig, useConfigActions } from "../hooks/useAppStore";
+import { useConfig, useConfigActions, useConfigLoading } from "../hooks/useAppStore";
 
 export default function Configure() {
   // Use Zustand hooks instead of context
   const config = useConfig();
+  const configLoading = useConfigLoading();
   const { setConfig, loadConfig, saveConfig } = useConfigActions();
   
   const [localConfig, setLocalConfig] = useState(config || {});
-  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (config) {
@@ -24,15 +23,12 @@ export default function Configure() {
   }, [config, loadConfig]);
 
   const handleSave = async () => {
-    setIsLoading(true);
     try {
       await saveConfig(localConfig);
       // Success feedback could be added here
     } catch (error) {
       console.error('Failed to save config:', error);
       // Error feedback could be added here
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -44,14 +40,15 @@ export default function Configure() {
   };
 
   return (
-    <Card className="w-full max-w-2xl">
-      <CardHeader>
-        <CardTitle>Configuration</CardTitle>
-        <CardDescription>
+    <div className="w-full max-w-2xl space-y-6 p-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Configuration</h1>
+        <p className="text-muted-foreground">
           Configure your Tana Helper settings
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+        </p>
+      </div>
+      
+      <div className="space-y-4">
         <div className="space-y-2">
           <label htmlFor="openai_api_key" className="text-sm font-medium">
             OpenAI API Key
@@ -67,12 +64,12 @@ export default function Configure() {
         
         <Button 
           onClick={handleSave}
-          disabled={isLoading}
+          disabled={configLoading}
           className="w-full"
         >
-          {isLoading ? 'Saving...' : 'Save Configuration'}
+          {configLoading ? 'Saving...' : 'Save Configuration'}
         </Button>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

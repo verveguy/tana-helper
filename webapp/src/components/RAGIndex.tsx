@@ -9,12 +9,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Loader2 } from "lucide-react";
 
 // Replace context with Zustand store
-import { useRagIndexData, useLoading } from "../hooks/useAppStore";
+import { useRagIndexData, useRagLoading } from "../hooks/useAppStore";
 
 export default function RAGIndex() {
   // Use Zustand hooks instead of context
   const ragIndexData = useRagIndexData();
-  const loading = useLoading();
+  const loading = useRagLoading();
 
   if (loading) {
     return (
@@ -34,6 +34,28 @@ export default function RAGIndex() {
     );
   }
 
+  if (!ragIndexData) {
+    return (
+      <div className="flex items-center justify-center h-full w-full bg-background">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle>RAG Index</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center text-muted-foreground py-8">
+              <div className="space-y-2">
+                <div className="text-lg">No index data available</div>
+                <div className="text-sm">
+                  Use the controls to generate a searchable index from your Tana data.
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -43,20 +65,14 @@ export default function RAGIndex() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {ragIndexData ? (
-          <div className="space-y-4">
-            <div className="text-sm text-muted-foreground">
-              Index contains {ragIndexData.documents?.length || 0} documents
-            </div>
-            <pre className="bg-muted p-4 rounded-lg text-sm overflow-auto max-h-96">
-              {JSON.stringify(ragIndexData, null, 2)}
-            </pre>
+        <div className="space-y-4">
+          <div className="text-sm text-muted-foreground">
+            Index contains {ragIndexData.documents?.length || 0} documents
           </div>
-        ) : (
-          <div className="text-center text-muted-foreground py-8">
-            No RAG index data available. Use the controls to generate an index.
-          </div>
-        )}
+          <pre className="bg-muted p-4 rounded-lg text-sm overflow-auto max-h-96">
+            {JSON.stringify(ragIndexData, null, 2)}
+          </pre>
+        </div>
       </CardContent>
     </Card>
   );

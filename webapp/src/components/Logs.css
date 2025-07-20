@@ -15,13 +15,7 @@
   box-sizing: border-box;
 }
 
-.terminal-container {
-  height: calc(100vh - 120px); /* Account for header and padding */
-  width: 100%;
-  max-width: 100%;
-  overflow: hidden;
-  box-sizing: border-box;
-}
+/* Remove the old terminal-container styles - now using Tailwind classes */
 
 /* Container for the terminal - use flexbox instead of absolute positioning */
 .log-container {

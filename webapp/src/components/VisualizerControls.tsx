@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -27,8 +27,8 @@ interface TanaGraphData extends GraphData {
 }
 
 export default function VisualizerControls() {
-  const { graphData, loading, twoDee, error } = useAppStore();
-  const { setGraphData, setTwoDee, setLoading, setError, clearError } = useAppActions();
+  const { graphData, visualizerLoading, twoDee, visualizerError } = useAppStore();
+  const { setGraphData, setTwoDee, setVisualizerLoading, setVisualizerError } = useAppActions();
   
   const [searchString, setSearchString] = useState('');
   const [rawGraphData, setRawGraphData] = useState<any>(null);
@@ -42,6 +42,8 @@ export default function VisualizerControls() {
     include_content_nodes: false,       // Hide child content nodes (detail nodes)
     include_tag_schema_links: false     // Hide tag schema relationships
   });
+
+  // Note: Removed automatic state reset - global state should persist across component lifecycle
 
   // Helper to get ID from polymorphic object (links can be mutated by force graph)
   const getIdFrom = useCallback((obj: any): string => {
@@ -187,12 +189,12 @@ export default function VisualizerControls() {
       console.log(`Built search index with ${data.nodes.length} nodes`);
     }
     
-    clearError();
-  }, [clearError]);
+    setVisualizerError(null); // Clear visualizer-specific error
+  }, [setVisualizerError]);
 
   const handleUploadError = useCallback((errorMessage: string) => {
-    setError(errorMessage);
-  }, [setError]);
+    setVisualizerError(errorMessage); // Set visualizer-specific error
+  }, [setVisualizerError]);
 
   // Handle config changes - now memoized to prevent excessive re-renders
   const handleConfigChange = useCallback((key: keyof VisualizerConfig, value: boolean) => {
@@ -220,12 +222,12 @@ export default function VisualizerControls() {
         uploadType="json"
         onSuccess={handleUploadSuccess}
         onError={handleUploadError}
-        loading={loading}
-        setLoading={setLoading}
+        loading={visualizerLoading}
+        setLoading={setVisualizerLoading}
       />
 
       {/* Display Options */}
-      {(graphData || loading) && (
+      {(graphData || visualizerLoading) && (
         <Card>
           <CardHeader>
             <CardTitle>Display Options</CardTitle>
@@ -239,7 +241,7 @@ export default function VisualizerControls() {
                   variant={twoDee ? "default" : "outline"}
                   size="sm"
                   onClick={() => setTwoDee(true)}
-                  disabled={loading}
+                  disabled={visualizerLoading}
                 >
                   2D
                 </Button>
@@ -247,7 +249,7 @@ export default function VisualizerControls() {
                   variant={!twoDee ? "default" : "outline"}
                   size="sm"
                   onClick={() => setTwoDee(false)}
-                  disabled={loading}
+                  disabled={visualizerLoading}
                 >
                   3D
                 </Button>
@@ -269,7 +271,7 @@ export default function VisualizerControls() {
                     id="include_all_nodes"
                     checked={config.include_all_nodes}
                     onChange={(e) => handleConfigChange('include_all_nodes', e.target.checked)}
-                    disabled={loading || !rawGraphData}
+                    disabled={visualizerLoading || !rawGraphData}
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded disabled:opacity-50"
                   />
                   <label htmlFor="include_all_nodes" className="text-sm font-medium text-foreground">
@@ -288,7 +290,7 @@ export default function VisualizerControls() {
                     id="include_tag_tag_links"
                     checked={config.include_tag_tag_links}
                     onChange={(e) => handleConfigChange('include_tag_tag_links', e.target.checked)}
-                    disabled={loading || !rawGraphData}
+                    disabled={visualizerLoading || !rawGraphData}
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded disabled:opacity-50"
                   />
                   <label htmlFor="include_tag_tag_links" className="text-sm text-foreground">
@@ -303,7 +305,7 @@ export default function VisualizerControls() {
                     id="include_node_tag_links"
                     checked={config.include_node_tag_links}
                     onChange={(e) => handleConfigChange('include_node_tag_links', e.target.checked)}
-                    disabled={loading || !rawGraphData}
+                    disabled={visualizerLoading || !rawGraphData}
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded disabled:opacity-50"
                   />
                   <label htmlFor="include_node_tag_links" className="text-sm text-foreground">
@@ -318,7 +320,7 @@ export default function VisualizerControls() {
                     id="include_inline_refs"
                     checked={config.include_inline_refs}
                     onChange={(e) => handleConfigChange('include_inline_refs', e.target.checked)}
-                    disabled={loading || !rawGraphData}
+                    disabled={visualizerLoading || !rawGraphData}
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded disabled:opacity-50"
                   />
                   <label htmlFor="include_inline_refs" className="text-sm text-foreground">
@@ -333,7 +335,7 @@ export default function VisualizerControls() {
                     id="include_inline_ref_nodes"
                     checked={config.include_inline_ref_nodes}
                     onChange={(e) => handleConfigChange('include_inline_ref_nodes', e.target.checked)}
-                    disabled={loading || !rawGraphData}
+                    disabled={visualizerLoading || !rawGraphData}
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded disabled:opacity-50"
                   />
                   <label htmlFor="include_inline_ref_nodes" className="text-sm text-foreground">
@@ -348,7 +350,7 @@ export default function VisualizerControls() {
                     id="include_content_nodes"
                     checked={config.include_content_nodes}
                     onChange={(e) => handleConfigChange('include_content_nodes', e.target.checked)}
-                    disabled={loading || !rawGraphData}
+                    disabled={visualizerLoading || !rawGraphData}
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded disabled:opacity-50"
                   />
                   <label htmlFor="include_content_nodes" className="text-sm text-foreground">
@@ -363,7 +365,7 @@ export default function VisualizerControls() {
                     id="include_tag_schema_links"
                     checked={config.include_tag_schema_links}
                     onChange={(e) => handleConfigChange('include_tag_schema_links', e.target.checked)}
-                    disabled={loading || !rawGraphData}
+                    disabled={visualizerLoading || !rawGraphData}
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded disabled:opacity-50"
                   />
                   <label htmlFor="include_tag_schema_links" className="text-sm text-foreground">
@@ -381,7 +383,7 @@ export default function VisualizerControls() {
                   placeholder="Search nodes..."
                   value={searchString}
                   onChange={(e) => setSearchString(e.target.value)}
-                  disabled={loading}
+                  disabled={visualizerLoading}
                 />
               </div>
             )}
@@ -390,18 +392,18 @@ export default function VisualizerControls() {
       )}
 
       {/* Error display */}
-      {error && (
+      {visualizerError && (
         <Card>
           <CardContent className="pt-6">
             <div className="p-3 bg-red-50 border border-red-200 rounded-md">
               <div className="flex items-start justify-between">
                 <div className="text-sm text-red-800">
-                  {error}
+                  {visualizerError}
                 </div>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={clearError}
+                  onClick={() => setVisualizerError(null)}
                   className="text-red-600 hover:text-red-800 -mt-1 -mr-1"
                 >
                   ×

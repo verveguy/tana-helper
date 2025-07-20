@@ -10,13 +10,13 @@ import { Loader2 } from 'lucide-react';
 import mermaid from 'mermaid';
 
 // Replace context with Zustand store
-import { useMermaidText, useLoading, useError } from "../hooks/useAppStore";
+import { useMermaidText, useClassLoading, useClassError } from "../hooks/useAppStore";
 
 export default function ClassDiagram() {
   // Use Zustand hooks instead of context  
   const mermaidText = useMermaidText();
-  const loading = useLoading();
-  const error = useError();
+  const loading = useClassLoading();
+  const error = useClassError();
   
   const [renderedSvg, setRenderedSvg] = useState<string>('');
   const [diagramRendered, setDiagramRendered] = useState(false);

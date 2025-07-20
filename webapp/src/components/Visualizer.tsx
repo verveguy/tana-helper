@@ -14,7 +14,7 @@ import ForceGraph2D from 'react-force-graph-2d';
 import { Loader2 } from 'lucide-react';
 
 // Replace context with Zustand store
-import { useGraphData, useLoading, useTwoDee, useError } from "../hooks/useAppStore";
+import { useGraphData, useVisualizerLoading, useTwoDee, useVisualizerError, useSidebarCollapsed } from "../hooks/useAppStore";
 
 // Debounce utility to prevent excessive resize calculations
 const debounce = (func: Function, wait: number) => {
@@ -32,16 +32,18 @@ const debounce = (func: Function, wait: number) => {
 export default function Visualizer() {
   // Use Zustand hooks instead of context
   const graphData = useGraphData();
-  const loading = useLoading(); 
+  const loading = useVisualizerLoading(); 
   const twoDee = useTwoDee();
-  const error = useError();
+  const error = useVisualizerError();
+  const sidebarCollapsed = useSidebarCollapsed();
 
   // Track viewport dimensions for full-screen visualization
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
   // Memoized dimension calculation to prevent unnecessary recalculations
   const calculateDimensions = useCallback(() => {
-    const sidebarWidth = 240; // 60 * 4 = 240px (w-60 in Tailwind)
+    // Dynamic sidebar width based on collapsed state
+    const sidebarWidth = sidebarCollapsed ? 64 : 240; // w-16 vs w-60 in Tailwind
     const availableWidth = window.innerWidth - sidebarWidth;
     const availableHeight = window.innerHeight;
     
@@ -49,7 +51,7 @@ export default function Visualizer() {
       width: availableWidth,
       height: availableHeight
     };
-  }, []);
+  }, [sidebarCollapsed]);
 
   // Debounced dimension update to prevent excessive re-renders during resize
   const debouncedUpdateDimensions = useMemo(
@@ -78,6 +80,11 @@ export default function Visualizer() {
     window.addEventListener('resize', debouncedUpdateDimensions);
     return () => window.removeEventListener('resize', debouncedUpdateDimensions);
   }, [calculateDimensions, debouncedUpdateDimensions]);
+
+  // Update dimensions when sidebar state changes
+  useEffect(() => {
+    setDimensions(calculateDimensions());
+  }, [sidebarCollapsed, calculateDimensions]);
 
   // Memoize the graph data to prevent unnecessary re-renders
   const memoizedGraphData = useMemo(() => graphData, [graphData]);

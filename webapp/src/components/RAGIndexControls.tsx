@@ -1,21 +1,23 @@
-import React from "react";
+import React, { useEffect } from "react";
 import TanaFileUpload from "./ui/TanaFileUpload";
 // Replace context with Zustand store
 import { useAppStore, useAppActions } from "../hooks/useAppStore";
 
 export default function RAGIndexControls() {
-  const { loading, error } = useAppStore();
-  const { setRagIndexData, setLoading, setError, clearError } = useAppActions();
+  const { ragLoading, ragError } = useAppStore();
+  const { setRagIndexData, setRagLoading, setRagError } = useAppActions();
+
+  // Note: Removed automatic state reset - global state should persist across component lifecycle
 
   const handleUploadSuccess = (data: any, rawFileData?: any) => {
     console.log("RAG index data received:", data);
     setRagIndexData(data);
-    clearError();
+    setRagError(null); // Clear RAG-specific error
     // Note: rawFileData not needed for RAG index as it doesn't have live config changes
   };
 
   const handleUploadError = (errorMessage: string) => {
-    setError(errorMessage);
+    setRagError(errorMessage); // Set RAG-specific error
   };
 
   return (
@@ -24,8 +26,8 @@ export default function RAGIndexControls() {
       uploadType="json"
       onSuccess={handleUploadSuccess}
       onError={handleUploadError}
-      loading={loading}
-      setLoading={setLoading}
+      loading={ragLoading}
+      setLoading={setRagLoading}
     />
   );
 }

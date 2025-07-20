@@ -15,6 +15,8 @@
     "@rjsf/mui": "^5.24.12",
     "@rjsf/utils": "^5.24.12",
     "@rjsf/validator-ajv8": "^5.24.12",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/xterm": "^5.5.0",
     "axios": "^1.10.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -31,8 +33,6 @@
     "react-zoom-pan-pinch": "^3.7.0",
     "tailwind-merge": "^3.3.1",
     "web-vitals": "^3.3.2",
-    "xterm": "^5.3.0",
-    "xterm-addon-fit": "^0.8.0",
     "zustand": "^5.0.6"
   },
   "scripts": {

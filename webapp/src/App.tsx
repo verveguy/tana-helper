@@ -1,5 +1,8 @@
 import React from 'react';
 import { BrowserRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Button } from './components/ui/button';
+import { useSidebarCollapsed, useAppActions } from './hooks/useAppStore';
 
 import ClassDiagramControls from './components/ClassDiagramControls';
 import Home from './components/Home';
@@ -77,6 +80,10 @@ const config = [
 
 function Panels() {
   const location = useLocation();
+  const sidebarCollapsed = useSidebarCollapsed();
+  const { setSidebarCollapsed } = useAppActions();
+
+  const toggleSidebar = () => setSidebarCollapsed(!sidebarCollapsed);
 
   const menuItems = config.map((entry) => (
     <NavLink
@@ -89,8 +96,9 @@ function Panels() {
             : 'text-muted-foreground hover:text-foreground hover:bg-accent'
         }`
       }
+      title={entry.label}
     >
-      {entry.label}
+      {sidebarCollapsed ? entry.label.charAt(0) : entry.label}
     </NavLink>
   ));
 
@@ -108,12 +116,28 @@ function Panels() {
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       {/* Sidebar */}
-      <div className="relative flex flex-col bg-card border-r border-border w-60 h-full overflow-hidden">
+      <div className={`relative flex flex-col bg-card border-r border-border h-full overflow-hidden transition-all duration-300 ease-in-out ${
+        sidebarCollapsed ? 'w-16' : 'w-60'
+      }`}>
         {/* Sidebar Header */}
         <div className="flex items-center justify-between p-4 border-b border-border flex-shrink-0">
-          <h1 className="text-xl font-semibold text-foreground">
-            Tana Helper
-          </h1>
+          {!sidebarCollapsed && (
+            <h1 className="text-xl font-semibold text-foreground">
+              Tana Helper
+            </h1>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleSidebar}
+            className={sidebarCollapsed ? 'mx-auto' : 'ml-auto'}
+          >
+            {sidebarCollapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" />
+            )}
+          </Button>
         </div>
 
         {/* Scrollable Sidebar Content */}
@@ -126,7 +150,7 @@ function Panels() {
           </nav>
 
           {/* Controls Section - Show controls for current route */}
-          {currentRoute?.control && (
+          {!sidebarCollapsed && currentRoute?.control && (
             <div className="border-t border-border p-4">
               <div className="text-sm font-medium text-muted-foreground mb-2">
                 Controls

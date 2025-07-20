@@ -4,9 +4,9 @@
 */
 
 import React, { useEffect, useRef, useCallback } from "react";
-import { Terminal } from 'xterm';
-import { FitAddon } from 'xterm-addon-fit';
-import 'xterm/css/xterm.css';
+import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
+import '@xterm/xterm/css/xterm.css';
 import './Logs.css';
 import { useDimensions } from "./utils";
 
@@ -123,9 +123,11 @@ export default function Logs() {
   }, []);
 
   return (
-    <div className="terminal-container" ref={containerRef}>
-      <div className="log-container">
-        <div id="terminal" ref={termRef} />
+    <div className="h-full w-full p-6">
+      <div className="h-full w-full" ref={containerRef}>
+        <div className="log-container">
+          <div id="terminal" ref={termRef} />
+        </div>
       </div>
     </div>
   );
