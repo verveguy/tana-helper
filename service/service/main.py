@@ -182,6 +182,12 @@ async def log_entry_exit(request: Request, call_next):
     )
     if not x_request_id:
         response.headers["x-request-id"] = str(idem)
+
+    # Add security headers
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+
     return response
 
 
@@ -196,10 +202,8 @@ cwd = os.getcwd()
 # logger.info(f"Setting cwd = {cwd}")
 
 
-# for local file serving (favicon, etc)
-app.mount("/static", StaticFiles(directory="dist"), name="static")
-# Mount assets separately for Vite-generated files
-app.mount("/assets", StaticFiles(directory="dist/assets"), name="assets")
+# Mount assets under /ui/assets to match Vite base path
+app.mount("/ui/assets", StaticFiles(directory="dist/assets"), name="ui_assets")
 
 # for HTML template responses
 # settings.templates = Jinja2Templates(directory=os.path.join(basedir,'dist','templates'))
@@ -207,6 +211,12 @@ app.mount("/assets", StaticFiles(directory="dist/assets"), name="assets")
 
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
+    favicon_path = os.path.join(basedir, "dist", "favicon.ico")
+    return FileResponse(favicon_path)
+
+
+@app.get("/ui/favicon.ico", include_in_schema=False)
+async def ui_favicon():
     favicon_path = os.path.join(basedir, "dist", "favicon.ico")
     return FileResponse(favicon_path)
 
