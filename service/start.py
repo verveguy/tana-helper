@@ -19,4 +19,4 @@ if sys.stderr is None:
 
 if __name__ == "__main__":
     cwd = Path(__file__).parent.resolve()
-    uvicorn.run("service.main:app", port=8000, log_level="info", reload=True)
+    uvicorn.run("service.main:app", host="0.0.0.0", port=8000, log_level="info", reload=True)
