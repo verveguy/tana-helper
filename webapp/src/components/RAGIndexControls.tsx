@@ -20,9 +20,6 @@ export default function RAGIndexControls() {
 
   return (
     <TanaFileUpload
-      title="RAG Index Generator"
-      description="Upload a Tana JSON export to generate a searchable index for retrieval-augmented generation"
-      buttonText="Generate RAG Index"
       endpoint="/rag_index"
       uploadType="json"
       onSuccess={handleUploadSuccess}

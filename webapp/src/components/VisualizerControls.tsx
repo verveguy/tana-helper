@@ -216,9 +216,6 @@ export default function VisualizerControls() {
     <>
       {/* File Upload */}
       <TanaFileUpload
-        title="Visualizer Controls"
-        description="Upload Tana JSON export to visualize your workspace"
-        buttonText="Generate Visualization"
         endpoint="/graph"
         uploadType="json"
         onSuccess={handleUploadSuccess}
