@@ -43,7 +43,6 @@ from service.endpoints import (
 )
 from service.endpoints.api_docs import get_api_metadata
 from service.logconfig import setup_rich_logger
-from service.settings import settings
 
 log_filename = None
 
@@ -139,19 +138,48 @@ async def get_body(request: Request) -> bytes:
     return body
 
 
+# Middleware that ensures fresh config on every request
 @app.middleware("http")
-async def add_get_authorization_headers(request: Request, call_next):
-    # find headers in request
+async def refresh_settings_middleware(request: Request, call_next):
+    """
+    Always start with fresh config from file, then apply any header overrides.
+    This ensures we never have stale config in multi-worker setups while still
+    supporting per-request header overrides.
+    """
+    from . import settings
+    from .settings import get_settings
+
+    # Always start with fresh settings from file
+    fresh_settings = get_settings()
+
+    logger.info("Middleware: Loaded fresh settings from config file")
+
+    # Apply any header overrides
     x_tana_api_token = request.headers.get("x-tana-api-token")
     x_openai_api_key = request.headers.get("x-openai-api-key")
-    # TODO: make settings per-request context, not gobal
-    # use passed in header tokens if present, otherwise look for env vars
-    settings.openai_api_key = (
-        settings.openai_api_key if not x_openai_api_key else x_openai_api_key
-    )
-    settings.tana_api_token = (
-        settings.tana_api_token if not x_tana_api_token else x_tana_api_token
-    )
+
+    # Use header values if provided, otherwise keep fresh file values
+    if x_openai_api_key:
+        fresh_settings.openai_api_key = x_openai_api_key
+        logger.info("Middleware: Applied OpenAI API key override from request header")
+    if x_tana_api_token:
+        fresh_settings.tana_api_token = x_tana_api_token
+        logger.info("Middleware: Applied Tana API token override from request header")
+
+    # Update the existing global settings object in-place (don't replace it)
+    # This ensures all modules that imported settings get the updated values
+    logger.info(f"Middleware: Updating settings object ID: {id(settings.settings)}")
+    settings.settings.openai_api_key = fresh_settings.openai_api_key
+    settings.settings.tana_api_token = fresh_settings.tana_api_token
+    settings.settings.webhook_template_path = fresh_settings.webhook_template_path
+    settings.settings.temp_files = fresh_settings.temp_files
+    settings.settings.export_path = fresh_settings.export_path
+    settings.settings.tana_environment = fresh_settings.tana_environment
+    settings.settings.tana_namespace = fresh_settings.tana_namespace
+    settings.settings.tana_index = fresh_settings.tana_index
+
+    logger.info("Middleware: Successfully updated global settings")
+
     response = await call_next(request)
     return response
 
@@ -170,9 +198,6 @@ async def log_entry_exit(request: Request, call_next):
     logger.info(f"txid={idem} start request path={request.url.path}")
     start_time = time.time()
 
-    # await set_body(request, await request.body())
-    # body = await get_body(request)
-    # logger.info(f"txid={idem} body={body}")
     response: Response = await call_next(request)
 
     process_time = (time.time() - start_time) * 1000

@@ -22,7 +22,7 @@ export default function RAGIndexControls() {
 
   return (
     <TanaFileUpload
-      endpoint="/rag_index"
+      endpoint="/chroma/preload"
       uploadType="json"
       onSuccess={handleUploadSuccess}
       onError={handleUploadError}

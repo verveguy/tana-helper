@@ -7,8 +7,8 @@ from fastapi import APIRouter, Body, HTTPException, status
 from fastapi.responses import HTMLResponse
 from starlette.requests import Request
 
+from service import settings
 from service.json2tana import json_to_tana, tana_to_json
-from service.settings import settings
 
 router = APIRouter()
 
@@ -70,7 +70,7 @@ async def export_to_file(
     # first build an object graph from input Tana data
     object_graph = await jsonify(req, body)
 
-    path = settings.export_path
+    path = settings.settings.export_path
     filepath = f"{path}/{filename}.{format}"
 
     # write to file name

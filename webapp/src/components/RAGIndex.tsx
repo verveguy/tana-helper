@@ -9,12 +9,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Loader2 } from 'lucide-react';
 
 // Replace context with Zustand store
-import { useRagIndexData, useRagLoading } from '../hooks/useAppStore';
+import { useRagIndexData, useRagLoading, useRagError } from '../hooks/useAppStore';
 
 export default function RAGIndex() {
   // Use Zustand hooks instead of context
   const ragIndexData = useRagIndexData();
   const loading = useRagLoading();
+  const error = useRagError();
 
   if (loading) {
     return (
@@ -31,6 +32,31 @@ export default function RAGIndex() {
           </div>
         </CardContent>
       </Card>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full w-full bg-background">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle className="text-red-600">RAG Index Error</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-4">
+              <div className="space-y-2">
+                <div className="text-sm text-red-600 whitespace-pre-wrap">
+                  {error}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Please check your configuration and try again.
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 

@@ -35,11 +35,6 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
-      '/configuration': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-        secure: false,
-      },
       '/graph': {
         target: 'http://localhost:8000',
         changeOrigin: true,
@@ -55,7 +50,7 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
-      '/rag_index': {
+      '/chroma': {
         target: 'http://localhost:8000',
         changeOrigin: true,
         secure: false,

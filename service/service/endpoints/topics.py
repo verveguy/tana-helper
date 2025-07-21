@@ -46,7 +46,7 @@ async def extract_topics(
     """
 
     # we just want top level tagged nodes and their child contents
-    # TODO: figure out what we weant to do with fields
+    # TODO: figure out what we want to do with fields
     config = Visualizer(
         include_content_nodes=True,
         include_inline_refs=False,
@@ -85,7 +85,7 @@ async def extract_topics(
     # direct children of the topic node. We call these "content"
 
     # remap the final pairs to a list of topics
-    sources = set([(source_id, reason) for (source_id, _, reason) in final_pairs])
+    sources = {(source_id, reason) for (source_id, _, reason) in final_pairs}
     topics = []
     for source_id, reason in sources:
         if reason == IS_TAG_LINK:
@@ -104,7 +104,7 @@ async def extract_topics(
 
             topic.content = [(source_id, False, "- " + topic_name)]
 
-            # add all the tag names as structured elems
+            # add all the tag names as structured elements
             # for tag_id in node.tags:
             #   topic.tags.append(index.node(tag_id).props.name)
 

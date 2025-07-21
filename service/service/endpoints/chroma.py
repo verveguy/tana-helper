@@ -14,6 +14,7 @@ from fastapi import APIRouter, Request, status
 from fastapi.responses import HTMLResponse
 from snowflake import SnowflakeGenerator
 
+from service import settings
 from service.dependencies import (
     TANA_NODE,
     AddToNodeRequest,
@@ -25,7 +26,6 @@ from service.dependencies import (
     TanaNodeMetadata,
     get_embedding,
 )
-from service.settings import settings
 from service.tanaparser import prune_reference_nodes
 
 logger = getLogger()
@@ -52,7 +52,7 @@ def get_collection():
     chroma = get_chroma()
     # use cosine rather than l2 (should test this)
     collection = chroma.get_or_create_collection(
-        name=settings.tana_index, metadata={"hnsw:space": "cosine"}
+        name=settings.settings.tana_index, metadata={"hnsw:space": "cosine"}
     )
     return collection
 
@@ -276,7 +276,7 @@ async def chroma_enqueue(request: Request, req: QueueRequest):
 
         do_upsert()
 
-        tana_api_token = settings.tana_api_token
+        tana_api_token = settings.settings.tana_api_token
         print(f"Using Tana API token {tana_api_token}")
 
         # now push into Tana Inbox via inbox API call

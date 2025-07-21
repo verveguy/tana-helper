@@ -58,7 +58,14 @@ async def load_chromadb_from_topics(
 
     for node in index_nodes:
         logger.info(f"Node {node.id} {node.metadata}")
-        chroma_req = ChromaRequest(context=node.text, nodeId=node.id, model=model)
+        chroma_req = ChromaRequest(
+            context=node.text,
+            name=(node.metadata or {}).get(
+                "title", ""
+            ),  # Extract name from metadata, handle None
+            nodeId=node.id,
+            model=model,
+        )
         upsert = await chroma_upsert(chroma_req)
 
     logger.info("ChromaDB populated and ready")
@@ -66,7 +73,7 @@ async def load_chromadb_from_topics(
 
 
 class Document:
-    def __init__(self, id: str, text: str, metadata: dict = None):
+    def __init__(self, id: str, text: str, metadata: dict | None = None):
         if not id:
             raise ValueError("Document must have an id")
         if not text:
@@ -78,7 +85,11 @@ class Document:
 
 class TextNode(Document):
     def __init__(
-        self, id: str, text: str, relationships: dict = None, metadata: dict = None
+        self,
+        id: str,
+        text: str,
+        relationships: dict | None = None,
+        metadata: dict | None = None,
     ):
         super().__init__(id, text, metadata)
         self.relationships = relationships if relationships else {}

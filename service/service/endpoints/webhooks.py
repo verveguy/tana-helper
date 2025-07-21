@@ -9,14 +9,14 @@ from fastapi.responses import HTMLResponse
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from starlette.requests import Request
 
+from service import settings
 from service.dependencies import LineTimer, OpenAICompletion, get_chatcompletion
-from service.settings import settings
 
 router = APIRouter()
 
 logger = getLogger()
 
-path = settings.webhook_template_path
+path = settings.settings.webhook_template_path
 
 environment = Environment(loader=FileSystemLoader(path))
 # pattern to strip URLs out of incoming
@@ -41,7 +41,7 @@ async def add_template(req: Request, schema: str, body: str = Body(...)):
     except OSError as e:
         raise HTTPException(
             detail=e.strerror, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        ) from e
 
     return f"{req.base_url}webhook/{schema}"
 
@@ -62,7 +62,7 @@ async def get_schemas():
         logger.warning(f"Failed to read directory {path}")
         raise HTTPException(
             detail=e.strerror, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        ) from e
 
 
 @router.get("/template/{schema}", response_class=HTMLResponse, tags=["Webhooks"])
@@ -78,7 +78,7 @@ async def get_template(schema: str):
         logger.warning(f"Failed to read file {path}/{schema}.jn2")
         raise HTTPException(
             detail=e.strerror, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        ) from e
 
 
 @router.post("/schema/{schema}", response_class=HTMLResponse, tags=["Webhooks"])
@@ -90,7 +90,7 @@ async def add_schema(req: Request, schema: str, body: str = Body(...)):
     """
     # create template from standard prompt + body (schema def)
     template = (
-        """TASK: Extract information from CONTEXT 
+        """TASK: Extract information from CONTEXT
 
 OUTPUT FORMAT: as a JSON structure following the TYPESCRIPT DEFINITION. Output only a valid JSON structure.
 
@@ -101,7 +101,7 @@ TYPESCRIPT DEFINITION:
 
 CONTEXT: {{ context }}
 
-OUTPUT: 
+OUTPUT:
 {"""
     )
     return await add_template(req, schema, template)
@@ -122,7 +122,7 @@ async def delete(schema: str):
     except OSError as e:
         raise HTTPException(
             detail=e.strerror, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        ) from e
 
     return None
 
@@ -137,12 +137,12 @@ async def do_webhook(schema: str, body: str):
     try:
         temp = environment.get_template(schema + ".jn2")
         prompt = temp.render({"context": body})
-    except TemplateNotFound:
+    except TemplateNotFound as e:
         logger.warning(f"Failed to find template {path}/{schema}.jn2")
         raise HTTPException(
             detail=f"Schema {schema} not found. Upload first",
             status_code=status.HTTP_400_BAD_REQUEST,
-        )
+        ) from e
 
     try:
         # ask OpenAI to turn trash into gold
@@ -153,23 +153,25 @@ async def do_webhook(schema: str, body: str):
             completion = get_chatcompletion(completion_request)
         logger.debug(f"Result from OpenAI: {completion}")
 
-    except Exception:
+    except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="OpenAI Authentication Error. Did you pass your OpenAI API Key in X-OpenAI-API-Key header or set your service env variable?",
-        )
+        ) from e
 
     jsonstring = "{" + completion["choices"][0].message.content
     tana_payload = {"nodes": [json.loads(jsonstring)]}
 
     callback_url = "https://europe-west1-tagr-prod.cloudfunctions.net/addToNodeV2"
-    headers = {"Authorization": "Bearer " + settings.tana_api_token}
+    headers = {"Authorization": "Bearer " + settings.settings.tana_api_token}
 
     try:
         with LineTimer("tana-input"):
             tana_result = httpx.post(callback_url, json=tana_payload, headers=headers)
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        ) from e
 
     if tana_result.is_error:
         logger.warning(
@@ -203,5 +205,5 @@ async def webhook_configuration():
     result = []
     schemas = await get_schemas()
     for schema in schemas:
-        result = result.append(schema)
+        result.append(schema)
     return result

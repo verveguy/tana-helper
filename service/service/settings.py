@@ -1,5 +1,7 @@
 # TODO: figure out how to make settings more modular, based on endpoints configured
+import json
 import os
+from logging import getLogger
 from pathlib import Path
 from typing import Annotated
 
@@ -99,12 +101,21 @@ def get_settings():
 
 def set_settings(new_settings: Settings):
     global settings
+
+    logger = getLogger(__name__)
+    logger.info("set_settings called - updating configuration")
     settings = new_settings
+    logger.info("Settings object updated successfully")
+
+    # Note: Since we're using a global import pattern, the settings should be updated
+    # across all modules that import the global settings object
+
     # write new settings to .env file
     if not os.path.exists(tana_helper_config_dir):
         os.makedirs(tana_helper_config_dir, exist_ok=True)
     with open(settings_path, "w") as f:
         f.write(settings.model_dump_json())
+    logger.info("Settings written to file")
     return settings
 
 

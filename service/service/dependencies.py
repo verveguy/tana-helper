@@ -1,5 +1,6 @@
 import io
 import logging
+import re
 from datetime import datetime
 from logging import getLogger
 from timeit import timeit
@@ -7,11 +8,12 @@ from typing import ForwardRef
 
 import httpx
 import pytz
+from fastapi import HTTPException, status
 from fastapi.concurrency import asynccontextmanager
-from openai import OpenAI
+from openai import APIError, AuthenticationError, OpenAI, RateLimitError
 from pydantic import BaseModel
 
-from .settings import settings
+from . import settings
 
 # Load environment variables from .env file
 # load_dotenv()
@@ -77,8 +79,8 @@ class EmbeddingRequest(HelperRequest, OpenAIRequest):
 
 class PineconeRequest(EmbeddingRequest):
     pinecone: str
-    environment: str | None = settings.tana_environment
-    index: str | None = settings.tana_index
+    environment: str | None = settings.settings.tana_environment
+    index: str | None = settings.settings.tana_index
     score: float | None = 0.80
     top: int | None = 10
     tags: str | None = ""
@@ -127,8 +129,8 @@ class QueueRequest(HelperRequest):
 
 
 class WeaviateRequest(EmbeddingRequest):
-    environment: str | None = settings.tana_environment
-    index: str | None = settings.tana_index
+    environment: str | None = settings.settings.tana_environment
+    index: str | None = settings.settings.tana_index
     score: float | None = 0.80
     top: int | None = 10
     tags: str | None = ""
@@ -193,31 +195,178 @@ class TanaInputAPIClient:
         return response
 
 
+def clean_openai_error_message(error_str: str) -> str:
+    """
+    Clean up OpenAI error messages to remove JSON formatting and extract key information.
+    """
+    try:
+        # Try to extract the error message from JSON-like structure
+        # Look for patterns like "{'error': {'message': '...'}}"
+        json_pattern = r"{'error':\s*{'message':\s*'([^']+)'"
+        match = re.search(json_pattern, error_str)
+        if match:
+            return match.group(1)
+
+        # Try to extract from "Error code: XXX - {...}" pattern
+        error_code_pattern = r"Error code: \d+ - .*'message':\s*'([^']+)'"
+        match = re.search(error_code_pattern, error_str)
+        if match:
+            return match.group(1)
+
+        # If no JSON pattern found, return the original string
+        return error_str
+    except Exception:
+        # If anything goes wrong with parsing, return original
+        return error_str
+
+
 # OpenAI helper functions
 
 
 def get_embedding(req: EmbeddingRequest):
-    # get shared client object
-    api_key = settings.openai_api_key
+    """
+    Get embeddings from OpenAI API with proper error handling.
+
+    The middleware ensures global settings are always fresh from file + headers.
+
+    Raises appropriate HTTPExceptions for different error types:
+    - 401 for authentication errors
+    - 429 for rate limit errors
+    - 400 for other API errors
+    - 503 for service unavailable
+    """
+    # Use global settings (refreshed by middleware on every request)
+    api_key = settings.settings.openai_api_key
+    logger = getLogger()
+    logger.info("get_embedding called - using refreshed settings")
+
+    # Log the settings object ID for debugging (but not the key value)
+    logger.info(f"get_embedding using settings object ID: {id(settings.settings)}")
+
+    # Check if API key is missing or looks like a placeholder
+    if not api_key or api_key == "OPENAI_API_KEY NOT SET" or "NOT SET" in api_key:
+        logger.error("OpenAI API key not configured for embeddings")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="OpenAI API key not configured. Please set your API key in configuration.",
+        )
+
     openai_client = OpenAI(api_key=api_key)
     content = req.name + req.context
-    embedding = openai_client.embeddings.create(
-        input=content, model=req.embedding_model
-    )
-    return embedding.data  # type: ignore
+
+    try:
+        embedding = openai_client.embeddings.create(
+            input=content, model=req.embedding_model
+        )
+        return embedding.data  # type: ignore
+    except AuthenticationError as e:
+        logger = getLogger()
+        logger.error(f"OpenAI authentication failed for embedding request: {str(e)}")
+        clean_message = clean_openai_error_message(str(e))
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"OpenAI authentication failed: {clean_message}. Please check your API key.",
+        ) from e
+    except RateLimitError as e:
+        logger = getLogger()
+        logger.warning(f"OpenAI rate limit exceeded for embedding request: {str(e)}")
+        clean_message = clean_openai_error_message(str(e))
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"OpenAI rate limit exceeded: {clean_message}. Please try again later.",
+        ) from e
+    except APIError as e:
+        logger = getLogger()
+        logger.error(f"OpenAI API error for embedding request: {str(e)}")
+        clean_message = clean_openai_error_message(str(e))
+        # Handle other OpenAI API errors
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"OpenAI API error: {clean_message}. Please check your API key.",
+        ) from e
+    except Exception as e:
+        logger = getLogger()
+        logger.error(f"Unexpected error in get_embedding: {str(e)}")
+        # Handle any other unexpected errors
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Service temporarily unavailable: {str(e)}",
+        ) from e
 
 
 def get_chatcompletion(req: OpenAICompletion) -> dict:
-    api_key = settings.openai_api_key
-    openai_client = OpenAI(api_key=api_key)
-    completion = openai_client.chat.completions.create(
-        messages=[{"role": "user", "content": req.prompt}],
-        model=req.model,
-        max_tokens=req.max_tokens,
-        temperature=req.temperature,
-    )
+    """
+    Get chat completion from OpenAI API with proper error handling.
 
-    return completion  # type: ignore
+    The middleware ensures global settings are always fresh from file + headers.
+
+    Raises appropriate HTTPExceptions for different error types:
+    - 401 for authentication errors
+    - 429 for rate limit errors
+    - 400 for other API errors
+    - 503 for service unavailable
+    """
+    # Use global settings (refreshed by middleware on every request)
+    api_key = settings.settings.openai_api_key
+
+    # Check if API key is missing or looks like a placeholder
+    if not api_key or api_key == "OPENAI_API_KEY NOT SET" or "NOT SET" in api_key:
+        logger = getLogger()
+        logger.error(
+            f"OpenAI API key not configured for chat completion. Current value: {api_key}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="OpenAI API key not configured. Please set your API key in configuration.",
+        )
+
+    openai_client = OpenAI(api_key=api_key)
+
+    try:
+        completion = openai_client.chat.completions.create(
+            messages=[{"role": "user", "content": req.prompt}],
+            model=req.model,
+            max_tokens=req.max_tokens,
+            temperature=req.temperature,
+        )
+        return completion  # type: ignore
+    except AuthenticationError as e:
+        logger = getLogger()
+        logger.error(
+            f"OpenAI authentication failed for chat completion request: {str(e)}"
+        )
+        clean_message = clean_openai_error_message(str(e))
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"OpenAI authentication failed: {clean_message}. Please check your API key.",
+        ) from e
+    except RateLimitError as e:
+        logger = getLogger()
+        logger.warning(
+            f"OpenAI rate limit exceeded for chat completion request: {str(e)}"
+        )
+        clean_message = clean_openai_error_message(str(e))
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"OpenAI rate limit exceeded: {clean_message}. Please try again later.",
+        ) from e
+    except APIError as e:
+        logger = getLogger()
+        logger.error(f"OpenAI API error for chat completion request: {str(e)}")
+        clean_message = clean_openai_error_message(str(e))
+        # Handle other OpenAI API errors
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"OpenAI API error: {clean_message}. Please check your API key.",
+        ) from e
+    except Exception as e:
+        logger = getLogger()
+        logger.error(f"Unexpected error in get_chatcompletion: {str(e)}")
+        # Handle any other unexpected errors
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Service temporarily unavailable: {str(e)}",
+        ) from e
 
 
 def get_date():
@@ -236,7 +385,7 @@ def get_date():
     return formatted_date_time
 
 
-# helper function for timing exeuction of various calls
+# helper function for timing execution of various calls
 class LineTimer:
     def __init__(self, name=None):
         self.name = " '" + name + "'" if name else ""

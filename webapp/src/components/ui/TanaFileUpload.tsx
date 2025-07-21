@@ -79,13 +79,19 @@ export default function TanaFileUpload({
               rawFileData = jsonData; // Store the parsed JSON data
               console.log('File parsed successfully, sending to server...');
 
-              const response = await axios.post(endpoint, jsonData, {
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-              });
-              resolve(response);
-            } catch {
+              try {
+                const response = await axios.post(endpoint, jsonData, {
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                });
+                resolve(response);
+              } catch (httpError: any) {
+                // This is an HTTP error from the server, not a JSON parsing error
+                reject(httpError);
+              }
+            } catch (parseError) {
+              // This is a JSON parsing error
               reject(new Error('Invalid JSON file. Please check your file format.'));
             }
           };
@@ -120,6 +126,7 @@ export default function TanaFileUpload({
       console.error('Upload failed:', error);
       const errorMessage = error.response?.data?.detail || error.message || 'Upload failed';
       onError(`Failed to process file: ${errorMessage}`);
+      setDumpFile(null); // Clear file after error to prevent retries
     } finally {
       setLoading(false);
     }
@@ -130,17 +137,16 @@ export default function TanaFileUpload({
     if (dumpFile && !loading) {
       uploadFile();
     }
-  }, [dumpFile, loading, uploadFile]);
+  }, [dumpFile, loading]); // Removed uploadFile from deps to prevent infinite loop
 
   return (
     <div className="relative">
       {/* Simplified File Drop Zone */}
       <div
-        className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
-          isDragOver
-            ? 'border-primary bg-primary/10'
-            : 'border-muted-foreground/25 hover:border-muted-foreground/50'
-        } ${loading ? 'opacity-50 pointer-events-none' : ''}`}
+        className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${isDragOver
+          ? 'border-primary bg-primary/10'
+          : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+          } ${loading ? 'opacity-50 pointer-events-none' : ''}`}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}

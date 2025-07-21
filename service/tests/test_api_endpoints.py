@@ -78,13 +78,13 @@ class TestConfigurationEndpoints:
 
     def test_configure_get(self, test_client):
         """Test getting configuration."""
-        response = test_client.get("/configuration")
+        response = test_client.get("/configure")
         assert response.status_code in [200, 404]  # May not be implemented
 
     def test_configure_post(self, test_client):
         """Test updating configuration."""
         config_data = {"test_setting": "test_value"}
-        response = test_client.post("/configuration", json=config_data)
+        response = test_client.post("/configure", json=config_data)
         assert response.status_code in [200, 400, 404, 422]
 
 
