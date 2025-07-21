@@ -24,30 +24,39 @@ export interface RAGIndexData {
 // Progress state for RAG indexing operations
 export interface RAGProgressState {
   isActive: boolean;
-  phase: 'idle' | 'starting' | 'processing' | 'complete' | 'error' | 'cancelled';
-
-  // Overall progress
+  phase:
+    | 'idle'
+    | 'starting'
+    | 'processing'
+    | 'complete'
+    | 'error'
+    | 'cancelled'
+    | 'batch_processing'
+    | 'embedding'
+    | 'storing';
   currentTopic: number;
   totalTopics: number;
   currentNode: number;
   totalNodes: number;
   percentage: number;
-
-  // Current processing info
   currentTopicName?: string;
   currentTopicId?: string;
-
-  // Timing information
   elapsedSeconds?: number;
   etaSeconds?: number;
-  processingRate?: number; // nodes per second
-
-  // Error information
-  error?: string;
-
-  // Topic-level progress for large topics
+  processingRate?: number;
   topicNode?: number;
   topicNodes?: number;
+  error?: string;
+  errorType?: string;
+  errorHelp?: string;
+  // Batch processing progress
+  currentBatch?: number;
+  totalBatches?: number;
+  // Storage failure tracking
+  failedNodes?: number;
+  // Change detection optimization
+  skippedTopics?: number;
+  changedTopics?: number;
 }
 
 export interface Config {

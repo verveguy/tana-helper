@@ -43,7 +43,13 @@ export default function ProgressDisplay({ progress }: ProgressDisplayProps) {
     topicNode,
     topicNodes,
     error,
+    errorType,
+    errorHelp,
     phase,
+    currentBatch,
+    totalBatches,
+    failedNodes,
+    skippedTopics,
   } = progress;
 
   // Calculate percentage from processed_nodes and total_nodes
@@ -53,6 +59,30 @@ export default function ProgressDisplay({ progress }: ProgressDisplayProps) {
     return null;
   }
 
+  // Phase display mapping
+  const getPhaseDisplay = (phase: string) => {
+    switch (phase) {
+      case 'batch_processing':
+        return { icon: <Database className="h-4 w-4" />, text: 'Collecting Nodes' };
+      case 'embedding':
+        return { icon: <Database className="h-4 w-4" />, text: 'Generating Embeddings (Batch)' };
+      case 'storing':
+        return { icon: <Database className="h-4 w-4" />, text: 'Storing to ChromaDB' };
+      case 'processing':
+        return { icon: <Database className="h-4 w-4" />, text: 'Processing' };
+      case 'complete':
+        return { icon: <CheckCircle className="h-4 w-4 text-green-500" />, text: 'Complete' };
+      case 'error':
+        return { icon: <AlertCircle className="h-4 w-4 text-destructive" />, text: 'Error' };
+      case 'cancelled':
+        return { icon: <AlertCircle className="h-4 w-4 text-yellow-500" />, text: 'Cancelled' };
+      default:
+        return { icon: <Database className="h-4 w-4" />, text: phase };
+    }
+  };
+
+  const phaseDisplay = getPhaseDisplay(phase);
+
   return (
     <Card className="w-full">
       <CardContent className="pt-6">
@@ -61,20 +91,32 @@ export default function ProgressDisplay({ progress }: ProgressDisplayProps) {
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-lg">Processing RAG Index</h3>
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-              {phase === 'processing' && <Database className="h-4 w-4" />}
-              {phase === 'error' && <AlertCircle className="h-4 w-4 text-destructive" />}
-              <span className="capitalize">{phase}</span>
+              {phaseDisplay.icon}
+              <span>{phaseDisplay.text}</span>
             </div>
           </div>
 
-          {/* Error Display */}
+          {/* Enhanced Error Display */}
           {phase === 'error' && error && (
-            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3">
-              <div className="flex items-center space-x-2 text-destructive">
+            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+              <div className="flex items-center space-x-2 text-destructive mb-2">
                 <AlertCircle className="h-4 w-4" />
                 <span className="font-medium">Processing Error</span>
+                {errorType && (
+                  <span className="text-xs bg-destructive/20 text-destructive px-2 py-1 rounded">
+                    {errorType}
+                  </span>
+                )}
               </div>
-              <p className="text-sm text-destructive/80 mt-1">{error}</p>
+              <p className="text-sm text-destructive/80 mb-2">{error}</p>
+              {errorHelp && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400 p-3 mt-3">
+                  <div className="flex items-center space-x-2 text-blue-700 dark:text-blue-300 mb-1">
+                    <span className="text-xs font-medium">💡 Suggestion</span>
+                  </div>
+                  <p className="text-sm text-blue-600 dark:text-blue-400">{errorHelp}</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -89,6 +131,15 @@ export default function ProgressDisplay({ progress }: ProgressDisplayProps) {
                 Successfully processed {currentNode?.toLocaleString() || 0} nodes in{' '}
                 {formatDuration(elapsedSeconds || 0)}
               </p>
+              {skippedTopics && skippedTopics > 0 && (
+                <div className="bg-blue-50 border-l-4 border-blue-400 p-2 mt-2">
+                  <div className="text-xs text-blue-700">
+                    ⚡ <strong>Performance Optimization:</strong> Skipped {skippedTopics.toLocaleString()} unchanged topics
+                    <br />
+                    💰 <strong>Cost Savings:</strong> Avoided ~{skippedTopics.toLocaleString()} OpenAI API calls!
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -107,7 +158,7 @@ export default function ProgressDisplay({ progress }: ProgressDisplayProps) {
           )}
 
           {/* Active Processing Display */}
-          {phase === 'processing' && (
+          {(phase === 'processing' || phase === 'batch_processing' || phase === 'embedding' || phase === 'storing') && (
             <div className="space-y-3">
               {/* Overall Progress */}
               <div className="space-y-2">
@@ -178,10 +229,59 @@ export default function ProgressDisplay({ progress }: ProgressDisplayProps) {
                     <span className="font-medium">Processing Rate</span>
                   </div>
                   <div className="font-mono mt-1">
-                    {formatRate(processingRate)} nodes/sec
+                    {formatRate(processingRate)}
                   </div>
                 </div>
               )}
+
+              {/* Phase-specific information */}
+              {phase === 'batch_processing' && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                  <div className="text-sm text-blue-700 dark:text-blue-300">
+                    📋 Collecting all nodes and preparing content for batch processing...
+                  </div>
+                  {skippedTopics && skippedTopics > 0 && (
+                    <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                      ⚡ Optimization: Skipped {skippedTopics.toLocaleString()} unchanged topics
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {phase === 'embedding' && (
+                <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3">
+                  <div className="text-sm text-purple-700 dark:text-purple-300">
+                    🧠 Generating embeddings in batches (10-50x faster than individual calls!)
+                  </div>
+                  {currentBatch && totalBatches && (
+                    <div className="text-xs text-purple-600 dark:text-purple-400 mt-1">
+                      Processing batch {currentBatch} of {totalBatches}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {phase === 'storing' && (
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                  <div className="text-sm text-green-700 dark:text-green-300">
+                    💾 Storing embeddings to ChromaDB with progress updates...
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Storage Failure Warning - show during all phases */}
+          {failedNodes && failedNodes > 0 && (
+            <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3">
+              <div className="flex items-center space-x-2 text-orange-700 dark:text-orange-300 mb-1">
+                <AlertCircle className="h-4 w-4" />
+                <span className="font-medium">Storage Issues Detected</span>
+              </div>
+              <div className="text-sm text-orange-600 dark:text-orange-400">
+                ⚠️ {failedNodes.toLocaleString()} node{failedNodes !== 1 ? 's' : ''} failed to store in ChromaDB.
+                {phase === 'complete' ? ' Processing completed with some failures.' : ' Continuing...'}
+              </div>
             </div>
           )}
         </div>

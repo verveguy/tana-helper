@@ -121,12 +121,74 @@ export default function TanaStreamingUpload({
                     switch (data.type) {
                       case 'init':
                         updateRagProgress({
-                          phase: 'processing',
+                          phase: 'batch_processing',
                           totalTopics: data.total_topics,
                           totalNodes: data.total_nodes,
                           currentTopic: 0,
                           currentNode: 0,
                           percentage: 0,
+                          skippedTopics: data.skipped_topics,
+                          changedTopics: data.changed_topics,
+                        });
+                        break;
+
+                      case 'batch_start':
+                        updateRagProgress({
+                          phase: 'embedding',
+                          totalNodes: data.total_nodes,
+                          currentNode: 0,
+                          totalBatches: data.estimated_batches,
+                          currentBatch: 0,
+                          elapsedSeconds: data.elapsed_seconds,
+                        });
+                        break;
+
+                      case 'embedding_progress':
+                        updateRagProgress({
+                          phase: 'embedding',
+                          currentNode: data.processed_nodes,
+                          totalNodes: data.total_nodes,
+                          currentBatch: data.batch_num,
+                          totalBatches: data.total_batches,
+                          elapsedSeconds: data.elapsed_seconds,
+                          etaSeconds: data.eta_seconds,
+                          processingRate: data.processing_rate,
+                        });
+                        break;
+
+                      case 'batch_progress':
+                        updateRagProgress({
+                          currentNode: data.processed_nodes,
+                          totalNodes: data.total_nodes,
+                          currentTopic: data.current_topic,
+                          totalTopics: data.total_topics,
+                          elapsedSeconds: data.elapsed_seconds,
+                          etaSeconds: data.eta_seconds,
+                          processingRate: data.processing_rate,
+                          // Preserve the current phase if it's already set (for storing phase compatibility)
+                          phase: data.phase || ragProgress.phase,
+                        });
+                        break;
+
+                      case 'upsert_start':
+                        updateRagProgress({
+                          phase: 'storing',
+                          totalNodes: data.total_nodes,
+                          elapsedSeconds: data.elapsed_seconds,
+                        });
+                        break;
+
+                      case 'storing_progress':
+                        updateRagProgress({
+                          phase: 'storing',
+                          currentNode: data.processed_nodes,
+                          totalNodes: data.total_nodes,
+                          currentTopic: data.current_topic,
+                          totalTopics: data.total_topics,
+                          elapsedSeconds: data.elapsed_seconds,
+                          etaSeconds: data.eta_seconds,
+                          processingRate: data.storing_rate || data.processing_rate,
+                          failedNodes: data.failed_nodes,
                         });
                         break;
 
@@ -136,12 +198,12 @@ export default function TanaStreamingUpload({
                           totalTopics: data.total_topics,
                           currentNode: data.processed_nodes,
                           totalNodes: data.total_nodes,
-                          percentage: data.percentage,
                           currentTopicName: data.topic_name,
                           currentTopicId: data.topic_id,
                           elapsedSeconds: data.elapsed_seconds,
                           etaSeconds: data.eta_seconds,
                           processingRate: data.processing_rate,
+                          failedNodes: data.failed_nodes,
                         });
                         break;
 
@@ -151,10 +213,10 @@ export default function TanaStreamingUpload({
                           totalTopics: data.total_topics,
                           currentNode: data.processed_nodes,
                           totalNodes: data.total_nodes,
-                          percentage: data.percentage,
                           elapsedSeconds: data.elapsed_seconds,
                           etaSeconds: data.eta_seconds,
                           processingRate: data.processing_rate,
+                          failedNodes: data.failed_nodes,
                         });
                         break;
 
@@ -162,12 +224,12 @@ export default function TanaStreamingUpload({
                         updateRagProgress({
                           currentNode: data.processed_nodes,
                           totalNodes: data.total_nodes,
-                          percentage: data.percentage,
                           topicNode: data.topic_node,
                           topicNodes: data.topic_nodes,
                           elapsedSeconds: data.elapsed_seconds,
                           etaSeconds: data.eta_seconds,
                           processingRate: data.processing_rate,
+                          failedNodes: data.failed_nodes,
                         });
                         break;
 
@@ -175,20 +237,27 @@ export default function TanaStreamingUpload({
                         updateRagProgress({
                           phase: 'complete',
                           percentage: 100,
-                          currentNode: data.total_nodes,
+                          currentNode: data.processed_nodes || data.total_nodes,
                           elapsedSeconds: data.elapsed_seconds,
+                          processingRate: data.processing_rate,
+                          failedNodes: data.failed_nodes,
                         });
                         onSuccess({
                           total_topics: data.total_topics,
-                          total_nodes: data.total_nodes
+                          total_nodes: data.total_nodes,
+                          failed_nodes: data.failed_nodes
                         });
                         setDumpFile(null);
                         setIsUploading(false);
                         break;
 
-                      case 'topic_error':
-                        console.warn('Topic error:', data.error);
-                        // Continue processing, just log the error
+                      case 'node_error':
+                        console.warn('Node processing error:', data.error);
+                        // Continue processing, just log the error - don't break the UI
+                        updateRagProgress({
+                          elapsedSeconds: data.elapsed_seconds,
+                          failedNodes: data.failed_nodes,
+                        });
                         break;
 
                       case 'keepalive':
@@ -202,7 +271,7 @@ export default function TanaStreamingUpload({
 
                       case 'cancelled':
                         updateRagProgress({
-                          phase: 'error',
+                          phase: 'cancelled',
                           error: 'Processing cancelled by user',
                         });
                         onError('Processing cancelled by user');
@@ -213,8 +282,15 @@ export default function TanaStreamingUpload({
                         updateRagProgress({
                           phase: 'error',
                           error: data.message,
+                          errorType: data.error_type,
+                          errorHelp: data.help,
                         });
-                        onError(data.message);
+                        // Create a more informative error message for the callback
+                        let errorMessage = data.message;
+                        if (data.help) {
+                          errorMessage += `\n\nSuggestion: ${data.help}`;
+                        }
+                        onError(errorMessage);
                         setIsUploading(false);
                         break;
                     }
