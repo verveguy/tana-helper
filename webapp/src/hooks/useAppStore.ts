@@ -35,6 +35,8 @@ export const useMermaidText = () => useAppStoreBase(state => state.mermaidText);
 
 export const useRagIndexData = () => useAppStoreBase(state => state.ragIndexData);
 
+export const useRagProgress = () => useAppStoreBase(state => state.ragProgress);
+
 export const useConfig = () => useAppStoreBase(state => state.config);
 
 export const useWebhooks = () => useAppStoreBase(state => state.webhooks);
@@ -53,6 +55,9 @@ export const useAppActions = () => {
   const setConfigLoading = useAppStoreBase(state => state.setConfigLoading);
   const setMermaidText = useAppStoreBase(state => state.setMermaidText);
   const setRagIndexData = useAppStoreBase(state => state.setRagIndexData);
+  const setRagProgress = useAppStoreBase(state => state.setRagProgress);
+  const resetRagProgress = useAppStoreBase(state => state.resetRagProgress);
+  const updateRagProgress = useAppStoreBase(state => state.updateRagProgress);
   const setConfig = useAppStoreBase(state => state.setConfig);
   const setWebhooks = useAppStoreBase(state => state.setWebhooks);
   const setTwoDee = useAppStoreBase(state => state.setTwoDee);
@@ -79,6 +84,9 @@ export const useAppActions = () => {
     setConfigLoading,
     setMermaidText,
     setRagIndexData,
+    setRagProgress,
+    resetRagProgress,
+    updateRagProgress,
     setConfig,
     setWebhooks,
     setTwoDee,

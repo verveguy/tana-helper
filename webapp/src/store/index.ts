@@ -1,12 +1,23 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
-import { AppState, AppActions } from './types';
+import { AppState, AppActions, RAGProgressState } from './types';
+
+// Default RAG progress state
+const defaultRAGProgress: RAGProgressState = {
+  isActive: false,
+  phase: 'idle',
+  currentTopic: 0,
+  totalTopics: 0,
+  currentNode: 0,
+  totalNodes: 0,
+  percentage: 0,
+};
 
 // Core app store with devtools and persistence for configuration
 export const useAppStore = create<AppState & AppActions>()(
   devtools(
     persist(
-      (set, _get) => ({
+      (set, get) => ({
         // State
         graphData: undefined,
         loading: false, // Legacy - kept for backward compatibility
@@ -16,6 +27,7 @@ export const useAppStore = create<AppState & AppActions>()(
         configLoading: false,
         mermaidText: undefined,
         ragIndexData: undefined,
+        ragProgress: defaultRAGProgress,
         config: undefined,
         webhooks: undefined,
         twoDee: false,
@@ -43,6 +55,18 @@ export const useAppStore = create<AppState & AppActions>()(
         setMermaidText: mermaidText => set({ mermaidText }, false, 'setMermaidText'),
 
         setRagIndexData: ragIndexData => set({ ragIndexData }, false, 'setRagIndexData'),
+
+        setRagProgress: progress =>
+          set({ ragProgress: { ...get().ragProgress, ...progress } }, false, 'setRagProgress'),
+
+        resetRagProgress: () => set({ ragProgress: defaultRAGProgress }, false, 'resetRagProgress'),
+
+        updateRagProgress: updates =>
+          set(
+            state => ({ ragProgress: { ...state.ragProgress, ...updates } }),
+            false,
+            'updateRagProgress'
+          ),
 
         setConfig: config => set({ config }, false, 'setConfig'),
 
@@ -110,6 +134,7 @@ export const useAppStore = create<AppState & AppActions>()(
               ragIndexData: undefined,
               ragError: null,
               ragLoading: false,
+              ragProgress: defaultRAGProgress,
             },
             false,
             'resetRAGIndexState'

@@ -30,6 +30,14 @@ dependencies = [
     "mkdocs-material>=9.6.15",
 ]
 
+[project.scripts]
+# Development server with hot reloading
+dev = "service.cli:dev"
+# Production server
+serve = "service.cli:serve" 
+# Development server with debug logging
+debug = "service.cli:debug"
+
 [project.optional-dependencies]
 dev = [
     "pyinstaller==6.2.0", # keep this old deliberately to avoid virus false positives

@@ -2,10 +2,12 @@ import asyncio
 import json
 import os
 import tempfile
+import time
 from logging import getLogger
 
 from fastapi import APIRouter, Request
 from fastapi.encoders import jsonable_encoder
+from fastapi.responses import StreamingResponse
 
 # This is here to satisfy runtime import needs
 # that pyinstaller appears to miss
@@ -72,6 +74,161 @@ async def load_chromadb_from_topics(
     return index_nodes
 
 
+async def load_chromadb_from_topics_with_progress(
+    topics: list[TanaDocument], model: str, progress_callback=None, observe=False
+):
+    """Enhanced version with progress callbacks for streaming updates."""
+
+    logger.info("Building ChromaDB vectors from nodes with progress tracking")
+
+    total_topics = len(topics)
+    processed_nodes = 0
+    total_nodes = 0
+
+    # First pass: count total nodes for accurate progress
+    for topic in topics:
+        (doc_node, text_nodes) = document_from_topic(topic)
+        total_nodes += 1 + len(text_nodes)  # Document + text nodes
+
+    if progress_callback:
+        await progress_callback(
+            {
+                "type": "init",
+                "total_topics": total_topics,
+                "total_nodes": total_nodes,
+                "phase": "starting",
+            }
+        )
+
+    # Second pass: actual processing with progress updates
+    for i, topic in enumerate(topics):
+        try:
+            # Check for cancellation every topic
+            current_task = asyncio.current_task()
+            if current_task and current_task.cancelled():
+                logger.info("Processing cancelled by user")
+                return processed_nodes
+
+            # Send topic-level progress
+            if progress_callback:
+                await progress_callback(
+                    {
+                        "type": "topic_start",
+                        "current_topic": i + 1,
+                        "total_topics": total_topics,
+                        "topic_name": topic.name[:100],  # Truncate long names
+                        "topic_id": topic.id,
+                        "processed_nodes": processed_nodes,
+                        "total_nodes": total_nodes,
+                        "percentage": round((processed_nodes / total_nodes) * 100, 1),
+                        "phase": "processing",
+                    }
+                )
+
+            # Process the topic
+            (doc_node, text_nodes) = document_from_topic(topic)
+            all_nodes = [doc_node] + text_nodes
+
+            # Process each node
+            for j, node in enumerate(all_nodes):
+                # Check for cancellation every 5 nodes
+                if j % 5 == 0:
+                    current_task = asyncio.current_task()
+                    if current_task and current_task.cancelled():
+                        logger.info("Processing cancelled by user")
+                        return processed_nodes
+
+                chroma_req = ChromaRequest(
+                    context=node.text,
+                    name=(node.metadata or {}).get("title", ""),
+                    nodeId=node.id,
+                    model=model,
+                )
+                await chroma_upsert(chroma_req)
+                processed_nodes += 1
+
+                # Yield control to event loop every few nodes for better responsiveness
+                if j % 3 == 0:
+                    await asyncio.sleep(0)  # Yield to allow signal handling
+
+                # Send node-level progress for large topics (> 20 nodes)
+                if len(all_nodes) > 20 and (j + 1) % 5 == 0 and progress_callback:
+                    await progress_callback(
+                        {
+                            "type": "node_progress",
+                            "current_topic": i + 1,
+                            "total_topics": total_topics,
+                            "topic_node": j + 1,
+                            "topic_nodes": len(all_nodes),
+                            "processed_nodes": processed_nodes,
+                            "total_nodes": total_nodes,
+                            "percentage": round(
+                                (processed_nodes / total_nodes) * 100, 1
+                            ),
+                            "phase": "processing",
+                        }
+                    )
+
+            # Send topic completion
+            if progress_callback:
+                await progress_callback(
+                    {
+                        "type": "topic_complete",
+                        "current_topic": i + 1,
+                        "total_topics": total_topics,
+                        "topic_name": topic.name[:100],
+                        "processed_nodes": processed_nodes,
+                        "total_nodes": total_nodes,
+                        "percentage": round((processed_nodes / total_nodes) * 100, 1),
+                        "phase": "processing",
+                    }
+                )
+
+        except asyncio.CancelledError:
+            logger.info("Processing cancelled by user")
+            if progress_callback:
+                await progress_callback(
+                    {
+                        "type": "cancelled",
+                        "current_topic": i + 1,
+                        "total_topics": total_topics,
+                        "processed_nodes": processed_nodes,
+                        "phase": "cancelled",
+                    }
+                )
+            raise  # Re-raise to properly handle cancellation
+
+        except Exception as e:
+            logger.error(f"Error processing topic {topic.id}: {e}")
+            if progress_callback:
+                await progress_callback(
+                    {
+                        "type": "topic_error",
+                        "current_topic": i + 1,
+                        "total_topics": total_topics,
+                        "topic_name": topic.name[:100],
+                        "error": str(e),
+                        "phase": "error",
+                    }
+                )
+            # Continue with next topic rather than failing completely
+            continue
+
+    logger.info(f"ChromaDB populated with {processed_nodes} nodes")
+
+    if progress_callback:
+        await progress_callback(
+            {
+                "type": "complete",
+                "total_topics": total_topics,
+                "total_nodes": processed_nodes,
+                "phase": "complete",
+            }
+        )
+
+    return processed_nodes
+
+
 class Document:
     def __init__(self, id: str, text: str, metadata: dict | None = None):
         if not id:
@@ -112,7 +269,7 @@ def document_from_topic(topic) -> tuple[Document, list[TextNode]]:
     }
 
     if topic.fields:
-        # get all the fields as metdata as well
+        # get all the fields as metadata as well
         fields = set([field.name for field in topic.fields])
         for field_name in fields:
             metadata[field_name] = " ".join(
@@ -121,7 +278,7 @@ def document_from_topic(topic) -> tuple[Document, list[TextNode]]:
 
     # what other props do we need to create?
     # document = Document(id_=topic.id, text=topic.name) # type: ignore
-    # we only add the ffirst line and fields to the document payload
+    # we only add the first line and fields to the document payload
     # anything else and we blow out the token limits (and cost a lot!)
     text = topic.content[0][2]
     document_node = Document(
@@ -218,3 +375,203 @@ async def chroma_preload(request: Request, tana_dump: TanaDump, model: str = "op
             # logger.info(f'Deleted temp file {path}')
             messages = logs.getvalue()
         return messages
+
+
+@router.post("/chroma/preload/stream", tags=["preload"])
+async def chroma_preload_stream(
+    request: Request, tana_dump: TanaDump, model: str = "openai"
+):
+    """Streaming version of preload with real-time progress updates via Server-Sent Events.
+
+    Accepts a Tana dump JSON payload and builds the index from it with progress reporting.
+    Returns progress updates as Server-Sent Events in JSON format.
+
+    Progress event types:
+    - init: Initial setup with total counts
+    - topic_start: Starting to process a topic
+    - topic_complete: Completed processing a topic
+    - node_progress: Progress within large topics
+    - topic_error: Error processing a specific topic
+    - complete: All processing completed
+    - error: Fatal error occurred
+    """
+
+    async def generate_progress():
+        process_task = None
+
+        try:
+            async with lock:
+                start_time = time.time()
+                progress_queue = asyncio.Queue()
+
+                # Extract topics first to get total count
+                logger.info("Extracting topics from Tana dump for streaming preload")
+                result = await extract_topics(tana_dump, "JSON")  # type: ignore
+                logger.info(f"Extracted {len(result)} topics from Tana dump")
+
+                # Progress callback function to queue SSE events
+                async def progress_callback(data):
+                    # Add timing information
+                    elapsed = time.time() - start_time
+                    data["elapsed_seconds"] = round(elapsed, 1)
+
+                    # Calculate ETA for processing phases
+                    if (
+                        data.get("processed_nodes", 0) > 0
+                        and data.get("total_nodes", 0) > 0
+                    ):
+                        progress_ratio = data["processed_nodes"] / data["total_nodes"]
+                        if (
+                            progress_ratio > 0.05
+                        ):  # Only calculate ETA after 5% progress
+                            estimated_total_time = elapsed / progress_ratio
+                            eta_seconds = estimated_total_time - elapsed
+                            data["eta_seconds"] = round(max(0, eta_seconds), 1)
+                            data["processing_rate"] = round(
+                                data["processed_nodes"] / elapsed, 2
+                            )
+
+                    # Put the progress data in the queue (with timeout to avoid blocking)
+                    try:
+                        await asyncio.wait_for(progress_queue.put(data), timeout=5.0)
+                    except TimeoutError:
+                        # If we can't queue progress updates, the client likely disconnected
+                        logger.debug(
+                            "Progress queue full, client may have disconnected"
+                        )
+
+                # Start processing in a background task
+                async def process_topics():
+                    try:
+                        await load_chromadb_from_topics_with_progress(
+                            result, model=model, progress_callback=progress_callback
+                        )
+                        logger.info("Streaming preload completed successfully")
+                    except asyncio.CancelledError:
+                        logger.info("Processing cancelled by user")
+                        try:
+                            await asyncio.wait_for(
+                                progress_queue.put(
+                                    {
+                                        "type": "cancelled",
+                                        "message": "Processing cancelled by user",
+                                        "phase": "cancelled",
+                                        "elapsed_seconds": round(
+                                            time.time() - start_time, 1
+                                        ),
+                                    }
+                                ),
+                                timeout=1.0,
+                            )
+                        except (TimeoutError, asyncio.CancelledError):
+                            pass  # Queue is full or cancelled, client disconnected
+                        raise  # Re-raise to properly handle cancellation
+                    except Exception as e:
+                        logger.error(f"Error in background processing: {e}")
+                        try:
+                            await asyncio.wait_for(
+                                progress_queue.put(
+                                    {
+                                        "type": "error",
+                                        "message": str(e),
+                                        "phase": "error",
+                                        "elapsed_seconds": round(
+                                            time.time() - start_time, 1
+                                        ),
+                                    }
+                                ),
+                                timeout=1.0,
+                            )
+                        except (TimeoutError, asyncio.CancelledError):
+                            pass  # Queue is full or cancelled, client disconnected
+                    finally:
+                        # Signal completion (with timeout to avoid hanging)
+                        try:
+                            await asyncio.wait_for(
+                                progress_queue.put(None), timeout=1.0
+                            )
+                        except (TimeoutError, asyncio.CancelledError):
+                            pass  # Client disconnected, no need to signal completion
+
+                # Start the background task
+                process_task = asyncio.create_task(process_topics())
+
+                # Yield progress updates as they come
+                try:
+                    while True:
+                        try:
+                            # Wait for progress update with timeout
+                            data = await asyncio.wait_for(
+                                progress_queue.get(), timeout=30.0
+                            )
+
+                            if data is None:  # Processing completed
+                                break
+
+                            # Send the SSE event
+                            event_data = f"data: {json.dumps(data)}\n\n"
+                            yield event_data
+
+                        except TimeoutError:
+                            # Send keepalive event
+                            keepalive_data = {
+                                "type": "keepalive",
+                                "elapsed_seconds": round(time.time() - start_time, 1),
+                            }
+                            yield f"data: {json.dumps(keepalive_data)}\n\n"
+                            continue
+
+                except asyncio.CancelledError:
+                    # Client disconnected, cancel background processing gracefully
+                    logger.debug(
+                        "Client disconnected, cancelling background processing"
+                    )
+                    if process_task and not process_task.done():
+                        process_task.cancel()
+                        try:
+                            await asyncio.wait_for(process_task, timeout=5.0)
+                        except (TimeoutError, asyncio.CancelledError):
+                            logger.debug(
+                                "Background task cancelled/timed out during cleanup"
+                            )
+                    raise
+
+                # Wait for the processing task to complete
+                if process_task and not process_task.done():
+                    await process_task
+
+        except asyncio.CancelledError:
+            # This is expected when client disconnects, don't log as error
+            logger.debug("Streaming cancelled (client disconnected)")
+            raise
+        except Exception as e:
+            logger.error(f"Error in streaming preload: {e}")
+            error_data = {
+                "type": "error",
+                "message": str(e),
+                "phase": "error",
+                "elapsed_seconds": round(time.time() - start_time, 1)
+                if "start_time" in locals()
+                else 0,
+            }
+            yield f"data: {json.dumps(error_data)}\n\n"
+        finally:
+            # Final cleanup
+            if process_task and not process_task.done():
+                logger.debug("Cleaning up background task")
+                process_task.cancel()
+                try:
+                    await asyncio.wait_for(process_task, timeout=2.0)
+                except (TimeoutError, asyncio.CancelledError):
+                    logger.debug("Background task cleanup completed")
+
+    return StreamingResponse(
+        generate_progress(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Cache-Control",
+        },
+    )

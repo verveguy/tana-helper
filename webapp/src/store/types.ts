@@ -21,6 +21,35 @@ export interface RAGIndexData {
   [key: string]: any;
 }
 
+// Progress state for RAG indexing operations
+export interface RAGProgressState {
+  isActive: boolean;
+  phase: 'idle' | 'starting' | 'processing' | 'complete' | 'error';
+
+  // Overall progress
+  currentTopic: number;
+  totalTopics: number;
+  currentNode: number;
+  totalNodes: number;
+  percentage: number;
+
+  // Current processing info
+  currentTopicName?: string;
+  currentTopicId?: string;
+
+  // Timing information
+  elapsedSeconds?: number;
+  etaSeconds?: number;
+  processingRate?: number; // nodes per second
+
+  // Error information
+  error?: string;
+
+  // Topic-level progress for large topics
+  topicNode?: number;
+  topicNodes?: number;
+}
+
 export interface Config {
   openai_api_key?: string;
   [key: string]: any;
@@ -44,6 +73,7 @@ export interface AppState {
   configLoading: boolean;
   mermaidText?: string;
   ragIndexData?: RAGIndexData;
+  ragProgress: RAGProgressState;
   config?: Config;
   webhooks?: Webhook[];
   twoDee: boolean;
@@ -66,6 +96,9 @@ export interface AppActions {
   setConfigLoading: (loading: boolean) => void;
   setMermaidText: (mermaidText?: string) => void;
   setRagIndexData: (ragIndexData?: RAGIndexData) => void;
+  setRagProgress: (progress: Partial<RAGProgressState>) => void;
+  resetRagProgress: () => void;
+  updateRagProgress: (updates: Partial<RAGProgressState>) => void;
   setConfig: (config?: Config) => void;
   setWebhooks: (webhooks?: Webhook[]) => void;
   setTwoDee: (twoDee: boolean) => void;

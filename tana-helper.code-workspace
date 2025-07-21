@@ -25,10 +25,14 @@
   "settings": {
     "cSpell.words": [
       "chatcompletion",
+      "jsonable",
       "jsonstring",
+      "keepalive",
       "levelname",
       "Llamaindex",
+      "partialize",
       "serpapi",
+      "signum",
       "strerror",
       "supertag",
       "supertags",
