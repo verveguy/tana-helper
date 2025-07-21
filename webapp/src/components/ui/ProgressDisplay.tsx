@@ -1,6 +1,6 @@
 import { Card, CardContent } from './card';
 import { Progress } from './progress';
-import { Clock, Zap, Database, AlertCircle } from 'lucide-react';
+import { Clock, Database, AlertCircle, CheckCircle, Activity } from 'lucide-react';
 import { RAGProgressState } from '../../store/types';
 
 interface ProgressDisplayProps {
@@ -30,14 +30,12 @@ function formatRate(rate: number): string {
   return `${rate.toFixed(1)} nodes/sec`;
 }
 
-export function ProgressDisplay({ progress }: ProgressDisplayProps) {
+export default function ProgressDisplay({ progress }: ProgressDisplayProps) {
   const {
-    phase,
     currentTopic,
     totalTopics,
     currentNode,
     totalNodes,
-    percentage,
     currentTopicName,
     elapsedSeconds,
     etaSeconds,
@@ -45,7 +43,11 @@ export function ProgressDisplay({ progress }: ProgressDisplayProps) {
     topicNode,
     topicNodes,
     error,
+    phase,
   } = progress;
+
+  // Calculate percentage from processed_nodes and total_nodes
+  const percentage = totalNodes > 0 ? (currentNode / totalNodes) * 100 : 0;
 
   if (phase === 'idle') {
     return null;
@@ -68,22 +70,51 @@ export function ProgressDisplay({ progress }: ProgressDisplayProps) {
           {/* Error Display */}
           {phase === 'error' && error && (
             <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3">
-              <div className="flex items-center space-x-2">
-                <AlertCircle className="h-4 w-4 text-destructive" />
-                <span className="text-sm font-medium text-destructive">Error</span>
+              <div className="flex items-center space-x-2 text-destructive">
+                <AlertCircle className="h-4 w-4" />
+                <span className="font-medium">Processing Error</span>
               </div>
-              <p className="text-sm text-destructive mt-1">{error}</p>
+              <p className="text-sm text-destructive/80 mt-1">{error}</p>
             </div>
           )}
 
-          {/* Main Progress Bar */}
-          {phase !== 'error' && (
-            <>
+          {/* Success Display */}
+          {phase === 'complete' && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+              <div className="flex items-center space-x-2 text-green-700">
+                <CheckCircle className="h-4 w-4" />
+                <span className="font-medium">Processing Complete!</span>
+              </div>
+              <p className="text-sm text-green-600 mt-1">
+                Successfully processed {currentNode?.toLocaleString() || 0} nodes in{' '}
+                {formatDuration(elapsedSeconds || 0)}
+              </p>
+            </div>
+          )}
+
+          {/* Cancelled Display */}
+          {phase === 'cancelled' && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <div className="flex items-center space-x-2 text-yellow-700">
+                <AlertCircle className="h-4 w-4" />
+                <span className="font-medium">Processing Cancelled</span>
+              </div>
+              <p className="text-sm text-yellow-600 mt-1">
+                Processing was cancelled by user. Processed {currentNode?.toLocaleString() || 0} of{' '}
+                {totalNodes?.toLocaleString() || 0} nodes.
+              </p>
+            </div>
+          )}
+
+          {/* Active Processing Display */}
+          {phase === 'processing' && (
+            <div className="space-y-3">
+              {/* Overall Progress */}
               <div className="space-y-2">
                 <div className="flex justify-between items-center text-sm">
-                  <span>Overall Progress</span>
+                  <span className="font-medium">Overall Progress</span>
                   <span className="font-mono">
-                    {currentNode.toLocaleString()} / {totalNodes.toLocaleString()} nodes
+                    {(currentNode || 0).toLocaleString()} / {(totalNodes || 0).toLocaleString()} nodes
                   </span>
                 </div>
                 <Progress value={percentage} className="h-3" />
@@ -93,85 +124,68 @@ export function ProgressDisplay({ progress }: ProgressDisplayProps) {
                 </div>
               </div>
 
-              {/* Topic Progress */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div className="space-y-1">
-                  <div className="flex items-center space-x-2">
-                    <Database className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">Topics</span>
-                  </div>
-                  <div className="text-muted-foreground">
-                    {currentTopic} of {totalTopics} topics
-                  </div>
-                  {topicNodes && topicNodes > 20 && (
-                    <div className="text-xs text-muted-foreground">
-                      Topic: {topicNode} / {topicNodes} nodes
-                    </div>
-                  )}
-                </div>
-
-                {/* Timing Info */}
-                <div className="space-y-1">
-                  <div className="flex items-center space-x-2">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">Timing</span>
-                  </div>
-                  {elapsedSeconds && (
-                    <div className="text-muted-foreground">
-                      Elapsed: {formatDuration(elapsedSeconds)}
-                    </div>
-                  )}
-                  {etaSeconds && etaSeconds > 0 && (
-                    <div className="text-muted-foreground">
-                      ETA: {formatDuration(etaSeconds)}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Current Processing Info */}
+              {/* Current Topic */}
               {currentTopicName && (
-                <div className="bg-muted/50 rounded-lg p-3">
-                  <div className="flex items-center space-x-2 mb-1">
-                    <div className="h-2 w-2 bg-primary rounded-full animate-pulse" />
-                    <span className="text-sm font-medium">Currently processing</span>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="font-medium">Current Topic</span>
+                    <span className="font-mono">
+                      {currentTopic || 0} / {totalTopics || 0}
+                    </span>
                   </div>
-                  <div className="text-sm text-muted-foreground truncate">
-                    {currentTopicName}
+                  <div className="bg-muted rounded-lg p-3">
+                    <div className="font-medium truncate" title={currentTopicName}>
+                      {currentTopicName}
+                    </div>
+                    {topicNode && topicNodes && (
+                      <div className="text-sm text-muted-foreground mt-1">
+                        Node {topicNode} of {topicNodes} in this topic
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
+
+              {/* Timing Information */}
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="space-y-1">
+                  <div className="flex items-center space-x-1">
+                    <Clock className="h-3 w-3" />
+                    <span className="font-medium">Elapsed</span>
+                  </div>
+                  <div className="font-mono">
+                    {formatDuration(elapsedSeconds || 0)}
+                  </div>
+                </div>
+                {etaSeconds && etaSeconds > 0 && (
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-1">
+                      <Clock className="h-3 w-3" />
+                      <span className="font-medium">ETA</span>
+                    </div>
+                    <div className="font-mono">
+                      {formatDuration(etaSeconds)}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Processing Rate */}
-              {processingRate && processingRate > 0 && elapsedSeconds && elapsedSeconds > 10 && (
-                <div className="flex items-center justify-center space-x-2 text-sm text-muted-foreground">
-                  <Zap className="h-4 w-4" />
-                  <span>Processing at {formatRate(processingRate)}</span>
+              {processingRate && processingRate > 0 && (
+                <div className="text-sm">
+                  <div className="flex items-center space-x-1">
+                    <Activity className="h-3 w-3" />
+                    <span className="font-medium">Processing Rate</span>
+                  </div>
+                  <div className="font-mono mt-1">
+                    {formatRate(processingRate)} nodes/sec
+                  </div>
                 </div>
               )}
-            </>
-          )}
-
-          {/* Completion Message */}
-          {phase === 'complete' && (
-            <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
-              <div className="flex items-center space-x-2">
-                <div className="h-2 w-2 bg-green-500 rounded-full" />
-                <span className="text-sm font-medium text-green-700 dark:text-green-300">
-                  Indexing Complete
-                </span>
-              </div>
-              <p className="text-sm text-green-600 dark:text-green-400 mt-1">
-                Successfully processed {totalNodes.toLocaleString()} nodes from{' '}
-                {totalTopics.toLocaleString()} topics
-                {elapsedSeconds && ` in ${formatDuration(elapsedSeconds)}`}
-              </p>
             </div>
           )}
         </div>
       </CardContent>
     </Card>
   );
-}
-
-export default ProgressDisplay; 
+} 

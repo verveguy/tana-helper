@@ -24,7 +24,7 @@ export interface RAGIndexData {
 // Progress state for RAG indexing operations
 export interface RAGProgressState {
   isActive: boolean;
-  phase: 'idle' | 'starting' | 'processing' | 'complete' | 'error';
+  phase: 'idle' | 'starting' | 'processing' | 'complete' | 'error' | 'cancelled';
 
   // Overall progress
   currentTopic: number;

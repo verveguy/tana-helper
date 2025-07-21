@@ -10,7 +10,7 @@ import httpx
 import pytz
 from fastapi import HTTPException, status
 from fastapi.concurrency import asynccontextmanager
-from openai import APIError, AuthenticationError, OpenAI, RateLimitError
+from openai import APIError, AsyncOpenAI, AuthenticationError, OpenAI, RateLimitError
 from pydantic import BaseModel
 
 from . import settings
@@ -223,7 +223,7 @@ def clean_openai_error_message(error_str: str) -> str:
 # OpenAI helper functions
 
 
-def get_embedding(req: EmbeddingRequest):
+async def get_embedding(req: EmbeddingRequest):
     """
     Get embeddings from OpenAI API with proper error handling.
 
@@ -251,11 +251,11 @@ def get_embedding(req: EmbeddingRequest):
             detail="OpenAI API key not configured. Please set your API key in configuration.",
         )
 
-    openai_client = OpenAI(api_key=api_key)
+    openai_client = AsyncOpenAI(api_key=api_key)
     content = req.name + req.context
 
     try:
-        embedding = openai_client.embeddings.create(
+        embedding = await openai_client.embeddings.create(
             input=content, model=req.embedding_model
         )
         return embedding.data  # type: ignore

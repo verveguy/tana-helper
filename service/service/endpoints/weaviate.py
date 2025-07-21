@@ -90,7 +90,7 @@ async def weaviate_upsert(request: Request, req: WeaviateRequest):
         pruned_content = prune_reference_nodes(req.context)
         req.context = pruned_content
 
-        embedding = get_embedding(req)
+        embedding = await get_embedding(req)
         vector = embedding[0].embedding
 
         client = get_weaviate(req.environment)
@@ -145,8 +145,10 @@ def weaviate_delete(req: WeaviateRequest):
     return None
 
 
-def get_tana_nodes_for_query(req: WeaviateRequest, send_text: bool | None = False):
-    embedding = get_embedding(req)
+async def get_tana_nodes_for_query(
+    req: WeaviateRequest, send_text: bool | None = False
+):
+    embedding = await get_embedding(req)
 
     vector = {"vector": embedding[0].embedding}
 
@@ -194,8 +196,8 @@ def get_tana_nodes_for_query(req: WeaviateRequest, send_text: bool | None = Fals
 
 
 @router.post("/weaviate/query", response_class=HTMLResponse, tags=["Weaviate"])
-def weaviate_query(req: WeaviateRequest, send_text: bool | None = False):
-    ids = get_tana_nodes_for_query(req)
+async def weaviate_query(req: WeaviateRequest, send_text: bool | None = False):
+    ids = await get_tana_nodes_for_query(req)
     if len(ids) == 0:
         tana_result = "No sufficiently well-scored results"
     else:

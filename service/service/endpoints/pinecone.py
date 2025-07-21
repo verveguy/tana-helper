@@ -89,7 +89,7 @@ async def upsert(request: Request, req: PineconeRequest):
         pruned_content = prune_reference_nodes(req.context)
         req.context = pruned_content
 
-        embedding = get_embedding(req)
+        embedding = await get_embedding(req)
         vector = embedding[0].embedding
         vectors = [
             (
@@ -125,8 +125,10 @@ def delete(req: PineconeRequest):
     return None
 
 
-def get_tana_nodes_for_query(req: PineconeRequest, send_text: bool | None = False):
-    embedding = get_embedding(req)
+async def get_tana_nodes_for_query(
+    req: PineconeRequest, send_text: bool | None = False
+):
+    embedding = await get_embedding(req)
 
     vector = embedding[0]["embedding"]
 
@@ -165,8 +167,8 @@ def get_tana_nodes_for_query(req: PineconeRequest, send_text: bool | None = Fals
 
 
 @router.post("/pinecone/query", response_class=HTMLResponse, tags=["Pinecone"])
-def query_pinecone(req: PineconeRequest, send_text: bool | None = False):
-    ids = get_tana_nodes_for_query(req)
+async def query_pinecone(req: PineconeRequest, send_text: bool | None = False):
+    ids = await get_tana_nodes_for_query(req)
     if len(ids) == 0:
         tana_result = "No sufficiently well-scored results"
     else:

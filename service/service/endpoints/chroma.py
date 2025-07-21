@@ -77,7 +77,7 @@ async def chroma_upsert(req: ChromaRequest):
         pruned_content = prune_reference_nodes(req.context)
         req.context = pruned_content
 
-        embedding = get_embedding(req)
+        embedding = await get_embedding(req)
         vector = embedding[0].embedding
 
         collection = get_collection()
@@ -154,8 +154,8 @@ def get_tana_nodes_by_id(node_ids: list[str]):
     return texts
 
 
-def get_tana_nodes_for_query(req: ChromaRequest):
-    embedding = get_embedding(req)
+async def get_tana_nodes_for_query(req: ChromaRequest):
+    embedding = await get_embedding(req)
 
     vector = embedding[0].embedding
 
@@ -223,8 +223,8 @@ def get_tana_nodes_for_query(req: ChromaRequest):
 
 
 @router.post("/chroma/query", response_class=HTMLResponse, tags=["Chroma"])
-def chroma_query(req: ChromaRequest, send_text: bool | None = False):
-    ids, texts = get_tana_nodes_for_query(req)
+async def chroma_query(req: ChromaRequest, send_text: bool | None = False):
+    ids, texts = await get_tana_nodes_for_query(req)
     if len(ids) == 0:
         tana_result = "No sufficiently well-scored results"
     else:

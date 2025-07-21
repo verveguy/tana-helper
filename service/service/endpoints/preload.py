@@ -77,156 +77,219 @@ async def load_chromadb_from_topics(
 async def load_chromadb_from_topics_with_progress(
     topics: list[TanaDocument], model: str, progress_callback=None, observe=False
 ):
-    """Enhanced version with progress callbacks for streaming updates."""
+    """Load topics into ChromaDB with progress reporting.
+
+    This function performs two passes:
+    1. First pass: Count all nodes for accurate progress reporting
+    2. Second pass: Process and embed all nodes with progress updates
+
+    Args:
+        topics: List of Tana documents to process
+        model: Model to use for embeddings (e.g., "openai")
+        progress_callback: Optional callback function for progress updates
+        observe: Whether to use observe mode for processing
+    """
+
+    start_time = time.time()
 
     logger.info("Building ChromaDB vectors from nodes with progress tracking")
 
-    total_topics = len(topics)
-    processed_nodes = 0
-    total_nodes = 0
+    # Check for cancellation at the start
+    current_task = asyncio.current_task()
+    if current_task and current_task.cancelled():
+        logger.debug("Task was cancelled before starting")
+        return
 
-    # First pass: count total nodes for accurate progress
-    for topic in topics:
-        (doc_node, text_nodes) = document_from_topic(topic)
-        total_nodes += 1 + len(text_nodes)  # Document + text nodes
+    try:
+        # === PASS 1: Count total nodes ===
+        logger.debug("First pass: counting nodes...")
 
-    if progress_callback:
-        await progress_callback(
-            {
-                "type": "init",
-                "total_topics": total_topics,
-                "total_nodes": total_nodes,
-                "phase": "starting",
-            }
-        )
+        total_nodes = 0
+        large_topics = []
 
-    # Second pass: actual processing with progress updates
-    for i, topic in enumerate(topics):
-        try:
+        for i, topic in enumerate(topics):
             # Check for cancellation every topic
-            current_task = asyncio.current_task()
             if current_task and current_task.cancelled():
-                logger.info("Processing cancelled by user")
-                return processed_nodes
+                logger.debug("Task cancelled during node counting")
+                raise asyncio.CancelledError()
 
-            # Send topic-level progress
+            # Yield control every 10 topics during counting
+            if i % 10 == 0:
+                await asyncio.sleep(0)
+
+            # Use document_from_topic to get the node count
+            (doc_node, text_nodes) = document_from_topic(topic)
+            node_count = 1 + len(text_nodes)  # document + text nodes
+            total_nodes += node_count
+
+            # Log large topics for debugging
+            if node_count >= 30:
+                large_topics.append((topic.id, node_count))
+                logger.warning(f"Large topic {topic.id} with {node_count} children")
+
+        # Report large topics for performance awareness
+        if large_topics:
+            logger.info(f"Found {len(large_topics)} topics with 30+ nodes")
+
+        # Send initial progress callback
+        if progress_callback:
+            await progress_callback(
+                {
+                    "type": "init",
+                    "total_topics": len(topics),
+                    "total_nodes": total_nodes,
+                    "phase": "processing",
+                }
+            )
+
+        logger.info(f"Total nodes to process: {total_nodes}")
+
+        # === PASS 2: Process nodes ===
+        processed_nodes = 0
+
+        for topic_idx, topic in enumerate(topics):
+            # Check for cancellation at start of each topic
+            if current_task and current_task.cancelled():
+                logger.debug("Task cancelled during topic processing")
+                raise asyncio.CancelledError()
+
+            # Get all nodes for this topic
+            (doc_node, text_nodes) = document_from_topic(topic)
+            all_nodes = [doc_node] + text_nodes
+
+            # Send topic start callback
             if progress_callback:
                 await progress_callback(
                     {
                         "type": "topic_start",
-                        "current_topic": i + 1,
-                        "total_topics": total_topics,
+                        "current_topic": topic_idx + 1,
+                        "total_topics": len(topics),
                         "topic_name": topic.name[:100],  # Truncate long names
                         "topic_id": topic.id,
+                        "topic_nodes": len(all_nodes),
                         "processed_nodes": processed_nodes,
                         "total_nodes": total_nodes,
-                        "percentage": round((processed_nodes / total_nodes) * 100, 1),
                         "phase": "processing",
                     }
                 )
 
-            # Process the topic
-            (doc_node, text_nodes) = document_from_topic(topic)
-            all_nodes = [doc_node] + text_nodes
+            # Process nodes in this topic
+            for node_idx, node in enumerate(all_nodes):
+                # Check for cancellation every node in large topics
+                if len(all_nodes) > 50 and current_task and current_task.cancelled():
+                    logger.debug("Task cancelled during large topic processing")
+                    raise asyncio.CancelledError()
 
-            # Process each node
-            for j, node in enumerate(all_nodes):
-                # Check for cancellation every 5 nodes
-                if j % 5 == 0:
-                    current_task = asyncio.current_task()
-                    if current_task and current_task.cancelled():
-                        logger.info("Processing cancelled by user")
-                        return processed_nodes
+                try:
+                    # Create ChromaRequest for this node
+                    chroma_req = ChromaRequest(
+                        context=node.text,
+                        name=(node.metadata or {}).get("title", ""),
+                        nodeId=node.id,
+                        model=model,
+                    )
+                    await chroma_upsert(chroma_req)
+                    processed_nodes += 1
 
-                chroma_req = ChromaRequest(
-                    context=node.text,
-                    name=(node.metadata or {}).get("title", ""),
-                    nodeId=node.id,
-                    model=model,
-                )
-                await chroma_upsert(chroma_req)
-                processed_nodes += 1
+                    # Yield control and check cancellation every few nodes
+                    if node_idx % 2 == 0:  # More frequent yielding
+                        await asyncio.sleep(0)
 
-                # Yield control to event loop every few nodes for better responsiveness
-                if j % 3 == 0:
-                    await asyncio.sleep(0)  # Yield to allow signal handling
+                        # Check for cancellation more frequently
+                        if current_task and current_task.cancelled():
+                            logger.debug("Task cancelled during node processing")
+                            raise asyncio.CancelledError()
 
-                # Send node-level progress for large topics (> 20 nodes)
-                if len(all_nodes) > 20 and (j + 1) % 5 == 0 and progress_callback:
-                    await progress_callback(
-                        {
-                            "type": "node_progress",
-                            "current_topic": i + 1,
-                            "total_topics": total_topics,
-                            "topic_node": j + 1,
-                            "topic_nodes": len(all_nodes),
-                            "processed_nodes": processed_nodes,
-                            "total_nodes": total_nodes,
-                            "percentage": round(
-                                (processed_nodes / total_nodes) * 100, 1
-                            ),
-                            "phase": "processing",
-                        }
+                    # Send progress update every 5 nodes within large topics
+                    if len(all_nodes) > 20 and node_idx % 5 == 0 and progress_callback:
+                        await progress_callback(
+                            {
+                                "type": "node_progress",
+                                "current_topic": topic_idx + 1,
+                                "total_topics": len(topics),
+                                "topic_name": topic.name[:100],
+                                "topic_id": topic.id,
+                                "topic_node": node_idx + 1,
+                                "topic_nodes": len(all_nodes),
+                                "processed_nodes": processed_nodes,
+                                "total_nodes": total_nodes,
+                                "phase": "processing",
+                            }
+                        )
+
+                except Exception as e:
+                    logger.error(
+                        f"Error processing node {node.id} in topic {topic.id}: {e}"
                     )
 
-            # Send topic completion
+                    # Send error callback but continue processing
+                    if progress_callback:
+                        await progress_callback(
+                            {
+                                "type": "topic_error",
+                                "current_topic": topic_idx + 1,
+                                "topic_id": topic.id,
+                                "error": str(e),
+                                "processed_nodes": processed_nodes,
+                                "total_nodes": total_nodes,
+                                "phase": "processing",
+                            }
+                        )
+
+            # Send topic completion callback
             if progress_callback:
                 await progress_callback(
                     {
                         "type": "topic_complete",
-                        "current_topic": i + 1,
-                        "total_topics": total_topics,
+                        "current_topic": topic_idx + 1,
+                        "total_topics": len(topics),
                         "topic_name": topic.name[:100],
+                        "topic_id": topic.id,
                         "processed_nodes": processed_nodes,
                         "total_nodes": total_nodes,
-                        "percentage": round((processed_nodes / total_nodes) * 100, 1),
                         "phase": "processing",
                     }
                 )
 
-        except asyncio.CancelledError:
-            logger.info("Processing cancelled by user")
-            if progress_callback:
-                await progress_callback(
-                    {
-                        "type": "cancelled",
-                        "current_topic": i + 1,
-                        "total_topics": total_topics,
-                        "processed_nodes": processed_nodes,
-                        "phase": "cancelled",
-                    }
-                )
-            raise  # Re-raise to properly handle cancellation
+            # Yield control after each topic to ensure responsiveness
+            await asyncio.sleep(0)
 
-        except Exception as e:
-            logger.error(f"Error processing topic {topic.id}: {e}")
-            if progress_callback:
-                await progress_callback(
-                    {
-                        "type": "topic_error",
-                        "current_topic": i + 1,
-                        "total_topics": total_topics,
-                        "topic_name": topic.name[:100],
-                        "error": str(e),
-                        "phase": "error",
-                    }
-                )
-            # Continue with next topic rather than failing completely
-            continue
+        # Send completion callback
+        elapsed_time = time.time() - start_time
+        logger.info(f"ChromaDB indexing completed in {elapsed_time:.1f}s")
 
-    logger.info(f"ChromaDB populated with {processed_nodes} nodes")
+        if progress_callback:
+            await progress_callback(
+                {
+                    "type": "complete",
+                    "processed_nodes": processed_nodes,
+                    "total_nodes": total_nodes,
+                    "elapsed_seconds": round(elapsed_time, 1),
+                    "phase": "complete",
+                }
+            )
 
-    if progress_callback:
-        await progress_callback(
-            {
-                "type": "complete",
-                "total_topics": total_topics,
-                "total_nodes": processed_nodes,
-                "phase": "complete",
-            }
-        )
+    except asyncio.CancelledError:
+        # Handle cancellation gracefully
+        elapsed_time = time.time() - start_time
+        logger.info("Processing cancelled by user")
 
-    return processed_nodes
+        if progress_callback:
+            await progress_callback(
+                {
+                    "type": "cancelled",
+                    "message": "Processing cancelled by user",
+                    "processed_nodes": processed_nodes
+                    if "processed_nodes" in locals()
+                    else 0,
+                    "total_nodes": total_nodes if "total_nodes" in locals() else 0,
+                    "elapsed_seconds": round(elapsed_time, 1),
+                    "phase": "cancelled",
+                }
+            )
+
+        # Re-raise to properly handle cancellation
+        raise
 
 
 class Document:
