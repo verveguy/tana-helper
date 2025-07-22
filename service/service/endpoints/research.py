@@ -22,8 +22,10 @@ from llama_index.vector_stores.types import MetadataInfo, VectorStoreInfo
 from snowflake import SnowflakeGenerator
 
 from service.dependencies import (
-    TANA_TEXT,
+    TANA_NODE,
+		TANA_TEXT,
     LlamaindexAsk,
+    TanaNodeMetadata,
 )
 from service.llamaindex import (
     DecomposeQueryWithNodeContext,

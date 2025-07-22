@@ -17,6 +17,8 @@ from openai import APIError, AsyncOpenAI, AuthenticationError, OpenAI, RateLimit
 from pydantic import BaseModel
 
 from . import settings
+from service.tana_types import TANA_NODE
+
 
 # Load environment variables from .env file
 # load_dotenv()
@@ -30,10 +32,7 @@ app_name = "TanaHelper"
 # templates:object = None
 
 
-# Types for our APIs to use
 
-TANA_TEXT = "tana-text"
-TANA_NODE = "tana-node"
 
 
 class CalendarRequest(BaseModel):
@@ -63,6 +62,16 @@ class ExecRequest(BaseModel):
     call: str
     payload: dict
 
+
+#OPENAI_EMBEDDING_MODEL = "text-embedding-3-large"
+OPENAI_EMBEDDING_MODEL = "text-embedding-3-small"
+OPENAI_EMBEDDING_THRESHOLD = 0.45
+
+#OPENAI_EMBEDDING_MODEL = "text-embedding-ada-002"
+#OPENAI_EMBEDDING_THRESHOLD = 0.80
+
+
+OPENAI_CHAT_MODEL = 'gpt-4o'
 
 class OpenAIRequest(BaseModel):
     model: str = "gpt-3.5-turbo"

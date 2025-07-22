@@ -28,6 +28,15 @@ from service.dependencies import (
 )
 from service.tanaparser import prune_reference_nodes
 
+
+class EmbeddableNode(BaseModel):
+  id: str # the tana node id or a synthetic for reference nodes
+  name: str
+  text: str
+  embedding: Optional[Embedding] = None
+  metadata: Optional[Metadata] = None
+  hash: int = 0
+
 logger = getLogger()
 snowflakes = SnowflakeGenerator(42)
 
@@ -63,6 +72,35 @@ def get_queue_collection():
     collection = chroma.get_or_create_collection(name=INBOX_QUEUE)
     return collection
 
+
+
+def prepare_node_for_embedding(node_id, content_id, topic_id, name, tags, context, metadata=None) -> EmbeddableNode:
+  # we only want the direct children of the node as context
+  # so we prune the context before embedding
+  pruned_content = prune_reference_nodes(context)
+  context = pruned_content
+  hash_val = int(hashlib.sha1(context.encode("utf-8")).hexdigest(), 16) % (2 ** 62)
+  
+  if not metadata:
+    metadata = TanaNodeMetadata(
+                category=TANA_NODE,
+                supertag=tags,
+                title=name,
+                # we put the pruned node context into the metadata
+                text=context,
+                node_id=content_id,
+                topic_id=topic_id,
+                hash=hash_val
+    )
+    metadatas = metadata.model_dump()
+  else:
+    metadatas = metadata
+
+  if context is None:
+    logger.warning(f"Empty context for {node_id}")
+
+  embeddable = EmbeddableNode(id=node_id, name=name, text=context, metadata=metadatas, hash=hash_val)
+  return embeddable
 
 # attempt to parallelize non-async code
 # see https://github.com/tiangolo/fastapi/discussions/6347

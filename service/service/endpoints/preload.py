@@ -14,23 +14,24 @@ from fastapi.responses import StreamingResponse
 from snowflake import SnowflakeGenerator
 
 from service.dependencies import (
-    TANA_NODE,
-    TANA_TEXT,
+    OPENAI_EMBEDDING_MODEL,
     ChromaRequest,
-    TanaNodeMetadata,
     capture_logs,
+    get_embeddings,
+    nextflake,
 )
 from service.endpoints.chroma import chroma_upsert
 from service.endpoints.topics import TanaDocument, extract_topics
 from service.tana_types import TanaDump
+from service.json2tana import json_to_tana
 
 logger = getLogger()
-
-snowflakes = SnowflakeGenerator(42)
 
 router = APIRouter()
 
 minutes = 1000 * 60
+
+BATCH_SIZE = 500
 
 # TODO: Add header support throughout so we can pass Tana API key and OpenAPI Key as headers
 # NOTE: we already have this in the main.py middleware wrapper, but it would be better
@@ -38,7 +39,40 @@ minutes = 1000 * 60
 # x_tana_api_token: Annotated[str | None, Header()] = None
 # x_openai_api_key: Annotated[str | None, Header()] = None
 
-# TODO: change this to remove LLamaindex and simply go directly to ChromaDB
+
+# reduce our list of nodes to embed by testing hashes of the nodes
+def reduce_embeddings(nodes:List[EmbeddableNode]) -> Tuple[List[EmbeddableNode], dict]:  
+  
+  collection = get_collection()
+  lookup = {node.id: node for node in nodes}
+  removes = {}
+  deletes = {}
+  
+  # TODO: narrow this query to nodes from the given workspace 
+  # (requires we track workspace root node somehow in metadata or collection name)
+  query_response = collection.get()
+
+  if query_response:
+    # the result from ChromaDB is kinda strange. Instead of an array of objects
+    # it's four distinct arrays of object properties. Very odd interface.
+
+    for node_id, metadata in zip(
+            query_response["ids"],
+            query_response["metadatas"], # type: ignore
+        ):
+      
+      # is this node in the new set?
+      if node_id in lookup:
+        the_node = lookup[node_id]
+        if metadata and the_node.hash == metadata["hash"]:
+          # remove this node from the results
+          removes[node_id] = the_node
+      else:
+        deletes[node_id] = True
+
+  # remove the nodes that are already in the DB
+  results = [node for node in nodes if node.id not in removes]
+  return results, deletes
 
 
 async def load_chromadb_from_topics(
@@ -404,6 +438,7 @@ async def chroma_upsert_with_embedding(
 
     do_upsert()
 
+  logger.info('Building ChromaDB vectors from nodes')
 
 class Document:
     def __init__(self, id: str, text: str, metadata: dict | None = None):
@@ -520,7 +555,7 @@ lock = asyncio.Lock()
 # Note: accepts ?model= query param
 @router.post("/chroma/preload", tags=["preload"])
 async def chroma_preload(
-    request: Request, tana_dump: TanaDump, model: str = "text-embedding-ada-002"
+    request: Request, tana_dump: TanaDump, model: str = "OPENAI_EMBEDDING_MODEL"
 ):
     """Accepts a Tana dump JSON payload and builds the index from it.
     Uses the topic extraction code from the topics endpoint to build
@@ -531,7 +566,7 @@ async def chroma_preload(
     async with lock:
         messages = []
         async with capture_logs(logger) as logs:
-            result = await extract_topics(tana_dump, "JSON")  # type: ignore
+            result = await extract_topics(tana_dump, "TANA")  # type: ignore
             logger.info("Extracted topics from Tana dump")
 
             # save output to a temporary file
@@ -782,3 +817,113 @@ async def chroma_preload_stream(
             "Access-Control-Allow-Headers": "Cache-Control",
         },
     )
+
+
+async def OLD_load_chromadb_from_topics(topics:List[TanaTopicNode], model:str, observe=False):
+  '''Load the topic index from the topic array directly.'''
+
+
+
+  references = {}
+
+  index_nodes = []
+  # loop through all the topics and create an EmbeddableNode for each
+  for topic in topics:
+    tags = ' '.join(topic.tags)
+    text = topic.content[0].content + ' ' + tags + '\n'
+
+    # find all of the fields and make them part of the topic context
+    field_text=''
+    for content in topic.content[1:]:
+      if content.is_field:
+        # TODO HACK if content starts with Attendees:: we want to skip it
+        if content.field_name == 'Attendees':
+          continue
+
+        field_text += content.content + '\n'
+
+    text += field_text
+    index_nodes.append(prepare_node_for_embedding(node_id=topic.id,
+                                                  content_id=topic.id,
+                                                  topic_id=topic.id, 
+                                                  name=topic.name,
+                                                  tags=tags,
+                                                  context=text))
+    
+    # now embed all the child content nodes, pointing back at the parent topic
+    for content in topic.content[1:]:
+      if content.is_field:
+        continue
+
+      # build a more detailed tree of nodes
+      # references are .. hard. We make a new synthetic node here
+      # since references will be embedded themselves as topics
+      # and we just want to know that the content of the reference node
+      # is relevant to the current topic we are embedding.
+      topic_id = topic.id
+      content_id = content.id
+      if content.is_reference:
+        #node_id = nextflake() # this means we will leak fake reference nodes over time...
+        node_id = content.id + '__' + topic.id # type: ignore
+        if node_id in references:
+          # we already created this node_topic ref, so skip
+          continue
+        references[node_id] = content
+      else:
+        node_id = content.id
+
+      new_node = prepare_node_for_embedding(node_id=node_id,
+                                            content_id=content_id,
+                                            topic_id= topic_id, 
+                                            name=content.content,
+                                            tags='', # TODO: add tags to content nodes
+                                            context=content.content + '\n')
+      index_nodes.append(new_node)
+
+  logger.info(f'Gathered {len(index_nodes)} nodes for embedding')
+
+  index_nodes, deletes = reduce_embeddings(index_nodes)
+
+  logger.info(f'Reduced to {len(index_nodes)} nodes for embedding')
+  # TODO: delete dead nodes, but NOT until we have properly implemented multi-workspace support
+  logger.info(f'Identified {len(deletes)} nodes for removal')
+
+  collection = get_collection()
+
+  counter = 0
+  # batch process the nodes, generating embeddings
+  for i in range(0, len(index_nodes), BATCH_SIZE):
+    batch = index_nodes[i:i+BATCH_SIZE]
+    nodes = [node.text for node in batch]
+
+    counter = counter + 1
+    # somewhere in this batch, we have a very long text that will cause the OpenAI API to fail
+    biggest=0
+    for node in batch:
+      if len(node.text) > biggest:
+        biggest = len(node.text)
+        big_node = node
+
+    logger.info(f'Batch {counter} Node {big_node.id} has {len(big_node.text)} characters')
+
+    embeddings = get_embeddings(nodes, model=model)
+    for j, node in enumerate(batch):    
+      node.embedding = embeddings[j].embedding
+
+    # upsert the batch into ChromaDB
+    # @sleep_and_retry
+    # @limits(calls=5, period=10)
+    def do_upsert():
+      collection.upsert(
+        ids=[node.id for node in batch],
+        embeddings=[node.embedding for node in batch], # type: ignore
+        # we only embed the name of the node (primary content of the node)
+        documents=[node.name for node in batch],
+        metadatas=[node.metadata for node in batch], #type: ignore
+      )
+    
+    do_upsert()
+    
+  logger.info("ChromaDB populated and ready")
+  return index_nodes
+
