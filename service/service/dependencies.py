@@ -87,6 +87,7 @@ class PineconeRequest(EmbeddingRequest):
     score: float | None = 0.80
     top: int | None = 10
     tags: str | None = ""
+    metadata: Optional[dict] = None
     nodeId: str
 
 

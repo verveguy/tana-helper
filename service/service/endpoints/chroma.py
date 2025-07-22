@@ -123,6 +123,20 @@ def get_tana_nodes_by_id(node_ids: list[str]):
         return []
 
     collection = get_collection()
+    if not req.metadata:
+      metadata = TanaNodeMetadata(
+                  category=TANA_NODE,
+                  supertag=req.tags,
+                  title=req.name,
+                  # we put the pruned node context into the metadata
+                  text=req.context,
+                  tana_id=req.nodeId,
+                  topic_id=req.nodeId,
+      )
+      metadatas = metadata.model_dump()
+    else:
+      metadatas = req.metadata
+
 
     query_response = collection.get(ids=node_ids)
 
