@@ -167,9 +167,10 @@ def get_tana_nodes_by_id(node_ids: list[str]):
 
     return texts
 
+async def get_tana_nodes_for_query(req: ChromaRequest, send_text: Optional[bool] = False):  
+    embedding = get_embedding(req)
 
-async def get_tana_nodes_for_query(req: ChromaRequest):
-    embedding = await get_embedding(req)
+
 
     vector = embedding[0].embedding
 
@@ -185,11 +186,8 @@ async def get_tana_nodes_for_query(req: ChromaRequest):
 
     collection = get_collection()
 
-    query_response = collection.query(
-        query_embeddings=vector,
-        n_results=req.top,  # type: ignore
-        where=tag_filter,
-    )
+    ids = []
+    tana_result = ""
 
     best = []
     texts = []
@@ -213,41 +211,49 @@ async def get_tana_nodes_for_query(req: ChromaRequest):
             else:
                 first_line = "<<No title>>"
 
-            if node_id != req.nodeId:
-                logger.info(
-                    f"Found node {node_id} with score {distance}. Title is {first_line}"
-                )
-                if distance > req.score:  # type: ignore
-                    best.append(node_id)
-                    if "text" in metadata:
-                        texts.append(metadata["text"])
+            
 
-    ids = ["[[^" + match + "]]" for match in best]
-    return ids, texts
+        if node_id != req.nodeId: # don't return the node we are querying
+            logger.info(f"Found node {node_id} with score {distance} (Threshold {req.score}). Title is {first_line}")
+            if distance > req.score: # type: ignore
 
-    # ids = query_response.ids
+            topic_id = None
+            if 'topic_id' in metadata and metadata['topic_id'] is not None:
+                topic_id = metadata['topic_id']
+          
+            # now what result do they want?
+            if req.returns == 'topic' or req.returns == 'both' and topic_id is not None:
+                best.append(topic_id) # use the topic_id, rather than the node fragment id
+            if req.returns == 'both':
+                best.append(metadata['node_id'])
+            if req.returns == 'node':
+                best.append(metadata['node_id'])
+            if req.returns == 'nested':
+                tana_result += f"- [[^{topic_id}]]\n  - [[^{metadata['node_id']}]]\n"
 
-    # if not send_text:
-    #   return ids
-    # else:
-    #   # iterator exhausted. do it again
-    #   best = filter(threshold_function, query_response.matches)
-    #   docs = [ {'sources': '[[^'+match.id+']]', 'answer': match.metadata['text']} for match in best]
-    #   return docs
+            if send_text and 'text' in metadata:
+                texts.append(metadata['text'])
+  
+    if req.returns != 'nested':
+       ids = ["[[^"+match+"]]" for match in best]
+
+      if len(ids) == 0:
+         tana_result = "No sufficiently well-scored results"
+      else:
+         if send_text:
+             tana_result = ''.join([str(text)+"\n" for text in texts])
+         else:
+             tana_result = ''.join(["- "+str(id)+"\n" for id in ids])
+
+    return tana_result
 
 
 @router.post("/chroma/query", response_class=HTMLResponse, tags=["Chroma"])
-async def chroma_query(req: ChromaRequest, send_text: bool | None = False):
-    ids, texts = await get_tana_nodes_for_query(req)
-    if len(ids) == 0:
-        tana_result = "No sufficiently well-scored results"
-    else:
-        if send_text:
-            tana_result = "".join([str(text) + "\n" for text in texts])
-        else:
-            tana_result = "".join(["- " + str(id) + "\n" for id in ids])
-    return tana_result
-
+def chroma_query(req: ChromaRequest, send_text: Optional[bool] = False):  
+  tana_result = get_tana_nodes_for_query(req, send_text)
+  
+  logger.info('Tana result' + tana_result)
+  return tana_result
 
 @router.post("/chroma/query_text", response_class=HTMLResponse, tags=["Chroma"])
 def chroma_query_text(req: ChromaRequest):

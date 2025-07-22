@@ -105,7 +105,10 @@ class ChromaRequest(EmbeddingRequest, ChromaStoreRequest):
     score: float | None = 0.80
     top: int | None = 10
     tags: str | None = ""
+    metadata: Optional[dict] = None
     nodeId: str
+    returns: Optional[str] = 'topic'
+
 
 
 class LlamaRequest(EmbeddingRequest):
@@ -735,3 +738,24 @@ async def capture_logs(logger):
     logger.addHandler(eh)
     yield logs
     logger.removeHandler(eh)
+
+
+from io import StringIO
+from snowflake import SnowflakeGenerator
+
+snowflakes = SnowflakeGenerator(42)
+
+BASE66_ALPHABET = u"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_.~"
+BASE = len(BASE66_ALPHABET)
+
+def nextflake():
+    n = next(snowflakes)
+    if n == 0:
+        return BASE66_ALPHABET[0].encode('ascii')
+
+    r = StringIO()
+    while n:
+        n, t = divmod(n, BASE)
+        r.write(BASE66_ALPHABET[t])
+    return r.getvalue().encode('ascii')[::-1]
+
