@@ -140,3 +140,34 @@ export const useErrorActions = () => {
     clearError,
   };
 };
+
+// Upload State Machine hooks
+export const useUploadMachine = () => useAppStoreBase(state => state.uploadMachine);
+
+export const useUploadState = () => useAppStoreBase(state => state.uploadMachine.state);
+
+export const useUploadContext = () => useAppStoreBase(state => state.uploadMachine.context);
+
+export const useUploadActions = () => {
+  const selectFile = useAppStoreBase(state => state.selectFile);
+  const startUpload = useAppStoreBase(state => state.startUpload);
+  const updateUploadProgress = useAppStoreBase(state => state.updateUploadProgress);
+  const cancelUpload = useAppStoreBase(state => state.cancelUpload);
+  const completeUpload = useAppStoreBase(state => state.completeUpload);
+  const errorUpload = useAppStoreBase(state => state.errorUpload);
+  const retryUpload = useAppStoreBase(state => state.retryUpload);
+  const resetUpload = useAppStoreBase(state => state.resetUpload);
+  const sendUploadEvent = useAppStoreBase(state => state.sendUploadEvent);
+
+  return {
+    selectFile,
+    startUpload,
+    updateUploadProgress,
+    cancelUpload,
+    completeUpload,
+    errorUpload,
+    retryUpload,
+    resetUpload,
+    sendUploadEvent,
+  };
+};

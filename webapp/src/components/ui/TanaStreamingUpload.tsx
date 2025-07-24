@@ -1,9 +1,8 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { Input } from './input';
 import { Upload, Loader2, X } from 'lucide-react';
 import { Button } from './button';
-import ProgressDisplay from './ProgressDisplay';
-import { useRagProgress, useAppActions } from '../../hooks/useAppStore';
+import { useUploadMachine, useUploadActions } from '../../hooks/useAppStore';
 
 export interface TanaStreamingUploadProps {
   endpoint: string; // Base endpoint, will append '/stream' for streaming
@@ -18,56 +17,59 @@ export default function TanaStreamingUpload({
   onError,
   disabled = false,
 }: TanaStreamingUploadProps) {
-  const [dumpFile, setDumpFile] = useState<File | null>(null);
-  const [isDragOver, setIsDragOver] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
+  const uploadMachine = useUploadMachine();
+  const {
+    selectFile,
+    startUpload,
+    updateUploadProgress,
+    cancelUpload,
+    completeUpload,
+    errorUpload,
+  } = useUploadActions();
 
-  const ragProgress = useRagProgress();
-  const { updateRagProgress, resetRagProgress, setRagError } = useAppActions();
+  const { state, context } = uploadMachine;
+  const { file, abortController, ragProgress, lastError } = context;
 
+  // Handle file selection
   const handleFileUpload = useCallback((event: React.FormEvent<HTMLInputElement>) => {
     const target = event.currentTarget;
-    const file = target.files?.[0];
-    if (file) {
-      console.log('File selected:', file.name, file.size, file.type);
-      setDumpFile(file);
+    const selectedFile = target.files?.[0];
+    if (selectedFile) {
+      console.log('File selected:', selectedFile.name, selectedFile.size, selectedFile.type);
+      selectFile(selectedFile);
     }
     event.currentTarget.value = '';
-  }, []);
+  }, [selectFile]);
 
   const handleDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
-    setIsDragOver(false);
-    const file = event.dataTransfer.files[0];
-    if (file && file.type === 'application/json') {
-      console.log('File dropped:', file.name, file.size);
-      setDumpFile(file);
+    const droppedFile = event.dataTransfer.files[0];
+    if (droppedFile && droppedFile.type === 'application/json') {
+      console.log('File dropped:', droppedFile.name, droppedFile.size);
+      selectFile(droppedFile);
     }
-  }, []);
+  }, [selectFile]);
 
   const handleDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
-    setIsDragOver(true);
   }, []);
 
   const handleDragLeave = useCallback(() => {
-    setIsDragOver(false);
+    // Handle drag leave if needed
   }, []);
 
-  const cancelUpload = useCallback(() => {
-    setIsUploading(false);
-    resetRagProgress();
-    setDumpFile(null);
-  }, [resetRagProgress]);
+  // Auto-start upload when file is selected
+  useEffect(() => {
+    if (state === 'fileSelected' && file) {
+      startUpload();
+    }
+  }, [state, file, startUpload]);
 
-  const uploadFileWithProgress = useCallback(async () => {
-    if (!dumpFile || isUploading) return;
+  // Main upload function with streaming
+  const performUpload = useCallback(async () => {
+    if (!file || !abortController || state !== 'uploading') return;
 
     console.log(`Starting streaming upload to ${endpoint}/stream...`);
-    setIsUploading(true);
-    resetRagProgress();
-    updateRagProgress({ isActive: true, phase: 'starting' });
-    setRagError(null);
 
     try {
       // Read file as JSON
@@ -81,13 +83,14 @@ export default function TanaStreamingUpload({
 
             console.log('File parsed successfully, starting streaming upload...');
 
-            // Start the streaming upload
+            // Start the streaming upload with abort signal
             const response = await fetch(`${endpoint}/stream`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify(jsonData),
+              signal: abortController.signal,
             });
 
             if (!response.ok) {
@@ -98,12 +101,19 @@ export default function TanaStreamingUpload({
               throw new Error('No response stream available');
             }
 
-            const reader = response.body.getReader();
+            const streamReader = response.body.getReader();
             const decoder = new TextDecoder();
             let buffer = '';
 
             while (true) {
-              const { done, value } = await reader.read();
+              // Check if upload was cancelled
+              if (abortController.signal.aborted) {
+                console.log('Stream reading aborted by user');
+                await streamReader.cancel();
+                throw new DOMException('Aborted', 'AbortError');
+              }
+
+              const { done, value } = await streamReader.read();
               if (done) break;
 
               buffer += decoder.decode(value, { stream: true });
@@ -114,13 +124,21 @@ export default function TanaStreamingUpload({
 
               for (const line of lines) {
                 if (line.startsWith('data: ')) {
+                  // Check for cancellation during data processing
+                  if (abortController.signal.aborted) {
+                    console.log('Stream processing aborted during data handling');
+                    await streamReader.cancel();
+                    throw new DOMException('Aborted', 'AbortError');
+                  }
+
                   try {
                     const data = JSON.parse(line.slice(6));
                     console.log('Progress update:', data);
 
+                    // Convert SSE data to progress updates
                     switch (data.type) {
                       case 'init':
-                        updateRagProgress({
+                        updateUploadProgress({
                           phase: 'batch_processing',
                           totalTopics: data.total_topics,
                           totalNodes: data.total_nodes,
@@ -129,169 +147,219 @@ export default function TanaStreamingUpload({
                           percentage: 0,
                           skippedTopics: data.skipped_topics,
                           changedTopics: data.changed_topics,
+                          deletedNodes: data.deleted_nodes,
+                          // Track phase start time
+                          phaseStartTimes: {
+                            batch_processing: Date.now() / 1000,
+                          },
+                          // Initialize collection phase
+                          collection: {
+                            current: 0,
+                            total: data.total_nodes,
+                            completed: false,
+                          },
                         });
                         break;
 
                       case 'batch_start':
-                        updateRagProgress({
+                        updateUploadProgress({
                           phase: 'embedding',
                           totalNodes: data.total_nodes,
                           currentNode: 0,
                           totalBatches: data.estimated_batches,
                           currentBatch: 0,
                           elapsedSeconds: data.elapsed_seconds,
+                          // Track phase start time for embedding and complete batch_processing
+                          phaseStartTimes: {
+                            ...context.ragProgress.phaseStartTimes,
+                            embedding: Date.now() / 1000, // Convert to seconds
+                          },
+                          phaseCompletedTimes: {
+                            ...context.ragProgress.phaseCompletedTimes,
+                            ...(context.ragProgress.phaseStartTimes?.batch_processing && {
+                              batch_processing: (Date.now() / 1000) - context.ragProgress.phaseStartTimes.batch_processing
+                            }),
+                          },
+                          // Complete collection phase
+                          collection: {
+                            current: data.total_nodes,
+                            total: data.total_nodes,
+                            completed: true,
+                          },
+                          // Initialize embedding phase
+                          embedding: {
+                            current: 0,
+                            total: data.total_nodes,
+                            batch: 0,
+                            totalBatches: data.estimated_batches,
+                            completed: false,
+                          },
                         });
                         break;
 
                       case 'embedding_progress':
-                        updateRagProgress({
+                        updateUploadProgress({
                           phase: 'embedding',
-                          currentNode: data.processed_nodes,
+                          currentNode: data.current_node,
                           totalNodes: data.total_nodes,
-                          currentBatch: data.batch_num,
+                          currentBatch: data.current_batch,
                           totalBatches: data.total_batches,
                           elapsedSeconds: data.elapsed_seconds,
                           etaSeconds: data.eta_seconds,
                           processingRate: data.processing_rate,
-                        });
-                        break;
-
-                      case 'batch_progress':
-                        updateRagProgress({
-                          currentNode: data.processed_nodes,
-                          totalNodes: data.total_nodes,
-                          currentTopic: data.current_topic,
-                          totalTopics: data.total_topics,
-                          elapsedSeconds: data.elapsed_seconds,
-                          etaSeconds: data.eta_seconds,
-                          processingRate: data.processing_rate,
-                          // Preserve the current phase if it's already set (for storing phase compatibility)
-                          phase: data.phase || ragProgress.phase,
+                          failedNodes: data.failed_nodes,
+                          // Update embedding phase
+                          embedding: {
+                            current: data.current_node,
+                            total: data.total_nodes,
+                            batch: data.current_batch,
+                            totalBatches: data.total_batches,
+                            completed: false,
+                          },
                         });
                         break;
 
                       case 'upsert_start':
-                        updateRagProgress({
+                        updateUploadProgress({
                           phase: 'storing',
                           totalNodes: data.total_nodes,
+                          currentNode: 0,
+                          currentBatch: 0,
+                          totalBatches: 0,
                           elapsedSeconds: data.elapsed_seconds,
+                          // Track phase start time for storing and complete embedding
+                          phaseStartTimes: {
+                            ...context.ragProgress.phaseStartTimes,
+                            storing: Date.now() / 1000,
+                          },
+                          phaseCompletedTimes: {
+                            ...context.ragProgress.phaseCompletedTimes,
+                            ...(context.ragProgress.phaseStartTimes?.embedding && {
+                              embedding: (Date.now() / 1000) - context.ragProgress.phaseStartTimes.embedding
+                            }),
+                          },
+                          // Complete embedding phase
+                          embedding: {
+                            current: data.total_nodes,
+                            total: data.total_nodes,
+                            batch: 0, // Will be updated from previous state
+                            totalBatches: 0, // Will be updated from previous state
+                            completed: true,
+                          },
+                          // Initialize storage phase
+                          storage: {
+                            current: 0,
+                            total: data.total_nodes,
+                            batch: 0,
+                            totalBatches: 0,
+                            completed: false,
+                          },
                         });
                         break;
 
                       case 'storing_progress':
-                        updateRagProgress({
+                        updateUploadProgress({
                           phase: 'storing',
-                          currentNode: data.processed_nodes,
+                          currentNode: data.current_node,
                           totalNodes: data.total_nodes,
-                          currentTopic: data.current_topic,
-                          totalTopics: data.total_topics,
+                          currentBatch: data.current_batch,
+                          totalBatches: data.total_batches,
                           elapsedSeconds: data.elapsed_seconds,
-                          etaSeconds: data.eta_seconds,
-                          processingRate: data.storing_rate || data.processing_rate,
                           failedNodes: data.failed_nodes,
-                        });
-                        break;
-
-                      case 'topic_start':
-                        updateRagProgress({
-                          currentTopic: data.current_topic,
-                          totalTopics: data.total_topics,
-                          currentNode: data.processed_nodes,
-                          totalNodes: data.total_nodes,
-                          currentTopicName: data.topic_name,
-                          currentTopicId: data.topic_id,
-                          elapsedSeconds: data.elapsed_seconds,
-                          etaSeconds: data.eta_seconds,
-                          processingRate: data.processing_rate,
-                          failedNodes: data.failed_nodes,
-                        });
-                        break;
-
-                      case 'topic_complete':
-                        updateRagProgress({
-                          currentTopic: data.current_topic,
-                          totalTopics: data.total_topics,
-                          currentNode: data.processed_nodes,
-                          totalNodes: data.total_nodes,
-                          elapsedSeconds: data.elapsed_seconds,
-                          etaSeconds: data.eta_seconds,
-                          processingRate: data.processing_rate,
-                          failedNodes: data.failed_nodes,
-                        });
-                        break;
-
-                      case 'node_progress':
-                        updateRagProgress({
-                          currentNode: data.processed_nodes,
-                          totalNodes: data.total_nodes,
-                          topicNode: data.topic_node,
-                          topicNodes: data.topic_nodes,
-                          elapsedSeconds: data.elapsed_seconds,
-                          etaSeconds: data.eta_seconds,
-                          processingRate: data.processing_rate,
-                          failedNodes: data.failed_nodes,
+                          // Update storage phase
+                          storage: {
+                            current: data.current_node,
+                            total: data.total_nodes,
+                            batch: data.current_batch,
+                            totalBatches: data.total_batches,
+                            completed: false,
+                          },
                         });
                         break;
 
                       case 'complete':
-                        updateRagProgress({
-                          phase: 'complete',
-                          percentage: 100,
-                          currentNode: data.processed_nodes || data.total_nodes,
-                          elapsedSeconds: data.elapsed_seconds,
-                          processingRate: data.processing_rate,
-                          failedNodes: data.failed_nodes,
+                        // Complete upload with final progress data including completion times
+                        completeUpload({
+                          total_topics: data.total_topics,
+                          total_nodes: data.total_nodes,
+                          failed_nodes: data.failed_nodes,
+                          // Include final progress state
+                          finalProgress: {
+                            phase: 'complete',
+                            // Store completion time for storing phase
+                            phaseCompletedTimes: {
+                              ...context.ragProgress.phaseCompletedTimes,
+                              ...(context.ragProgress.phaseStartTimes?.storing && {
+                                storing: (Date.now() / 1000) - context.ragProgress.phaseStartTimes.storing
+                              }),
+                            },
+                            storage: {
+                              current: data.total_nodes,
+                              total: data.total_nodes,
+                              batch: 0, // Final batch count from previous state
+                              totalBatches: 0, // Final total batches from previous state  
+                              completed: true,
+                            },
+                          },
                         });
                         onSuccess({
                           total_topics: data.total_topics,
                           total_nodes: data.total_nodes,
-                          failed_nodes: data.failed_nodes
+                          failed_nodes: data.failed_nodes,
                         });
-                        setDumpFile(null);
-                        setIsUploading(false);
-                        break;
+                        return;
 
-                      case 'node_error':
-                        console.warn('Node processing error:', data.error);
-                        // Continue processing, just log the error - don't break the UI
-                        updateRagProgress({
+                      case 'deletion_start':
+                        updateUploadProgress({
+                          phase: 'deletion',
+                          totalNodesToDelete: data.total_nodes_to_delete,
+                          deletedNodes: 0,
                           elapsedSeconds: data.elapsed_seconds,
-                          failedNodes: data.failed_nodes,
+                          // Track phase start time
+                          phaseStartTimes: {
+                            ...context.ragProgress.phaseStartTimes,
+                            deletion: Date.now() / 1000,
+                          },
                         });
                         break;
 
-                      case 'keepalive':
-                        // Just update elapsed time, no other action needed
-                        if (data.elapsed_seconds) {
-                          updateRagProgress({
-                            elapsedSeconds: data.elapsed_seconds,
-                          });
-                        }
+                      case 'deletion_progress':
+                        updateUploadProgress({
+                          phase: 'deletion',
+                          deletedNodes: data.deleted_nodes,
+                          totalNodesToDelete: data.total_nodes_to_delete,
+                          elapsedSeconds: data.elapsed_seconds,
+                        });
                         break;
 
-                      case 'cancelled':
-                        updateRagProgress({
-                          phase: 'cancelled',
-                          error: 'Processing cancelled by user',
+                      case 'deletion_complete':
+                        updateUploadProgress({
+                          phase: 'deletion_complete',
+                          deletedNodes: data.deleted_nodes,
+                          totalNodesToDelete: data.total_nodes_to_delete,
+                          elapsedSeconds: data.elapsed_seconds,
+                          // Store completion time for deletion phase
+                          phaseCompletedTimes: {
+                            ...context.ragProgress.phaseCompletedTimes,
+                            ...(context.ragProgress.phaseStartTimes?.deletion && {
+                              deletion: (Date.now() / 1000) - context.ragProgress.phaseStartTimes.deletion
+                            }),
+                          },
                         });
-                        onError('Processing cancelled by user');
-                        setIsUploading(false);
                         break;
 
                       case 'error':
-                        updateRagProgress({
-                          phase: 'error',
-                          error: data.message,
-                          errorType: data.error_type,
-                          errorHelp: data.help,
-                        });
-                        // Create a more informative error message for the callback
                         let errorMessage = data.message;
                         if (data.help) {
                           errorMessage += `\n\nSuggestion: ${data.help}`;
                         }
+                        errorUpload(errorMessage);
                         onError(errorMessage);
-                        setIsUploading(false);
+                        return;
+
+                      default:
+                        // Handle other progress types as needed
+                        console.log('Unhandled progress event type:', data.type, data);
                         break;
                     }
                   } catch (parseError) {
@@ -312,58 +380,72 @@ export default function TanaStreamingUpload({
         };
       });
 
-      reader.readAsText(dumpFile);
+      reader.readAsText(file);
       await uploadPromise;
-
     } catch (error: any) {
       console.error('Upload failed:', error);
-      const errorMessage = error.message || 'Upload failed';
-      updateRagProgress({
-        phase: 'error',
-        error: errorMessage,
-      });
-      onError(errorMessage);
-      setIsUploading(false);
-      setDumpFile(null);
-    }
-  }, [dumpFile, isUploading, endpoint, updateRagProgress, resetRagProgress, setRagError, onSuccess, onError]);
 
-  // Auto-upload when file is selected (if not already uploading)
+      // Handle abort specifically
+      if (error.name === 'AbortError') {
+        console.log('Upload was aborted by user');
+        // State machine will handle the cancellation
+      } else {
+        const errorMessage = error.message || 'Upload failed';
+        errorUpload(errorMessage);
+        onError(errorMessage);
+      }
+    }
+  }, [
+    file,
+    abortController,
+    state,
+    endpoint,
+    updateUploadProgress,
+    completeUpload,
+    errorUpload,
+    onSuccess,
+    onError,
+  ]);
+
+  // Start upload when state transitions to 'uploading'
   useEffect(() => {
-    if (dumpFile && !isUploading && ragProgress.phase === 'idle') {
-      uploadFileWithProgress();
+    if (state === 'uploading') {
+      performUpload();
     }
-  }, [dumpFile, isUploading, ragProgress.phase, uploadFileWithProgress]);
+  }, [state, performUpload]);
 
-  const showProgress = ragProgress.isActive && ragProgress.phase !== 'idle';
+  // Determine UI state
+  const isUploading = state === 'uploading';
+  const isProcessing = state === 'processing';
+  const isCancelling = state === 'cancelling';
+  const isCompleted = state === 'completed';
+  const isError = state === 'error';
+  const showProgress = isUploading || isProcessing || isCancelling;
 
   return (
     <div className="space-y-4">
       {/* File Drop Zone */}
       <div
-        className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${isDragOver
-          ? 'border-primary bg-primary/10'
-          : 'border-muted-foreground/25 hover:border-muted-foreground/50'
-          } ${disabled || isUploading ? 'opacity-50 pointer-events-none' : ''}`}
+        className={`relative border-2 border-dashed rounded-lg p-4 text-center transition-colors ${'border-muted-foreground/25 hover:border-muted-foreground/50'
+          } ${disabled || showProgress ? 'opacity-50 pointer-events-none' : ''}`}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
       >
         {isUploading ? (
           <div className="flex items-center justify-center space-x-2">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            <span className="text-sm text-muted-foreground">Starting upload...</span>
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            <span className="text-sm text-muted-foreground">Starting...</span>
+          </div>
+        ) : showProgress ? (
+          <div className="flex flex-col items-center justify-center space-y-2">
+            <div className="text-sm text-muted-foreground">Upload in progress...</div>
+            <div className="text-xs text-muted-foreground">Use cancel button to stop</div>
           </div>
         ) : (
           <>
-            <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-3" />
-            <div className="text-lg font-medium mb-2">Drop your Tana export file here</div>
-            <div className="text-sm text-muted-foreground mb-4">
-              or click to browse for a JSON file
-            </div>
-            <Button variant="outline" size="sm" disabled={disabled}>
-              Select File
-            </Button>
+            <Upload className="mx-auto h-6 w-6 text-muted-foreground mb-2" />
+            <div className="text-sm text-muted-foreground">Drop file or click to browse</div>
           </>
         )}
 
@@ -371,34 +453,50 @@ export default function TanaStreamingUpload({
           type="file"
           accept=".json"
           onChange={handleFileUpload}
-          disabled={disabled || isUploading}
+          disabled={disabled || showProgress}
           className="hidden"
           id="tana-streaming-upload"
         />
-        <label
-          htmlFor="tana-streaming-upload"
-          className="cursor-pointer absolute inset-0"
-        />
+        <label htmlFor="tana-streaming-upload" className="cursor-pointer absolute inset-0" />
       </div>
 
-      {/* Progress Display */}
+      {/* Controls */}
       {showProgress && (
         <div className="space-y-3">
-          <ProgressDisplay progress={ragProgress} />
-
-          {/* Cancel Button */}
-          {isUploading && ragProgress.phase === 'starting' && (
+          {/* Cancel Button - prominently displayed during processing */}
+          {(isUploading || isProcessing) && !isCancelling ? (
             <div className="flex justify-center">
               <Button
                 variant="outline"
-                size="sm"
+                size="default"
                 onClick={cancelUpload}
-                className="text-destructive hover:text-destructive"
+                className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
               >
                 <X className="h-4 w-4 mr-2" />
                 Cancel Upload
               </Button>
             </div>
+          ) : isCancelling ? (
+            <div className="text-center p-3 bg-muted/50 rounded-lg border">
+              <div className="text-sm font-medium">⏹️ Cancelling...</div>
+            </div>
+          ) : null}
+        </div>
+      )}
+
+      {/* Status Display for Completed/Error States */}
+      {(isCompleted || isError) && (
+        <div className="text-center p-3 bg-muted/50 rounded-lg border">
+          <div className="text-sm font-medium">
+            {isCompleted ? '✅ Upload Complete' : '❌ Upload Failed'}
+          </div>
+          {isCompleted && (
+            <div className="text-xs text-muted-foreground mt-1">
+              Drop a new file to start again
+            </div>
+          )}
+          {isError && lastError && (
+            <div className="text-xs text-destructive mt-1">{lastError}</div>
           )}
         </div>
       )}

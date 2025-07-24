@@ -30,8 +30,9 @@ export interface RAGProgressState {
     | 'processing'
     | 'complete'
     | 'error'
-    | 'cancelled'
     | 'batch_processing'
+    | 'deletion'
+    | 'deletion_complete'
     | 'embedding'
     | 'storing';
   currentTopic: number;
@@ -49,7 +50,7 @@ export interface RAGProgressState {
   error?: string;
   errorType?: string;
   errorHelp?: string;
-  // Batch processing progress
+  // Legacy batch processing progress (deprecated - use phase-specific)
   currentBatch?: number;
   totalBatches?: number;
   // Storage failure tracking
@@ -57,6 +58,34 @@ export interface RAGProgressState {
   // Change detection optimization
   skippedTopics?: number;
   changedTopics?: number;
+  // Incremental deletion tracking
+  deletedNodes?: number;
+  totalNodesToDelete?: number;
+
+  // Frontend-tracked phase timing
+  phaseStartTimes?: { [phaseId: string]: number };
+  phaseCompletedTimes?: { [phaseId: string]: number };
+
+  // Phase-specific progress tracking
+  collection?: {
+    current: number;
+    total: number;
+    completed: boolean;
+  };
+  embedding?: {
+    current: number;
+    total: number;
+    batch: number;
+    totalBatches: number;
+    completed: boolean;
+  };
+  storage?: {
+    current: number;
+    total: number;
+    batch: number;
+    totalBatches: number;
+    completed: boolean;
+  };
 }
 
 export interface Config {
@@ -92,6 +121,9 @@ export interface AppState {
   classError: string | null;
   ragError: string | null;
   configError: string | null;
+
+  // Upload State Machine
+  uploadMachine: UploadMachine;
 }
 
 // Store actions interface
@@ -128,6 +160,53 @@ export interface AppActions {
   // Async actions
   loadConfig: () => Promise<Config>;
   saveConfig: (config: Config) => Promise<Config>;
+
+  // Upload State Machine actions
+  sendUploadEvent: (event: UploadEvent) => void;
+  selectFile: (file: File) => void;
+  startUpload: () => void;
+  updateUploadProgress: (progress: Partial<RAGProgressState>) => void;
+  cancelUpload: () => void;
+  completeUpload: (data?: any) => void;
+  errorUpload: (error: string) => void;
+  retryUpload: () => void;
+  resetUpload: () => void;
+}
+
+// Upload State Machine Types
+export type UploadState =
+  | 'idle'
+  | 'fileSelected'
+  | 'uploading'
+  | 'processing'
+  | 'cancelling'
+  | 'completed'
+  | 'error';
+
+export type UploadEvent =
+  | { type: 'SELECT_FILE'; file: File }
+  | { type: 'START_UPLOAD' }
+  | { type: 'UPLOAD_PROGRESS'; progress: Partial<RAGProgressState> }
+  | { type: 'CANCEL' }
+  | { type: 'CANCELLED' }
+  | { type: 'COMPLETE'; data?: any }
+  | { type: 'ERROR'; error: string }
+  | { type: 'RETRY' }
+  | { type: 'RESET' };
+
+export interface UploadContext {
+  file: File | null;
+  abortController: AbortController | null;
+  ragProgress: RAGProgressState;
+  lastError: string | null;
+  completionData: any | null;
+}
+
+export interface UploadMachine {
+  state: UploadState;
+  context: UploadContext;
+  canTransition: (event: UploadEvent) => boolean;
+  send: (event: UploadEvent) => void;
 }
 
 // Selector types for optimized component subscriptions

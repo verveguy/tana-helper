@@ -14,7 +14,6 @@ from fastapi import APIRouter, Request, status
 from fastapi.responses import HTMLResponse
 from snowflake import SnowflakeGenerator
 
-from service import settings
 from service.dependencies import (
     TANA_NODE,
     AddToNodeRequest,
@@ -26,16 +25,8 @@ from service.dependencies import (
     TanaNodeMetadata,
     get_embedding,
 )
+from service.settings import settings
 from service.tanaparser import prune_reference_nodes
-
-
-class EmbeddableNode(BaseModel):
-  id: str # the tana node id or a synthetic for reference nodes
-  name: str
-  text: str
-  embedding: Optional[Embedding] = None
-  metadata: Optional[Metadata] = None
-  hash: int = 0
 
 logger = getLogger()
 snowflakes = SnowflakeGenerator(42)
@@ -61,7 +52,7 @@ def get_collection():
     chroma = get_chroma()
     # use cosine rather than l2 (should test this)
     collection = chroma.get_or_create_collection(
-        name=settings.settings.tana_index, metadata={"hnsw:space": "cosine"}
+        name=settings.tana_index, metadata={"hnsw:space": "cosine"}
     )
     return collection
 
@@ -73,42 +64,13 @@ def get_queue_collection():
     return collection
 
 
-
-def prepare_node_for_embedding(node_id, content_id, topic_id, name, tags, context, metadata=None) -> EmbeddableNode:
-  # we only want the direct children of the node as context
-  # so we prune the context before embedding
-  pruned_content = prune_reference_nodes(context)
-  context = pruned_content
-  hash_val = int(hashlib.sha1(context.encode("utf-8")).hexdigest(), 16) % (2 ** 62)
-  
-  if not metadata:
-    metadata = TanaNodeMetadata(
-                category=TANA_NODE,
-                supertag=tags,
-                title=name,
-                # we put the pruned node context into the metadata
-                text=context,
-                node_id=content_id,
-                topic_id=topic_id,
-                hash=hash_val
-    )
-    metadatas = metadata.model_dump()
-  else:
-    metadatas = metadata
-
-  if context is None:
-    logger.warning(f"Empty context for {node_id}")
-
-  embeddable = EmbeddableNode(id=node_id, name=name, text=context, metadata=metadatas, hash=hash_val)
-  return embeddable
-
 # attempt to parallelize non-async code
 # see https://github.com/tiangolo/fastapi/discussions/6347
 lock = asyncio.Lock()
 
 
 @router.post("/chroma/upsert", status_code=status.HTTP_204_NO_CONTENT, tags=["Chroma"])
-async def chroma_upsert(req: ChromaRequest):
+async def chroma_upsert(req: ChromaRequest) -> None:
     async with lock:
         # we only want the direct children of the node as context
         # so we prune the context before embedding
@@ -161,20 +123,6 @@ def get_tana_nodes_by_id(node_ids: list[str]):
         return []
 
     collection = get_collection()
-    if not req.metadata:
-      metadata = TanaNodeMetadata(
-                  category=TANA_NODE,
-                  supertag=req.tags,
-                  title=req.name,
-                  # we put the pruned node context into the metadata
-                  text=req.context,
-                  tana_id=req.nodeId,
-                  topic_id=req.nodeId,
-      )
-      metadatas = metadata.model_dump()
-    else:
-      metadatas = req.metadata
-
 
     query_response = collection.get(ids=node_ids)
 
@@ -184,14 +132,15 @@ def get_tana_nodes_by_id(node_ids: list[str]):
         # the result from ChromaDB is kinda strange. Instead of an array of objects
         # # it's four distinct arrays of object properties. Very odd interface.
 
-        for node_id, text, metadata in zip(
+        metadatas = query_response["metadatas"] or []
+        for _node_id, text, metadata in zip(
             query_response["ids"],
             query_response["documents"],  # type: ignore
-            query_response["metadatas"],
+            metadatas,
             strict=False,  # type: ignore
         ):
             # strip out llama_index metadata
-            # TODO: figure out how to turn this whole thing into a customretriever of whole nodes
+            # TODO: figure out how to turn this whole thing into a custom retriever of whole nodes
             metadata.pop("_node_type", None)
             metadata.pop("_node_content", None)
             metadata.pop("title", None)
@@ -205,10 +154,9 @@ def get_tana_nodes_by_id(node_ids: list[str]):
 
     return texts
 
-async def get_tana_nodes_for_query(req: ChromaRequest, send_text: Optional[bool] = False):  
-    embedding = get_embedding(req)
 
-
+async def get_tana_nodes_for_query(req: ChromaRequest):
+    embedding = await get_embedding(req)
 
     vector = embedding[0].embedding
 
@@ -224,8 +172,11 @@ async def get_tana_nodes_for_query(req: ChromaRequest, send_text: Optional[bool]
 
     collection = get_collection()
 
-    ids = []
-    tana_result = ""
+    query_response = collection.query(
+        query_embeddings=vector,
+        n_results=req.top,  # type: ignore
+        where=tag_filter,
+    )
 
     best = []
     texts = []
@@ -234,68 +185,78 @@ async def get_tana_nodes_for_query(req: ChromaRequest, send_text: Optional[bool]
         # the result from ChromaDB is kinda strange. Instead of an array of objects
         # # it's four distinct arrays of object properties. Very odd interface.
 
-        for node_id, text, metadata, distance in zip(
-            query_response["ids"][0],
-            query_response["documents"][0],  # type: ignore
-            query_response["metadatas"][0],  # type: ignore
-            query_response["distances"][0],
-            strict=False,  # type: ignore
+        metadatas = query_response["metadatas"]
+        if (
+            metadatas
+            and len(metadatas) > 0
+            and metadatas[0] is not None
+            and query_response["ids"]
+            and len(query_response["ids"]) > 0
+            and query_response["documents"]
+            and len(query_response["documents"]) > 0
+            and query_response["distances"]
+            and len(query_response["distances"]) > 0
         ):
-            distance = 1.0 - distance
-            if "title" in metadata:
-                first_line = metadata["title"]
-            elif "text" in metadata:
-                first_line = metadata["text"].partition("\n")[0]  # type: ignore
-            else:
-                first_line = "<<No title>>"
+            # Extract the first-level arrays safely
+            ids_list = query_response["ids"][0]
+            documents_list = query_response["documents"][0]
+            metadata_list = metadatas[0]
+            distances_list = query_response["distances"][0]
 
-            
+            for node_id, _text, metadata, distance in zip(
+                ids_list,
+                documents_list,  # type: ignore
+                metadata_list,  # type: ignore
+                distances_list,
+                strict=False,  # type: ignore
+            ):
+                distance = 1.0 - distance
+                if "title" in metadata:
+                    first_line = metadata["title"]
+                elif "text" in metadata:
+                    first_line = metadata["text"].partition("\n")[0]  # type: ignore
+                else:
+                    first_line = "<<No title>>"
 
-        if node_id != req.nodeId: # don't return the node we are querying
-            logger.info(f"Found node {node_id} with score {distance} (Threshold {req.score}). Title is {first_line}")
-            if distance > req.score: # type: ignore
+                if node_id != req.nodeId:
+                    logger.info(
+                        f"Found node {node_id} with score {distance}. Title is {first_line}"
+                    )
+                    if distance > req.score:  # type: ignore
+                        best.append(node_id)
+                        if "text" in metadata:
+                            texts.append(metadata["text"])
 
-            topic_id = None
-            if 'topic_id' in metadata and metadata['topic_id'] is not None:
-                topic_id = metadata['topic_id']
-          
-            # now what result do they want?
-            if req.returns == 'topic' or req.returns == 'both' and topic_id is not None:
-                best.append(topic_id) # use the topic_id, rather than the node fragment id
-            if req.returns == 'both':
-                best.append(metadata['node_id'])
-            if req.returns == 'node':
-                best.append(metadata['node_id'])
-            if req.returns == 'nested':
-                tana_result += f"- [[^{topic_id}]]\n  - [[^{metadata['node_id']}]]\n"
+    ids = ["[[^" + match + "]]" for match in best]
+    return ids, texts
 
-            if send_text and 'text' in metadata:
-                texts.append(metadata['text'])
-  
-    if req.returns != 'nested':
-       ids = ["[[^"+match+"]]" for match in best]
+    # ids = query_response.ids
 
-      if len(ids) == 0:
-         tana_result = "No sufficiently well-scored results"
-      else:
-         if send_text:
-             tana_result = ''.join([str(text)+"\n" for text in texts])
-         else:
-             tana_result = ''.join(["- "+str(id)+"\n" for id in ids])
-
-    return tana_result
+    # if not send_text:
+    #   return ids
+    # else:
+    #   # iterator exhausted. do it again
+    #   best = filter(threshold_function, query_response.matches)
+    #   docs = [ {'sources': '[[^'+match.id+']]', 'answer': match.metadata['text']} for match in best]
+    #   return docs
 
 
 @router.post("/chroma/query", response_class=HTMLResponse, tags=["Chroma"])
-def chroma_query(req: ChromaRequest, send_text: Optional[bool] = False):  
-  tana_result = get_tana_nodes_for_query(req, send_text)
-  
-  logger.info('Tana result' + tana_result)
-  return tana_result
+async def chroma_query(req: ChromaRequest, send_text: bool | None = False):
+    ids, texts = await get_tana_nodes_for_query(req)
+    if len(ids) == 0:
+        tana_result = "No sufficiently well-scored results"
+    else:
+        if send_text:
+            tana_result = "".join([str(text) + "\n" for text in texts])
+        else:
+            tana_result = "".join(["- " + str(id) + "\n" for id in ids])
+    return tana_result
+
 
 @router.post("/chroma/query_text", response_class=HTMLResponse, tags=["Chroma"])
-def chroma_query_text(req: ChromaRequest):
-    return chroma_query(req, True)
+async def chroma_query_text(req: ChromaRequest):
+    return await chroma_query(req, True)
 
 
 @router.post("/chroma/purge", status_code=status.HTTP_204_NO_CONTENT, tags=["Chroma"])
@@ -334,7 +295,7 @@ async def chroma_enqueue(request: Request, req: QueueRequest):
 
         do_upsert()
 
-        tana_api_token = settings.settings.tana_api_token
+        tana_api_token = settings.tana_api_token
         print(f"Using Tana API token {tana_api_token}")
 
         # now push into Tana Inbox via inbox API call
@@ -343,7 +304,7 @@ async def chroma_enqueue(request: Request, req: QueueRequest):
 
         line_one = req.context.partition("\n")[0]
         # Create nodes, supertags, and children
-        supertag = SuperTag(id="qf0MJpvP7liP")  # BRETT HARDCOIDEX FIXME
+        supertag = SuperTag(id="qf0MJpvP7liP")  # BRETT HARD CODE FIXME
         main_node = Node(
             name=f"{node_id}", description=f"{line_one} ...", supertags=[supertag]
         )
@@ -382,10 +343,10 @@ def chroma_dequeue(request: Request, req: QueueRequest):
         # the result from ChromaDB is kinda strange. Instead of an array of objects
         # # it's four distinct arrays of object properties. Very odd interface.
         index = 0
+        metadatas = query_response["metadatas"] or []
         for node_id in query_response["ids"]:
             logger.info(f"Found node {node_id}")
             best.append(node_id)
-            metadatas = query_response["metadatas"]
             if metadatas is not None:
                 texts.append(metadatas[index]["text"])
 

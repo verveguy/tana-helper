@@ -176,7 +176,7 @@ class TestSecurityBasics:
         if response.status_code == 200:
             json_result = response.json()
             # Result should be properly escaped/sanitized
-            result_str = json.dumps(json_result)
+            json.dumps(json_result)
             # The dangerous scripts should not be executable
             assert isinstance(json_result, list)
 

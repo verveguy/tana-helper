@@ -22,10 +22,8 @@ from llama_index.vector_stores.types import MetadataInfo, VectorStoreInfo
 from snowflake import SnowflakeGenerator
 
 from service.dependencies import (
-    TANA_NODE,
-		TANA_TEXT,
+    TANA_TEXT,
     LlamaindexAsk,
-    TanaNodeMetadata,
 )
 from service.llamaindex import (
     DecomposeQueryWithNodeContext,
@@ -49,7 +47,7 @@ minutes = 1000 * 60
 
 # enrich our retriever with knowledge of our metadata
 def get_auto_retriever(index: VectorStoreIndex):
-    vector_store_info = VectorStoreInfo(
+    VectorStoreInfo(
         content_info="My Tana Notebook. Comprises many Tana nodes with text and metadata fields.",
         metadata_info=[
             MetadataInfo(
@@ -212,7 +210,7 @@ def llama_ask_custom_pipeline(req: LlamaindexAsk, model: str):
     context = []
     for result in results:
         question = result["question"]
-        answer = result["answers"]
+        result["answers"]
         summary = result["summary"]
         context.append(f"QUESTION: {question}\n")
 

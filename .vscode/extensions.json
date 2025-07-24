@@ -15,11 +15,11 @@
     "redhat.vscode-yaml",
     "tamasfe.even-better-toml",
     "ms-vscode.vscode-json",
-    "formulahendry.auto-rename-tag",
-    "christian-kohler.path-intellisense",
+    //"formulahendry.auto-rename-tag",
+    //"christian-kohler.path-intellisense",
 
     // Spell checking and documentation
-    "streetsidesoftware.code-spell-checker",
+    //"streetsidesoftware.code-spell-checker",
     "ms-vscode.vscode-markdown",
 
     // Git and collaboration

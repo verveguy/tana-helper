@@ -1,6 +1,14 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
-import { AppState, AppActions, RAGProgressState } from './types';
+import {
+  AppState,
+  AppActions,
+  RAGProgressState,
+  UploadState,
+  UploadEvent,
+  UploadContext,
+  UploadMachine,
+} from './types';
 
 // Default RAG progress state
 const defaultRAGProgress: RAGProgressState = {
@@ -13,195 +21,436 @@ const defaultRAGProgress: RAGProgressState = {
   percentage: 0,
 };
 
+// Default upload context
+const defaultUploadContext: UploadContext = {
+  file: null,
+  abortController: null,
+  ragProgress: defaultRAGProgress,
+  lastError: null,
+  completionData: null,
+};
+
+// Upload State Machine Implementation
+const createUploadMachine = (
+  setState: (partial: Partial<AppState>) => void,
+  getState: () => AppState & AppActions
+): UploadMachine => {
+  let currentState: UploadState = 'idle';
+  let context: UploadContext = { ...defaultUploadContext };
+
+  // State transition logic
+  const transitions: Record<UploadState, Record<string, UploadState>> = {
+    idle: {
+      SELECT_FILE: 'fileSelected',
+    },
+    fileSelected: {
+      START_UPLOAD: 'uploading',
+      SELECT_FILE: 'fileSelected', // Allow file replacement
+      RESET: 'idle',
+    },
+    uploading: {
+      UPLOAD_PROGRESS: 'processing',
+      CANCEL: 'cancelling',
+      ERROR: 'error',
+      COMPLETE: 'completed',
+    },
+    processing: {
+      UPLOAD_PROGRESS: 'processing', // Stay in processing
+      CANCEL: 'cancelling',
+      ERROR: 'error',
+      COMPLETE: 'completed',
+    },
+    cancelling: {
+      CANCELLED: 'idle',
+      ERROR: 'error', // Cancellation failed
+    },
+    completed: {
+      SELECT_FILE: 'fileSelected',
+      RESET: 'idle',
+    },
+    error: {
+      SELECT_FILE: 'fileSelected',
+      RETRY: 'uploading',
+      RESET: 'idle',
+    },
+  };
+
+  const canTransition = (event: UploadEvent): boolean => {
+    const allowedTransitions = transitions[currentState];
+    return event.type in allowedTransitions;
+  };
+
+  const send = (event: UploadEvent): void => {
+    console.log(`🎯 Upload State Machine: ${currentState} + ${event.type}`);
+
+    if (!canTransition(event)) {
+      console.warn(`❌ Invalid transition: ${currentState} + ${event.type}`);
+      return;
+    }
+
+    const nextState = transitions[currentState][event.type];
+    const prevState = currentState;
+    currentState = nextState;
+
+    // Handle side effects for state transitions
+    switch (event.type) {
+      case 'SELECT_FILE':
+        context = {
+          ...context,
+          file: event.file,
+          lastError: null,
+          completionData: null,
+          ragProgress: { ...defaultRAGProgress },
+        };
+        break;
+
+      case 'START_UPLOAD':
+        // Create abort controller for this upload
+        context = {
+          ...context,
+          abortController: new AbortController(),
+          ragProgress: { ...defaultRAGProgress, isActive: true, phase: 'starting' },
+          lastError: null,
+        };
+        break;
+
+      case 'UPLOAD_PROGRESS':
+        context = {
+          ...context,
+          ragProgress: { ...context.ragProgress, ...event.progress },
+        };
+        break;
+
+      case 'CANCEL':
+        // Abort the request and clean up
+        if (context.abortController) {
+          context.abortController.abort();
+        }
+        break;
+
+      case 'CANCELLED':
+        context = {
+          ...context,
+          abortController: null,
+          ragProgress: { ...defaultRAGProgress },
+        };
+        break;
+
+      case 'COMPLETE':
+        context = {
+          ...context,
+          abortController: null,
+          completionData: event.data,
+          ragProgress: {
+            ...context.ragProgress,
+            ...(event.data?.finalProgress || {}),
+            phase: 'complete',
+            isActive: false,
+          },
+        };
+        break;
+
+      case 'ERROR':
+        context = {
+          ...context,
+          abortController: null,
+          lastError: event.error,
+          ragProgress: {
+            ...context.ragProgress,
+            phase: 'error',
+            isActive: false,
+            error: event.error,
+          },
+        };
+        break;
+
+      case 'RETRY':
+        context = {
+          ...context,
+          lastError: null,
+          ragProgress: { ...defaultRAGProgress },
+        };
+        break;
+
+      case 'RESET':
+        context = { ...defaultUploadContext };
+        break;
+    }
+
+    console.log(`✅ Upload State: ${prevState} → ${currentState}`);
+
+    // Update the store with new state and context
+    setState({
+      uploadMachine: {
+        state: currentState,
+        context: { ...context },
+        canTransition,
+        send,
+      },
+      // Sync legacy ragProgress for backward compatibility
+      ragProgress: context.ragProgress,
+    });
+  };
+
+  return {
+    state: currentState,
+    context: { ...context },
+    canTransition,
+    send,
+  };
+};
+
 // Core app store with devtools and persistence for configuration
 export const useAppStore = create<AppState & AppActions>()(
   devtools(
     persist(
-      (set, get) => ({
-        // State
-        graphData: undefined,
-        loading: false, // Legacy - kept for backward compatibility
-        visualizerLoading: false,
-        classLoading: false,
-        ragLoading: false,
-        configLoading: false,
-        mermaidText: undefined,
-        ragIndexData: undefined,
-        ragProgress: defaultRAGProgress,
-        config: undefined,
-        webhooks: undefined,
-        twoDee: false,
-        sidebarCollapsed: false,
-        error: null, // Legacy - kept for backward compatibility
-        visualizerError: null,
-        classError: null,
-        ragError: null,
-        configError: null,
+      (set, get) => {
+        // Initialize upload machine
+        const uploadMachine = createUploadMachine(
+          partial => set(partial, false, 'uploadMachine:update'),
+          get
+        );
 
-        // Actions
-        setGraphData: graphData => set({ graphData }, false, 'setGraphData'),
+        return {
+          // State
+          graphData: undefined,
+          loading: false, // Legacy - kept for backward compatibility
+          visualizerLoading: false,
+          classLoading: false,
+          ragLoading: false,
+          configLoading: false,
+          mermaidText: undefined,
+          ragIndexData: undefined,
+          ragProgress: defaultRAGProgress,
+          config: undefined,
+          webhooks: undefined,
+          twoDee: false,
+          sidebarCollapsed: false,
+          error: null, // Legacy - kept for backward compatibility
+          visualizerError: null,
+          classError: null,
+          ragError: null,
+          configError: null,
 
-        setLoading: loading => set({ loading }, false, 'setLoading'),
+          // Upload State Machine
+          uploadMachine,
 
-        setVisualizerLoading: visualizerLoading =>
-          set({ visualizerLoading }, false, 'setVisualizerLoading'),
+          // Actions
+          setGraphData: graphData => set({ graphData }, false, 'setGraphData'),
 
-        setClassLoading: classLoading => set({ classLoading }, false, 'setClassLoading'),
+          setLoading: loading => set({ loading }, false, 'setLoading'),
 
-        setRagLoading: ragLoading => set({ ragLoading }, false, 'setRagLoading'),
+          setVisualizerLoading: visualizerLoading =>
+            set({ visualizerLoading }, false, 'setVisualizerLoading'),
 
-        setConfigLoading: configLoading => set({ configLoading }, false, 'setConfigLoading'),
+          setClassLoading: classLoading => set({ classLoading }, false, 'setClassLoading'),
 
-        setMermaidText: mermaidText => set({ mermaidText }, false, 'setMermaidText'),
+          setRagLoading: ragLoading => set({ ragLoading }, false, 'setRagLoading'),
 
-        setRagIndexData: ragIndexData => set({ ragIndexData }, false, 'setRagIndexData'),
+          setConfigLoading: configLoading => set({ configLoading }, false, 'setConfigLoading'),
 
-        setRagProgress: progress =>
-          set({ ragProgress: { ...get().ragProgress, ...progress } }, false, 'setRagProgress'),
+          setMermaidText: mermaidText => set({ mermaidText }, false, 'setMermaidText'),
 
-        resetRagProgress: () => set({ ragProgress: defaultRAGProgress }, false, 'resetRagProgress'),
+          setRagIndexData: ragIndexData => set({ ragIndexData }, false, 'setRagIndexData'),
 
-        updateRagProgress: updates =>
-          set(
-            state => ({ ragProgress: { ...state.ragProgress, ...updates } }),
-            false,
-            'updateRagProgress'
-          ),
+          setRagProgress: progress =>
+            set({ ragProgress: { ...get().ragProgress, ...progress } }, false, 'setRagProgress'),
 
-        setConfig: config => set({ config }, false, 'setConfig'),
+          resetRagProgress: () =>
+            set({ ragProgress: defaultRAGProgress }, false, 'resetRagProgress'),
 
-        setWebhooks: webhooks => set({ webhooks }, false, 'setWebhooks'),
+          updateRagProgress: updates =>
+            set(
+              state => ({ ragProgress: { ...state.ragProgress, ...updates } }),
+              false,
+              'updateRagProgress'
+            ),
 
-        setTwoDee: twoDee => set({ twoDee }, false, 'setTwoDee'),
+          setConfig: config => set({ config }, false, 'setConfig'),
 
-        setSidebarCollapsed: sidebarCollapsed =>
-          set({ sidebarCollapsed }, false, 'setSidebarCollapsed'),
+          setWebhooks: webhooks => set({ webhooks }, false, 'setWebhooks'),
 
-        setError: error => set({ error }, false, 'setError'),
+          setTwoDee: twoDee => set({ twoDee }, false, 'setTwoDee'),
 
-        setVisualizerError: visualizerError =>
-          set({ visualizerError }, false, 'setVisualizerError'),
+          setSidebarCollapsed: sidebarCollapsed =>
+            set({ sidebarCollapsed }, false, 'setSidebarCollapsed'),
 
-        setClassError: classError => set({ classError }, false, 'setClassError'),
+          setError: error => set({ error }, false, 'setError'),
 
-        setRagError: ragError => set({ ragError }, false, 'setRagError'),
+          setVisualizerError: visualizerError =>
+            set({ visualizerError }, false, 'setVisualizerError'),
 
-        setConfigError: configError => set({ configError }, false, 'setConfigError'),
+          setClassError: classError => set({ classError }, false, 'setClassError'),
 
-        // Computed/derived actions
-        clearError: () => set({ error: null }, false, 'clearError'),
+          setRagError: ragError => set({ ragError }, false, 'setRagError'),
 
-        resetState: () =>
-          set(
-            {
-              graphData: undefined,
-              loading: false,
-              mermaidText: undefined,
-              ragIndexData: undefined,
-              error: null,
-              twoDee: false,
-            },
-            false,
-            'resetState'
-          ),
+          setConfigError: configError => set({ configError }, false, 'setConfigError'),
 
-        // Component-specific reset actions
-        resetVisualizerState: () =>
-          set(
-            {
-              graphData: undefined,
-              visualizerError: null,
-              visualizerLoading: false,
-            },
-            false,
-            'resetVisualizerState'
-          ),
+          // Computed/derived actions
+          clearError: () => set({ error: null }, false, 'clearError'),
 
-        resetClassDiagramState: () =>
-          set(
-            {
-              mermaidText: undefined,
-              classError: null,
-              classLoading: false,
-            },
-            false,
-            'resetClassDiagramState'
-          ),
+          resetState: () =>
+            set(
+              {
+                graphData: undefined,
+                loading: false,
+                mermaidText: undefined,
+                ragIndexData: undefined,
+                error: null,
+                twoDee: false,
+              },
+              false,
+              'resetState'
+            ),
 
-        resetRAGIndexState: () =>
-          set(
-            {
-              ragIndexData: undefined,
-              ragError: null,
-              ragLoading: false,
-              ragProgress: defaultRAGProgress,
-            },
-            false,
-            'resetRAGIndexState'
-          ),
+          // Component-specific reset actions
+          resetVisualizerState: () =>
+            set(
+              {
+                graphData: undefined,
+                visualizerError: null,
+                visualizerLoading: false,
+              },
+              false,
+              'resetVisualizerState'
+            ),
 
-        // Async actions
-        loadConfig: async () => {
-          set({ configLoading: true, configError: null }, false, 'loadConfig:start');
-          try {
-            const response = await fetch('/configure');
-            if (!response.ok) {
-              throw new Error(`Failed to load config: ${response.statusText}`);
+          resetClassDiagramState: () =>
+            set(
+              {
+                mermaidText: undefined,
+                classError: null,
+                classLoading: false,
+              },
+              false,
+              'resetClassDiagramState'
+            ),
+
+          resetRAGIndexState: () =>
+            set(
+              {
+                ragIndexData: undefined,
+                ragError: null,
+                ragLoading: false,
+                ragProgress: defaultRAGProgress,
+              },
+              false,
+              'resetRAGIndexState'
+            ),
+
+          // Async actions
+          loadConfig: async () => {
+            set({ configLoading: true, configError: null }, false, 'loadConfig:start');
+            try {
+              const response = await fetch('/configure');
+              if (!response.ok) {
+                throw new Error(`Failed to load config: ${response.statusText}`);
+              }
+              const config = await response.json();
+              set({ config, configLoading: false }, false, 'loadConfig:success');
+              return config;
+            } catch (error) {
+              const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+              set(
+                {
+                  configError: errorMessage,
+                  configLoading: false,
+                },
+                false,
+                'loadConfig:error'
+              );
+              throw error;
             }
-            const config = await response.json();
-            set({ config, configLoading: false }, false, 'loadConfig:success');
-            return config;
-          } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            set(
-              {
-                configError: errorMessage,
-                configLoading: false,
-              },
-              false,
-              'loadConfig:error'
-            );
-            throw error;
-          }
-        },
+          },
 
-        saveConfig: async newConfig => {
-          set({ configLoading: true, configError: null }, false, 'saveConfig:start');
-          try {
-            const response = await fetch('/configure', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(newConfig),
-            });
-            if (!response.ok) {
-              throw new Error(`Failed to save config: ${response.statusText}`);
+          saveConfig: async newConfig => {
+            set({ configLoading: true, configError: null }, false, 'saveConfig:start');
+            try {
+              const response = await fetch('/configure', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(newConfig),
+              });
+              if (!response.ok) {
+                throw new Error(`Failed to save config: ${response.statusText}`);
+              }
+              const savedConfig = await response.json();
+              set(
+                {
+                  config: savedConfig,
+                  configLoading: false,
+                },
+                false,
+                'saveConfig:success'
+              );
+              return savedConfig;
+            } catch (error) {
+              const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+              set(
+                {
+                  configError: errorMessage,
+                  configLoading: false,
+                },
+                false,
+                'saveConfig:error'
+              );
+              throw error;
             }
-            const savedConfig = await response.json();
-            set(
-              {
-                config: savedConfig,
-                configLoading: false,
-              },
-              false,
-              'saveConfig:success'
-            );
-            return savedConfig;
-          } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            set(
-              {
-                configError: errorMessage,
-                configLoading: false,
-              },
-              false,
-              'saveConfig:error'
-            );
-            throw error;
-          }
-        },
-      }),
+          },
+
+          // Upload State Machine actions
+          sendUploadEvent: event => {
+            const machine = get().uploadMachine;
+            machine.send(event);
+          },
+
+          selectFile: file => {
+            const machine = get().uploadMachine;
+            machine.send({ type: 'SELECT_FILE', file });
+          },
+
+          startUpload: () => {
+            const machine = get().uploadMachine;
+            machine.send({ type: 'START_UPLOAD' });
+          },
+
+          updateUploadProgress: progress => {
+            const machine = get().uploadMachine;
+            machine.send({ type: 'UPLOAD_PROGRESS', progress });
+          },
+
+          cancelUpload: () => {
+            const machine = get().uploadMachine;
+            machine.send({ type: 'CANCEL' });
+            // After a brief delay, mark as cancelled (simulates async cancellation)
+            setTimeout(() => {
+              machine.send({ type: 'CANCELLED' });
+            }, 100);
+          },
+
+          completeUpload: data => {
+            const machine = get().uploadMachine;
+            machine.send({ type: 'COMPLETE', data });
+          },
+
+          errorUpload: error => {
+            const machine = get().uploadMachine;
+            machine.send({ type: 'ERROR', error });
+          },
+
+          retryUpload: () => {
+            const machine = get().uploadMachine;
+            machine.send({ type: 'RETRY' });
+          },
+
+          resetUpload: () => {
+            const machine = get().uploadMachine;
+            machine.send({ type: 'RESET' });
+          },
+        }; // End of return statement
+      }, // End of persist callback
       {
         name: 'tana-helper-storage',
         // Only persist configuration, not temporary data

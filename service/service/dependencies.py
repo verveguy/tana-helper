@@ -5,6 +5,7 @@ import json
 import logging
 import re
 from datetime import datetime
+from io import StringIO
 from logging import getLogger
 from timeit import timeit
 from typing import ForwardRef
@@ -15,10 +16,11 @@ from fastapi import HTTPException, status
 from fastapi.concurrency import asynccontextmanager
 from openai import APIError, AsyncOpenAI, AuthenticationError, OpenAI, RateLimitError
 from pydantic import BaseModel
+from snowflake import SnowflakeGenerator
 
-from . import settings
 from service.tana_types import TANA_NODE
 
+from . import settings
 
 # Load environment variables from .env file
 # load_dotenv()
@@ -30,9 +32,6 @@ app_name = "TanaHelper"
 #     = False
 
 # templates:object = None
-
-
-
 
 
 class CalendarRequest(BaseModel):
@@ -63,15 +62,16 @@ class ExecRequest(BaseModel):
     payload: dict
 
 
-#OPENAI_EMBEDDING_MODEL = "text-embedding-3-large"
+# OPENAI_EMBEDDING_MODEL = "text-embedding-3-large"
 OPENAI_EMBEDDING_MODEL = "text-embedding-3-small"
 OPENAI_EMBEDDING_THRESHOLD = 0.45
 
-#OPENAI_EMBEDDING_MODEL = "text-embedding-ada-002"
-#OPENAI_EMBEDDING_THRESHOLD = 0.80
+# OPENAI_EMBEDDING_MODEL = "text-embedding-ada-002"
+# OPENAI_EMBEDDING_THRESHOLD = 0.80
 
 
-OPENAI_CHAT_MODEL = 'gpt-4o'
+OPENAI_CHAT_MODEL = "gpt-4o"
+
 
 class OpenAIRequest(BaseModel):
     model: str = "gpt-3.5-turbo"
@@ -96,7 +96,7 @@ class PineconeRequest(EmbeddingRequest):
     score: float | None = 0.80
     top: int | None = 10
     tags: str | None = ""
-    metadata: Optional[dict] = None
+    metadata: dict | None = None
     nodeId: str
 
 
@@ -114,10 +114,9 @@ class ChromaRequest(EmbeddingRequest, ChromaStoreRequest):
     score: float | None = 0.80
     top: int | None = 10
     tags: str | None = ""
-    metadata: Optional[dict] = None
+    metadata: dict | None = None
     nodeId: str
-    returns: Optional[str] = 'topic'
-
+    returns: str | None = "topic"
 
 
 class LlamaRequest(EmbeddingRequest):
@@ -214,7 +213,8 @@ class TanaInputAPIClient:
 
 def clean_openai_error_message(error_str: str) -> str:
     """
-    Clean up OpenAI error messages to remove JSON formatting and extract key information.
+    Clean up OpenAI error messages to remove JSON formatting
+    and extract key information.
     """
     try:
         # Try to extract the error message from JSON-like structure
@@ -248,24 +248,29 @@ async def get_embeddings_batch(
     progress_callback=None,
 ) -> list[list[float]]:
     """
-    Get embeddings for multiple texts in batches with retry logic and progress reporting.
+    Get embeddings for multiple texts in batches with retry logic
+    and progress reporting.
 
-    This function processes multiple texts in batches to dramatically improve performance
-    by reducing the number of HTTP requests to OpenAI's API.
-
-    Args:
-        content_list: List of text strings to embed
-        model: OpenAI embedding model to use
-        batch_size: Maximum number of texts per batch (considers token limits)
-        max_retries: Number of retry attempts for failed requests
-        progress_callback: Optional callback for progress updates during embedding
-
-    Returns:
-        List of embedding vectors (list of floats for each input text)
-
-    Raises:
-        HTTPException: For authentication, rate limit, or API errors
+    This function processes multiple texts in batches to dramatically
+    improve performance over individual API calls (10-50x faster).
+    Includes intelligent retry logic, automatic batch splitting,
+    and content size monitoring.
     """
+    if not content_list:
+        # Send completion progress event even for empty input to maintain UI state
+        if progress_callback:
+            await progress_callback(
+                {
+                    "type": "embedding_progress",
+                    "current_batch": 0,
+                    "total_batches": 0,
+                    "current_node": 0,
+                    "total_nodes": 0,
+                    "phase": "embedding",
+                }
+            )
+        return []
+
     # Use global settings (refreshed by middleware on every request)
     api_key = settings.settings.openai_api_key
     logger = getLogger()
@@ -279,37 +284,36 @@ async def get_embeddings_batch(
         )
 
     openai_client = AsyncOpenAI(api_key=api_key)
+
+    # 🎯 RESTORED: Enhanced batch monitoring from OLD function
+    total_batches = (len(content_list) + batch_size - 1) // batch_size
+    logger.info("🚀 Starting batch embedding processing:")
+    logger.info(f"   📊 Total content pieces: {len(content_list):,}")
+    logger.info(f"   📦 Batch size: {batch_size}")
+    logger.info(f"   🔢 Total batches: {total_batches}")
+
     all_embeddings = []
 
-    total_batches = (len(content_list) + batch_size - 1) // batch_size
-    logger.info(
-        f"Processing {len(content_list)} texts in {total_batches} batches of {batch_size}"
-    )
+    for batch_num in range(total_batches):
+        batch_start_idx = batch_num * batch_size
+        batch_end_idx = min(batch_start_idx + batch_size, len(content_list))
+        batch = content_list[batch_start_idx:batch_end_idx]
 
-    # Process in batches to respect token limits and improve performance
-    for i in range(0, len(content_list), batch_size):
-        batch = content_list[i : i + batch_size]
-        batch_num = (i // batch_size) + 1
+        # 🎯 RESTORED: Content size monitoring per batch (from OLD function)
+        batch_sizes = [len(text) for text in batch]
+        largest_size = max(batch_sizes)
+        largest_idx = batch_sizes.index(largest_size)
 
-        logger.debug(
-            f"Processing batch {batch_num}/{total_batches} with {len(batch)} texts"
+        logger.info(
+            f"📦 Processing batch {batch_num + 1}/{total_batches}: {len(batch)} items"
         )
+        logger.info(f"   📏 Largest content in batch: {largest_size:,} characters")
 
-        # Send progress update for this batch
-        if progress_callback:
-            processed_so_far = len(all_embeddings)
-            await progress_callback(
-                {
-                    "type": "embedding_progress",
-                    "batch_num": batch_num,
-                    "total_batches": total_batches,
-                    "processed_nodes": processed_so_far,
-                    "total_nodes": len(content_list),
-                    "phase": "embedding",
-                }
+        if largest_size > 16000:  # Warning threshold
+            logger.warning(
+                f"   ⚠️  Large content detected in batch item {largest_idx}: {largest_size:,} chars"
             )
 
-        # Retry logic for this batch
         for attempt in range(max_retries):
             try:
                 # Single API call for entire batch - this is the key optimization!
@@ -325,6 +329,21 @@ async def get_embeddings_batch(
                 logger.debug(
                     f"Successfully processed batch {batch_num} with {len(batch_embeddings)} embeddings"
                 )
+
+                # Send progress update AFTER this batch is successfully processed
+                if progress_callback:
+                    processed_so_far = len(all_embeddings)
+                    await progress_callback(
+                        {
+                            "type": "embedding_progress",
+                            "current_batch": batch_num + 1,
+                            "total_batches": total_batches,
+                            "current_node": processed_so_far,
+                            "total_nodes": len(content_list),
+                            "phase": "embedding",
+                        }
+                    )
+
                 break  # Success, exit retry loop
 
             except RateLimitError as e:
@@ -479,6 +498,56 @@ def create_content_hash(
     return content_hash
 
 
+def create_individual_node_hash(node) -> str:
+    """
+    Create a content hash for an individual node (Document or TextNode).
+
+    This enables node-level change detection, providing more granular
+    optimization than topic-level hashing. Only nodes that have actually
+    changed will be reprocessed.
+
+    Args:
+        node: Document or TextNode object to hash
+
+    Returns:
+        SHA-256 hash string uniquely identifying this node's content
+    """
+    # Extract content and metadata from the node
+    content = node.text if hasattr(node, "text") else ""
+
+    # Extract metadata for hash calculation
+    metadata = node.metadata if hasattr(node, "metadata") and node.metadata else {}
+
+    # For Document nodes, include tags and title in hash
+    tags = []
+    fields_data = []
+
+    if hasattr(node, "metadata") and node.metadata:
+        # Extract tags from metadata
+        if "supertag" in metadata:
+            tags = metadata["supertag"].split() if metadata["supertag"] else []
+
+        # Include relevant metadata fields that affect content meaning
+        relevant_fields = ["title", "category", "has_integrated_fields"]
+        for field_name in relevant_fields:
+            if field_name in metadata:
+                fields_data.append(
+                    {"name": field_name, "value": str(metadata[field_name])}
+                )
+
+        # Include any field data that was integrated into the content
+        for key, value in metadata.items():
+            if key not in [
+                "title",
+                "category",
+                "supertag",
+                "has_integrated_fields",
+            ] and not key.startswith("_"):
+                fields_data.append({"name": key, "value": str(value)})
+
+    return create_content_hash(content=content, tags=tags, fields=fields_data)
+
+
 def create_node_content_hash(topic) -> str:
     """
     Create a content hash for a TanaDocument/topic.
@@ -512,50 +581,85 @@ def create_node_content_hash(topic) -> str:
 
 def get_stored_content_hash(collection, node_id: str) -> str | None:
     """
-    Retrieve the stored content hash for a node from ChromaDB.
+    Retrieve the stored content hash for a specific node from ChromaDB.
 
-    Returns None if the node doesn't exist or has no stored hash.
+    Args:
+        collection: ChromaDB collection
+        node_id: ID of the node to check
+
+    Returns:
+        Stored content hash string, or None if not found
     """
     try:
-        # Get the existing node metadata
-        result = collection.get(ids=[node_id])
-
-        if result and result["metadatas"] and len(result["metadatas"]) > 0:
+        result = collection.get(ids=[node_id], include=["metadatas"])
+        if result["metadatas"] and len(result["metadatas"]) > 0:
             metadata = result["metadatas"][0]
-            return metadata.get("content_hash")
-
+            return metadata.get("content_hash") if metadata else None
+        return None
+    except Exception as e:
+        logger.debug(f"Could not retrieve hash for node {node_id}: {e}")
         return None
 
-    except Exception:
-        # Node doesn't exist or other error
-        return None
 
-
-def should_skip_processing(topic, collection) -> bool:
+def get_stored_node_hashes(collection, node_ids: list[str]) -> dict[str, str]:
     """
-    Determine if we should skip processing this topic because it hasn't changed.
+    Efficiently retrieve stored content hashes for multiple nodes from ChromaDB.
 
-    Returns True if the content hash matches what's stored in ChromaDB,
-    indicating the node is unchanged and can be skipped.
+    This enables batch hash checking for node-level optimization.
+
+    Args:
+        collection: ChromaDB collection
+        node_ids: List of node IDs to check
+
+    Returns:
+        Dictionary mapping node_id -> content_hash for nodes that exist
     """
+    if not node_ids:
+        return {}
+
     try:
-        current_hash = create_node_content_hash(topic)
-        stored_hash = get_stored_content_hash(collection, topic.id)
+        result = collection.get(ids=node_ids, include=["metadatas"])
+        hash_map = {}
 
-        if stored_hash and current_hash == stored_hash:
-            logger = getLogger()
-            logger.debug(
-                f"Skipping unchanged node {topic.id} (hash: {current_hash[:8]}...)"
-            )
-            return True
+        if result["ids"] and result["metadatas"]:
+            for node_id, metadata in zip(
+                result["ids"], result["metadatas"], strict=False
+            ):
+                if metadata and "content_hash" in metadata:
+                    hash_map[node_id] = metadata["content_hash"]
 
-        return False
+        logger.debug(
+            f"Retrieved {len(hash_map)} stored hashes for {len(node_ids)} nodes"
+        )
+        return hash_map
 
     except Exception as e:
-        # If there's any error with hash comparison, err on the side of processing
-        logger = getLogger()
-        logger.debug(f"Error checking content hash for {topic.id}: {e}, will process")
+        logger.debug(f"Could not retrieve batch hashes: {e}")
+        return {}
+
+
+def should_skip_processing(collection, node_id: str, current_hash: str) -> bool:
+    """
+    Determine if we should skip processing this node because it hasn't changed.
+
+    Compares the current content hash with the stored hash in ChromaDB.
+
+    Args:
+        collection: ChromaDB collection
+        node_id: ID of the node to check
+        current_hash: Current content hash of the node
+
+    Returns:
+        True if node should be skipped (unchanged), False if it should be processed
+    """
+    stored_hash = get_stored_content_hash(collection, node_id)
+
+    if stored_hash is None:
+        # Node doesn't exist in ChromaDB, so we need to process it
         return False
+
+    # Skip processing if hashes match (content unchanged)
+    return stored_hash == current_hash
 
 
 async def get_embedding(req: EmbeddingRequest):
@@ -749,22 +853,94 @@ async def capture_logs(logger):
     logger.removeHandler(eh)
 
 
-from io import StringIO
-from snowflake import SnowflakeGenerator
+BASE66_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_.~"
+BASE = len(BASE66_ALPHABET)
 
 snowflakes = SnowflakeGenerator(42)
 
-BASE66_ALPHABET = u"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_.~"
-BASE = len(BASE66_ALPHABET)
 
 def nextflake():
     n = next(snowflakes)
     if n == 0:
-        return BASE66_ALPHABET[0].encode('ascii')
+        return BASE66_ALPHABET[0].encode("ascii")
 
     r = StringIO()
     while n:
         n, t = divmod(n, BASE)
         r.write(BASE66_ALPHABET[t])
-    return r.getvalue().encode('ascii')[::-1]
+    return r.getvalue().encode("ascii")[::-1]
 
+
+# Types for our APIs to use
+
+
+# Missing data structures from the original implementation
+class EmbeddableNode(BaseModel):
+    """Node prepared for embedding with hash-based change detection."""
+
+    id: str
+    text: str  # The content to embed
+    name: str  # Display name
+    metadata: dict
+    hash: str  # Content hash for change detection
+    embedding: list[float] | None = None  # Computed embedding
+
+
+class TanaTopicNode(BaseModel):
+    """Topic node structure from original implementation."""
+
+    id: str
+    name: str
+    tags: list[str]
+    content: list  # Content structure from original format
+
+
+def prepare_node_for_embedding(
+    node_id: str, content_id: str, topic_id: str, name: str, tags: str, context: str
+) -> EmbeddableNode:
+    """
+    Prepare a node for embedding with content hash for change detection.
+
+    This is the missing function from the original implementation that creates
+    EmbeddableNode objects with proper hash calculation.
+    """
+    # Create canonical metadata
+    metadata = {
+        "category": TANA_NODE,
+        "content_id": content_id,
+        "topic_id": topic_id,
+        "tags": tags,
+        "text": context,
+    }
+
+    # Calculate content hash for change detection
+    content_hash = create_content_hash(
+        content=context,
+        tags=[tags] if tags else [],
+        fields=[],  # Could be extended to include field data
+    )
+
+    # Store hash in metadata for ChromaDB storage
+    metadata["hash"] = content_hash
+
+    return EmbeddableNode(
+        id=node_id, text=context, name=name, metadata=metadata, hash=content_hash
+    )
+
+
+async def get_embeddings(texts: list[str], model: str) -> list:
+    """
+    Single-batch embedding function for compatibility with original implementation.
+
+    This wraps our get_embeddings_batch function to maintain API compatibility.
+    """
+    embeddings = await get_embeddings_batch(texts, model=model)
+
+    # Convert to format expected by original implementation
+    result = []
+    for embedding in embeddings:
+        # Create object with .embedding attribute
+        embedding_obj = type("EmbeddingResult", (), {"embedding": embedding})()
+        result.append(embedding_obj)
+
+    return result

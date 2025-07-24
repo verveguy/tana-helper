@@ -1,7 +1,7 @@
+import html
 import re
 from itertools import combinations
 from logging import getLogger
-import html
 
 from pydantic import BaseModel
 

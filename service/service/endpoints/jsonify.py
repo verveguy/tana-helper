@@ -101,7 +101,7 @@ async def export_to_file(
     except OSError as e:
         raise HTTPException(
             detail=e.strerror, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        ) from e
 
     return f"{filepath}"
 

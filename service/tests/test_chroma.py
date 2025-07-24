@@ -1,14 +1,13 @@
+
 import requests
 
-from service.dependencies import ChromaRequest
+from service.dependencies import (
+    OPENAI_CHAT_MODEL,
+    OPENAI_EMBEDDING_MODEL,
+    ChromaRequest,
+)
 
 from .test_types import BASE_URL, HTTPValidationError
-from pydantic import BaseModel
-from pydantic import ValidationError as PydanticValidationError
-from typing import List, Union
-from service.dependencies import OPENAI_CHAT_MODEL, OPENAI_EMBEDDING_MODEL, ChromaRequest, CalendarRequest
-from service.settings import settings
-from .test_types import BASE_URL, APIValidationError, HTTPValidationError
 
 
 def test_chroma_upsert_success():

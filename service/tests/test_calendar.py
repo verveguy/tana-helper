@@ -18,5 +18,5 @@ def test_calendar_post_validation_error():
     payload = {"invalid": "data"}
     response = requests.post(f"{BASE_URL}/calendar", json=payload)
     assert response.status_code == 422
-    error_response = HTTPValidationError.model_validate(response.json())
+    HTTPValidationError.model_validate(response.json())
     # Additional assertions can be added to check the content of the error response

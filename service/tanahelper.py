@@ -76,7 +76,7 @@ class TanaHelperTrayApp:
             message("No serviceworker to stop")
 
     def toggle_icon(self):
-        if self.toggle == False:
+        if not self.toggle:
             self.tray.setIcon(self.active_icon)
             self.toggle = True
         else:
@@ -165,7 +165,7 @@ class TanaHelperTrayApp:
     def setup_app(self):
         # Create the icon
         if os_platform == "Darwin":
-            icon_path = os.path.join(basedir, "icons", "icon_16x16_color.png")
+            os.path.join(basedir, "icons", "icon_16x16_color.png")
             self.active_icon = QIcon(
                 os.path.join(basedir, "icons", "icon_16x16_color.png")
             )

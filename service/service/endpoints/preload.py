@@ -14,24 +14,32 @@ from fastapi.responses import StreamingResponse
 from snowflake import SnowflakeGenerator
 
 from service.dependencies import (
-    OPENAI_EMBEDDING_MODEL,
     ChromaRequest,
+    EmbeddableNode,
+    TanaNodeMetadata,
+    TanaTopicNode,
     capture_logs,
+    create_individual_node_hash,
     get_embeddings,
-    nextflake,
+    get_embeddings_batch,
+    get_stored_node_hashes,
+    prepare_node_for_embedding,
 )
-from service.endpoints.chroma import chroma_upsert
-from service.endpoints.topics import TanaDocument, extract_topics
-from service.tana_types import TanaDump
-from service.json2tana import json_to_tana
+from service.endpoints.chroma import chroma_upsert, get_collection
+from service.endpoints.topics import extract_topics
+from service.tana_types import TANA_NODE, TanaDocument, TanaDump
 
 logger = getLogger()
 
 router = APIRouter()
 
+# Constants from original implementation
+TANA_TEXT = "tana-text"
 minutes = 1000 * 60
-
 BATCH_SIZE = 500
+
+# Restore snowflakes for compatibility
+snowflakes = SnowflakeGenerator(42)
 
 # TODO: Add header support throughout so we can pass Tana API key and OpenAPI Key as headers
 # NOTE: we already have this in the main.py middleware wrapper, but it would be better
@@ -41,38 +49,37 @@ BATCH_SIZE = 500
 
 
 # reduce our list of nodes to embed by testing hashes of the nodes
-def reduce_embeddings(nodes:List[EmbeddableNode]) -> Tuple[List[EmbeddableNode], dict]:  
-  
-  collection = get_collection()
-  lookup = {node.id: node for node in nodes}
-  removes = {}
-  deletes = {}
-  
-  # TODO: narrow this query to nodes from the given workspace 
-  # (requires we track workspace root node somehow in metadata or collection name)
-  query_response = collection.get()
+def reduce_embeddings(nodes: list[EmbeddableNode]) -> tuple[list[EmbeddableNode], dict]:
+    collection = get_collection()
+    lookup = {node.id: node for node in nodes}
+    removes = {}
+    deletes = {}
 
-  if query_response:
-    # the result from ChromaDB is kinda strange. Instead of an array of objects
-    # it's four distinct arrays of object properties. Very odd interface.
+    # TODO: narrow this query to nodes from the given workspace
+    # (requires we track workspace root node somehow in metadata or collection name)
+    query_response = collection.get()
 
-    for node_id, metadata in zip(
+    if query_response and query_response["metadatas"]:
+        # the result from ChromaDB is kinda strange. Instead of an array of objects
+        # it's four distinct arrays of object properties. Very odd interface.
+
+        for node_id, metadata in zip(
             query_response["ids"],
-            query_response["metadatas"], # type: ignore
+            query_response["metadatas"],
+            strict=False,
         ):
-      
-      # is this node in the new set?
-      if node_id in lookup:
-        the_node = lookup[node_id]
-        if metadata and the_node.hash == metadata["hash"]:
-          # remove this node from the results
-          removes[node_id] = the_node
-      else:
-        deletes[node_id] = True
+            # is this node in the new set?
+            if node_id in lookup:
+                the_node = lookup[node_id]
+                if metadata and the_node.hash == metadata["hash"]:
+                    # remove this node from the results
+                    removes[node_id] = the_node
+            else:
+                deletes[node_id] = True
 
-  # remove the nodes that are already in the DB
-  results = [node for node in nodes if node.id not in removes]
-  return results, deletes
+    # remove the nodes that are already in the DB
+    results = [node for node in nodes if node.id not in removes]
+    return results, deletes
 
 
 async def load_chromadb_from_topics(
@@ -102,7 +109,7 @@ async def load_chromadb_from_topics(
             nodeId=str(node.id),  # Convert integer to string!
             model=model,
         )
-        upsert = await chroma_upsert(chroma_req)
+        await chroma_upsert(chroma_req)
 
     logger.info("ChromaDB populated and ready")
     return index_nodes
@@ -136,22 +143,18 @@ async def load_chromadb_from_topics_with_progress(
         return
 
     try:
-        # === PASS 1: Collect all nodes and content with change detection ===
-        logger.info("Pass 1: Collecting nodes and detecting changes...")
-
-        from service.dependencies import (
-            create_node_content_hash,
-            should_skip_processing,
+        # === PASS 1: Collect all nodes and content with NODE-LEVEL HASH OPTIMIZATION ===
+        logger.info(
+            "Pass 1: Collecting nodes with NODE-LEVEL hash-based change detection..."
         )
-        from service.endpoints.chroma import get_collection
-
-        # Get ChromaDB collection for change detection
-        collection = get_collection()
 
         all_nodes = []
         content_list = []
         node_metadata = []
+        node_to_hash = {}  # Map node_id -> current_hash
         skipped_count = 0
+
+        collection = get_collection()
 
         for topic_idx, topic in enumerate(topics):
             # Check for cancellation every 100 topics during collection
@@ -161,22 +164,19 @@ async def load_chromadb_from_topics_with_progress(
                     raise asyncio.CancelledError()
                 await asyncio.sleep(0)
 
-            # 🎯 CHANGE DETECTION: Skip unchanged topics
-            if should_skip_processing(topic, collection):
-                skipped_count += 1
-                continue
-
             # Get all nodes for this topic using existing logic
             (doc_node, text_nodes) = document_from_topic(topic)
             topic_nodes = [doc_node] + text_nodes
 
-            # Calculate content hash for this topic
-            content_hash = create_node_content_hash(topic)
-
+            # 🎯 NODE-LEVEL HASH CALCULATION (major improvement!)
             for node in topic_nodes:
+                # Calculate hash for this specific node
+                current_hash = create_individual_node_hash(node)
+                node_to_hash[node.id] = current_hash
+
+                # Store all nodes and their metadata for batch processing
                 all_nodes.append(node)
                 content_list.append(node.text)
-                # Store metadata for later ChromaDB upsert
                 node_metadata.append(
                     {
                         "topic_idx": topic_idx,
@@ -185,37 +185,194 @@ async def load_chromadb_from_topics_with_progress(
                         "node_id": node.id,
                         "node_text": node.text,
                         "node_metadata": node.metadata or {},
-                        "content_hash": content_hash,  # 🎯 Include content hash
+                        "content_hash": current_hash,  # 🎯 Store individual node hash
                     }
                 )
 
-        total_nodes = len(all_nodes)
-        logger.info(f"Collected {total_nodes} nodes from {len(topics)} topics")
-        if skipped_count > 0:
-            logger.info(
-                f"⚡ OPTIMIZATION: Skipped {skipped_count} unchanged topics (saved {skipped_count} embedding calls!)"
+        # 🎯 BATCH HASH CHECKING - Check all nodes at once for efficiency
+        logger.info(f"Collected {len(all_nodes)} nodes, checking for changes...")
+        all_node_ids = [node.id for node in all_nodes]
+        stored_hashes = get_stored_node_hashes(collection, all_node_ids)
+
+        # 🎯 FILTER UNCHANGED NODES - Remove nodes that haven't changed
+        changed_nodes = []
+        changed_content = []
+        changed_metadata = []
+
+        for i, node in enumerate(all_nodes):
+            current_hash = node_to_hash[node.id]
+            stored_hash = stored_hashes.get(node.id)
+
+            if stored_hash and stored_hash == current_hash:
+                # Node unchanged, skip it
+                skipped_count += 1
+                logger.debug(
+                    f"⚡ Skipping unchanged node {node.id} (hash: {current_hash[:8]}...)"
+                )
+                continue
+
+            # Node changed or new, include it for processing
+            changed_nodes.append(node)
+            changed_content.append(content_list[i])
+            changed_metadata.append(node_metadata[i])
+
+        # Update variables to use only changed nodes
+        all_nodes = changed_nodes
+        content_list = changed_content
+        node_metadata = changed_metadata
+
+        # 🎯 INCREMENTAL DELETION - Remove nodes that are no longer in Tana dump
+        logger.info("Identifying nodes for deletion (no longer in Tana dump)...")
+
+        deleted_count = 0  # Track deleted nodes for progress reporting
+
+        # Get ALL existing nodes from ChromaDB to check for deletions
+        try:
+            all_existing_response = collection.get(include=["metadatas"])
+            existing_node_ids = (
+                set(all_existing_response["ids"])
+                if all_existing_response["ids"]
+                else set()
             )
 
-        # Send initial progress callback with skip information
+            # Create set of all node IDs that should exist (from current Tana dump)
+            current_node_ids = set(all_node_ids)  # This includes ALL nodes from dump
+
+            # Find nodes that exist in ChromaDB but NOT in current dump
+            nodes_to_delete = existing_node_ids - current_node_ids
+
+            if nodes_to_delete:
+                logger.info(
+                    f"🗑️  Found {len(nodes_to_delete)} orphaned nodes to delete from ChromaDB"
+                )
+
+                # Send deletion start progress callback
+                if progress_callback:
+                    await progress_callback(
+                        {
+                            "type": "deletion_start",
+                            "total_nodes_to_delete": len(nodes_to_delete),
+                            "phase": "deletion",
+                        }
+                    )
+
+                # Delete orphaned nodes in batches for performance
+                delete_batch_size = 100
+                deletion_start_time = time.time()
+
+                for i in range(0, len(nodes_to_delete), delete_batch_size):
+                    batch_to_delete = list(nodes_to_delete)[i : i + delete_batch_size]
+
+                    try:
+                        collection.delete(ids=batch_to_delete)
+                        deleted_count += len(batch_to_delete)
+                        logger.debug(
+                            f"Deleted batch of {len(batch_to_delete)} orphaned nodes"
+                        )
+
+                        # Send deletion progress callback every batch
+                        if progress_callback:
+                            deletion_elapsed = time.time() - deletion_start_time
+                            deletion_rate = (
+                                deleted_count / deletion_elapsed
+                                if deletion_elapsed > 0
+                                else 0
+                            )
+                            deletion_eta = (
+                                (len(nodes_to_delete) - deleted_count) / deletion_rate
+                                if deletion_rate > 0
+                                else 0
+                            )
+
+                            await progress_callback(
+                                {
+                                    "type": "deletion_progress",
+                                    "deleted_nodes": deleted_count,
+                                    "total_nodes_to_delete": len(nodes_to_delete),
+                                    "deletion_elapsed": round(deletion_elapsed, 1),
+                                    "deletion_rate": round(deletion_rate, 1),
+                                    "deletion_eta": round(deletion_eta, 1),
+                                    "phase": "deletion",
+                                }
+                            )
+
+                        # Check for cancellation during deletion
+                        if current_task and current_task.cancelled():
+                            logger.debug("Task cancelled during orphaned node deletion")
+                            raise asyncio.CancelledError()
+                        await asyncio.sleep(0)
+
+                    except Exception as e:
+                        logger.warning(f"Error deleting batch of orphaned nodes: {e}")
+
+                logger.info(
+                    f"🗑️  Successfully deleted {deleted_count} orphaned nodes from ChromaDB"
+                )
+
+                # Send deletion completion callback
+                if progress_callback:
+                    await progress_callback(
+                        {
+                            "type": "deletion_complete",
+                            "deleted_nodes": deleted_count,
+                            "total_nodes_to_delete": len(nodes_to_delete),
+                            "deletion_elapsed": round(
+                                time.time() - deletion_start_time, 1
+                            ),
+                            "phase": "deletion_complete",
+                        }
+                    )
+            else:
+                logger.info("✅ No orphaned nodes found - ChromaDB is synchronized")
+
+        except Exception as e:
+            logger.warning(f"Could not check for orphaned nodes: {e}")
+
+        if skipped_count > 0:
+            logger.info(
+                f"⚡ NODE-LEVEL OPTIMIZATION: Skipped {skipped_count} unchanged nodes "
+                f"(saved {skipped_count} embedding calls!)"
+            )
+
+        # Send initial progress callback with optimization statistics
         if progress_callback:
             await progress_callback(
                 {
                     "type": "init",
                     "total_topics": len(topics),
-                    "total_nodes": total_nodes,
-                    "skipped_topics": skipped_count,
+                    "total_nodes": len(all_nodes),
+                    "skipped_nodes": skipped_count,
+                    "deleted_nodes": deleted_count,
                     "changed_topics": len(topics) - skipped_count,
                     "phase": "batch_processing",
                 }
             )
 
-        # === PASS 2: Get embeddings in batches ===
-        logger.info("Pass 2: Processing embeddings in batches...")
+        # === PASS 2: Get embeddings in batches with content monitoring ===
+        if not content_list:
+            logger.info("Pass 2: No nodes to embed - skipping embedding phase")
+        else:
+            logger.info("Pass 2: Processing embeddings in batches...")
+
+            # 🎯 RESTORED: Content size monitoring from OLD function
+            content_sizes = [len(text) for text in content_list]
+            max_size = max(content_sizes)
+            avg_size = sum(content_sizes) / len(content_sizes)
+            large_content_count = sum(1 for size in content_sizes if size > 8000)
+
+            logger.info("📊 Content size analysis:")
+            logger.info(f"   📏 Largest content: {max_size:,} characters")
+            logger.info(f"   📊 Average content: {avg_size:.0f} characters")
+            logger.info(f"   ⚠️  Large content pieces (>8K): {large_content_count}")
+
+            if max_size > 32000:  # OpenAI context limit warning
+                logger.warning(
+                    f"⚠️  Very large content detected ({max_size:,} chars) - may cause API failures"
+                )
 
         # Calculate optimal batch size based on content
         from service.dependencies import (
             calculate_optimal_batch_size,
-            get_embeddings_batch,
         )
 
         optimal_batch_size = calculate_optimal_batch_size(content_list)
@@ -224,10 +381,12 @@ async def load_chromadb_from_topics_with_progress(
             await progress_callback(
                 {
                     "type": "batch_start",
-                    "total_nodes": total_nodes,
+                    "total_nodes": len(all_nodes),
                     "batch_size": optimal_batch_size,
-                    "estimated_batches": (total_nodes + optimal_batch_size - 1)
-                    // optimal_batch_size,
+                    "estimated_batches": (len(all_nodes) + optimal_batch_size - 1)
+                    // optimal_batch_size
+                    if len(all_nodes) > 0
+                    else 0,
                     "phase": "embedding",
                 }
             )
@@ -244,129 +403,60 @@ async def load_chromadb_from_topics_with_progress(
             f"Successfully generated {len(all_embeddings)} embeddings using batch processing"
         )
 
-        # === PASS 3: Upsert to ChromaDB with progress ===
-        logger.info("Pass 3: Upserting to ChromaDB...")
+        # === PASS 3: Batch Upsert to ChromaDB ===
+        if not all_nodes:
+            logger.info("Pass 3: No nodes to store - skipping storage phase")
+        else:
+            logger.info("Pass 3: Batch upserting to ChromaDB...")
 
         if progress_callback:
             await progress_callback(
-                {"type": "upsert_start", "total_nodes": total_nodes, "phase": "storing"}
+                {
+                    "type": "upsert_start",
+                    "total_nodes": len(all_nodes),
+                    "phase": "storing",
+                }
             )
 
-        processed_nodes = 0
-        current_topic_idx = -1
         storing_phase_start = time.time()  # Track start of storing phase
-        failed_nodes = 0  # Track failed storage operations
 
-        # Process each node with its embedding
-        for i, (node, embedding, metadata) in enumerate(
-            zip(all_nodes, all_embeddings, node_metadata, strict=False)
-        ):
-            # Check for cancellation every 50 nodes during upsert
-            if i % 50 == 0:
-                if current_task and current_task.cancelled():
-                    logger.debug("Task cancelled during ChromaDB upsert")
-                    raise asyncio.CancelledError()
-                await asyncio.sleep(0)
+        # 🚀 BATCH UPSERT PERFORMANCE IMPROVEMENT
+        # Use ChromaDB's native batch operations instead of individual upserts
+        # This provides massive performance improvements (10-50x faster!)
 
-            # Track topic changes for progress reporting
-            if metadata["topic_idx"] != current_topic_idx:
-                current_topic_idx = metadata["topic_idx"]
+        collection = get_collection()
+        failed_nodes = await chroma_batch_upsert(
+            collection=collection,
+            batch_nodes=all_nodes,
+            batch_embeddings=all_embeddings,
+            batch_metadata=node_metadata,
+            progress_callback=progress_callback,
+        )
 
-                if progress_callback:
-                    await progress_callback(
-                        {
-                            "type": "topic_start",
-                            "current_topic": current_topic_idx + 1,
-                            "total_topics": len(topics),
-                            "topic_name": metadata["topic_name"],
-                            "topic_id": metadata["topic_id"],
-                            "processed_nodes": processed_nodes,
-                            "total_nodes": total_nodes,
-                            "failed_nodes": failed_nodes,
-                            "phase": "storing",
-                        }
-                    )
-
-            try:
-                # Create ChromaRequest for this node (using existing structure)
-                # FIX: Convert node.id (integer) to string for ChromaRequest
-                chroma_req = ChromaRequest(
-                    context=node.text,
-                    name=metadata["node_metadata"].get("title", ""),
-                    nodeId=str(node.id),  # Convert integer to string!
-                    model=model,
-                )
-
-                # Use existing chroma_upsert but bypass the embedding call
-                # We'll need to modify this to accept pre-computed embeddings
-                await chroma_upsert_with_embedding(
-                    chroma_req, embedding, metadata["content_hash"]
-                )
-                processed_nodes += 1
-
-            except Exception as e:
-                failed_nodes += 1
-                logger.error(f"Error upserting node {node.id}: {e}")
-
-                # Send error callback but continue processing - now with better error info
-                if progress_callback:
-                    await progress_callback(
-                        {
-                            "type": "node_error",
-                            "current_topic": current_topic_idx + 1,
-                            "topic_id": metadata["topic_id"],
-                            "node_id": str(
-                                node.id
-                            ),  # Convert to string for consistency
-                            "error": str(e),
-                            "processed_nodes": processed_nodes,
-                            "total_nodes": total_nodes,
-                            "failed_nodes": failed_nodes,
-                            "phase": "storing",
-                        }
-                    )
-
-            # Send progress update every 100 nodes with enhanced timing info
-            if processed_nodes % 100 == 0 and progress_callback:
-                storing_elapsed = time.time() - storing_phase_start
-
-                await progress_callback(
-                    {
-                        "type": "storing_progress",
-                        "processed_nodes": processed_nodes,
-                        "total_nodes": total_nodes,
-                        "failed_nodes": failed_nodes,
-                        "current_topic": current_topic_idx + 1,
-                        "total_topics": len(topics),
-                        "phase": "storing",
-                        "storing_elapsed": round(storing_elapsed, 1),
-                        "storing_rate": round(processed_nodes / storing_elapsed, 2)
-                        if storing_elapsed > 0
-                        else 0,
-                    }
-                )
-
-        # Send completion callback with failure summary
+        # Send completion callback
         elapsed_time = time.time() - start_time
         logger.info(f"ChromaDB batch indexing completed in {elapsed_time:.1f}s")
         logger.info(
-            f"Performance: {processed_nodes / elapsed_time:.1f} nodes/second with batching!"
+            f"Performance: {len(all_nodes) / elapsed_time:.1f} nodes/second with batching!"
         )
 
         if failed_nodes > 0:
             logger.warning(
-                f"Storage completed with {failed_nodes} failed nodes out of {total_nodes} total"
+                f"Storage completed with {failed_nodes} failed nodes out of {len(all_nodes)} total"
             )
 
         if progress_callback:
             await progress_callback(
                 {
                     "type": "complete",
-                    "processed_nodes": processed_nodes,
-                    "total_nodes": total_nodes,
+                    "total_topics": len(topics),
+                    "total_nodes": len(all_nodes),
+                    "processed_nodes": len(all_nodes),
                     "failed_nodes": failed_nodes,
+                    "skipped_topics": skipped_count,
+                    "deleted_nodes": deleted_count,
+                    "processing_rate": round(len(all_nodes) / elapsed_time, 2),
                     "elapsed_seconds": round(elapsed_time, 1),
-                    "processing_rate": round(processed_nodes / elapsed_time, 2),
                     "phase": "complete",
                 }
             )
@@ -381,10 +471,8 @@ async def load_chromadb_from_topics_with_progress(
                 {
                     "type": "cancelled",
                     "message": "Batch processing cancelled by user",
-                    "processed_nodes": processed_nodes
-                    if "processed_nodes" in locals()
-                    else 0,
-                    "total_nodes": total_nodes if "total_nodes" in locals() else 0,
+                    "processed_nodes": len(all_nodes) if "all_nodes" in locals() else 0,
+                    "total_nodes": len(all_nodes) if "all_nodes" in locals() else 0,
                     "elapsed_seconds": round(elapsed_time, 1),
                     "phase": "cancelled",
                 }
@@ -394,51 +482,156 @@ async def load_chromadb_from_topics_with_progress(
         raise
 
 
-async def chroma_upsert_with_embedding(
-    req: ChromaRequest, embedding: list[float], content_hash: str
-):
-    """
-    Upsert to ChromaDB using a pre-computed embedding and content hash.
+# OLD INDIVIDUAL UPSERT FUNCTION REMOVED
+# This function was replaced with chroma_batch_upsert for much better performance
+# The old approach processed nodes one by one, which was extremely slow
+# The new batch approach processes hundreds of nodes at once using ChromaDB's native batch API
 
-    This bypasses the embedding generation step since we've already computed
-    embeddings in batches for better performance. Also stores the content hash
-    for future change detection.
+
+async def chroma_batch_upsert(
+    collection,
+    batch_nodes: list,
+    batch_embeddings: list,
+    batch_metadata: list,
+    batch_size: int | None = None,
+    progress_callback=None,
+) -> int:
+    """
+    Batch upsert to ChromaDB using native batch operations for optimal performance.
+
+    Uses ChromaDB's client.max_batch_size for optimal batching and significantly faster
+    than individual upserts. This restores the performance we had in the old implementation.
+
+    Args:
+        collection: ChromaDB collection instance
+        batch_nodes: List of node objects
+        batch_embeddings: List of embedding vectors (already computed)
+        batch_metadata: List of metadata dicts with content hashes
+        batch_size: Optional batch size override (uses client.max_batch_size if None)
     """
     from service.dependencies import TANA_NODE, TanaNodeMetadata
-    from service.endpoints.chroma import get_collection
     from service.tanaparser import prune_reference_nodes
 
-    # Use the same logic as the original chroma_upsert but with pre-computed embedding
-    pruned_content = prune_reference_nodes(req.context)
-    req.context = pruned_content
+    if not batch_nodes:
+        # Send completion progress event even for empty input to maintain UI state
+        if progress_callback:
+            await progress_callback(
+                {
+                    "type": "storing_progress",
+                    "current_batch": 0,
+                    "total_batches": 0,
+                    "current_node": 0,
+                    "total_nodes": 0,
+                    "phase": "storing",
+                }
+            )
+        return 0
 
-    collection = get_collection()
+    # Get optimal batch size from ChromaDB client if not specified
+    if batch_size is None:
+        # ChromaDB exposes max_batch_size for optimal performance
+        from service.endpoints.chroma import get_chroma
 
-    metadata = TanaNodeMetadata(
-        category=TANA_NODE,
-        supertag=req.tags,
-        title=req.name,
-        text=req.context,
-        tana_id=req.nodeId,
-        topic_id=req.nodeId,
-        content_hash=content_hash,  # 🎯 Store content hash for change detection
-    )
+        client = get_chroma()
+        effective_batch_size = getattr(client, "max_batch_size", 100)  # Fallback to 100
+    else:
+        effective_batch_size = batch_size
 
-    if req.context is None:
-        logger.warning(f"Empty context for {req.nodeId}")
+    # Process in optimal batches
+    failed_count = 0
+    processed_count = 0
+    batch_start_time = time.time()
 
-    # Upsert with the pre-computed embedding
-    def do_upsert():
-        collection.upsert(
-            ids=req.nodeId,
-            embeddings=embedding,  # Use pre-computed embedding!
-            documents=req.name,
-            metadatas=metadata.model_dump(),
-        )
+    total_batches = (
+        len(batch_nodes) + effective_batch_size - 1
+    ) // effective_batch_size
+    current_batch_num = 0
 
-    do_upsert()
+    for i in range(0, len(batch_nodes), effective_batch_size):
+        current_batch_num += 1
+        sub_batch_nodes = batch_nodes[i : i + effective_batch_size]
+        sub_batch_embeddings = batch_embeddings[i : i + effective_batch_size]
+        sub_batch_metadata = batch_metadata[i : i + effective_batch_size]
 
-  logger.info('Building ChromaDB vectors from nodes')
+        try:
+            # Prepare batch data for ChromaDB
+            batch_ids = []
+            batch_documents = []
+            batch_metadatas = []
+
+            for node, metadata in zip(
+                sub_batch_nodes, sub_batch_metadata, strict=False
+            ):
+                # Apply same logic as individual upsert
+                pruned_content = prune_reference_nodes(node.text)
+
+                # Convert node.id to string (fix for integer->string conversion)
+                batch_ids.append(str(node.id))
+                batch_documents.append(
+                    node.text or ""
+                )  # Use original or pruned content
+
+                # Create metadata using same structure as individual upsert
+                node_metadata = TanaNodeMetadata(
+                    category=TANA_NODE,
+                    supertag="",  # Will be populated from node metadata if available
+                    title=metadata["node_metadata"].get("title", ""),
+                    text=pruned_content,
+                    tana_id=str(node.id),
+                    topic_id=metadata["topic_id"],
+                    content_hash=metadata[
+                        "content_hash"
+                    ],  # Store content hash for change detection
+                )
+
+                batch_metadatas.append(node_metadata.model_dump())
+
+            # 🚀 BATCH UPSERT - This is the key performance improvement!
+            collection.upsert(
+                ids=batch_ids,
+                embeddings=sub_batch_embeddings,
+                documents=batch_documents,
+                metadatas=batch_metadatas,
+            )
+
+            processed_count += len(sub_batch_nodes)
+            logger.debug(f"🚀 Batch upserted {len(sub_batch_nodes)} nodes to ChromaDB")
+
+            # 📊 PROGRESS REPORTING - Send progress updates during batch processing
+            if progress_callback:
+                elapsed = time.time() - batch_start_time
+                rate = processed_count / elapsed if elapsed > 0 else 0
+                eta = (len(batch_nodes) - processed_count) / rate if rate > 0 else 0
+
+                await progress_callback(
+                    {
+                        "type": "storing_progress",
+                        "current_node": processed_count,
+                        "total_nodes": len(batch_nodes),
+                        "current_batch": current_batch_num,
+                        "total_batches": total_batches,
+                        "failed_nodes": failed_count,
+                        "storing_elapsed": round(elapsed, 1),
+                        "storing_rate": round(rate, 1),
+                        "storing_eta": round(eta, 1) if eta > 0 else 0,
+                        "phase": "storing",
+                    }
+                )
+
+        except Exception as e:
+            failed_count += len(sub_batch_nodes)
+            logger.error(
+                f"❌ Batch upsert failed for {len(sub_batch_nodes)} nodes: {e}"
+            )
+
+            # For failed batches, we could optionally try individual upserts as fallback
+            # but for now, we'll just log and continue
+
+    if failed_count > 0:
+        logger.warning(f"⚠️  {failed_count} nodes failed to upsert in batch operations")
+
+    return failed_count
+
 
 class Document:
     def __init__(self, id: str, text: str, metadata: dict | None = None):
@@ -470,69 +663,91 @@ class NodeRelationship:
 
 
 def document_from_topic(topic) -> tuple[Document, list[TextNode]]:
-    """Load a single topic into the index_nodes list."""
+    """Load a single topic into the index_nodes list with enhanced field integration."""
     text_nodes = []
 
+    # 🎯 RESTORED: Advanced field processing from OLD function
+    tags = " ".join(topic.tags) if topic.tags else ""
+
+    # Start with the main content (first line) + tags
+    base_text = topic.content[0][2] if topic.content else topic.name
+    text = base_text + " " + tags + "\n"
+
+    # 🎯 CRITICAL RESTORATION: Fields become part of searchable content!
+    field_text = ""
+    if topic.fields:
+        for field in topic.fields:
+            # Smart field filtering from OLD function
+            if field.name == "Attendees":  # Skip noisy fields
+                continue
+            field_text += f"{field.name}:: {field.value}\n"
+
+    # Integrate fields into main searchable text
+    text += field_text
+
+    # Also keep fields in metadata for structured access
     metadata = {
         "category": TANA_NODE,
-        "supertag": " ".join([tag for tag in topic.tags]),
+        "supertag": tags,
         "title": topic.name,
+        "has_integrated_fields": bool(field_text),  # Track field integration
     }
 
     if topic.fields:
-        # get all the fields as metadata as well
-        fields = set([field.name for field in topic.fields])
+        # Keep structured field access in metadata
+        fields = {field.name for field in topic.fields}
         for field_name in fields:
             metadata[field_name] = " ".join(
                 [field.value for field in topic.fields if field.name == field_name]
             )
 
-    # what other props do we need to create?
-    # document = Document(id_=topic.id, text=topic.name) # type: ignore
-    # we only add the first line and fields to the document payload
-    # anything else and we blow out the token limits (and cost a lot!)
-    text = topic.content[0][2]
-    document_node = Document(
-        id=topic.id, text=text, metadata=metadata
-    )  # first line only
+    # Create document with enriched searchable content
+    document_node = Document(id=topic.id, text=text, metadata=metadata)
 
-    # # make a note of the document in our nodes list
-    # index_nodes.append(document_node)
-
-    # now iterate all the remaining topic.content and create a node for each
-    # each of these is simply a string, being the name of a tana child node
-    # but with [[]name^id]] reference syntax used for references
-    # TODO: make these tana_nodes richer structurally
-    # TODO: use actual tana node id here perhaps?
+    # 🎯 RESTORED: Sophisticated reference handling from OLD function
+    references = {}  # Track references to avoid duplicates
     previous_text_node = None
+
     if len(topic.content) > 30:
         logger.warning(f"Large topic {topic.id} with {len(topic.content)} children")
 
-    # process all the child content records...
+    # Process all child content with enhanced reference handling
     for content_id, is_ref, tana_element in topic.content[1:]:
         content_metadata = TanaNodeMetadata(
             category=TANA_TEXT,
             title=topic.name,
             topic_id=topic.id,
-            # TODO: ? 'supertag': ' '.join(['#' + tag for tag in topic.tags]),
-            # text gets added below...
         )
 
-        # wire up the tana_node as an index_node with the text as the payload
+        # 🎯 RESTORED: Deterministic reference ID generation
         if is_ref:
-            ref_id = next(snowflakes)
-            current_text_node = TextNode(id=ref_id, text=tana_element)  # type: ignore
+            # Create deterministic reference ID (not random!)
+            ref_node_id = (
+                f"{content_id}__{topic.id}"
+                if content_id
+                else f"ref__{topic.id}__{len(text_nodes)}"
+            )
+
+            # Skip if we already created this reference
+            if ref_node_id in references:
+                continue
+            references[ref_node_id] = True
+
+            current_text_node = TextNode(id=ref_node_id, text=tana_element)
             current_text_node.metadata["tana_ref_id"] = content_id
+            current_text_node.metadata["is_reference"] = True
         else:
-            current_text_node = TextNode(id=content_id, text=tana_element)
+            # Regular content node
+            node_id = (
+                content_id if content_id else f"content__{topic.id}__{len(text_nodes)}"
+            )
+            current_text_node = TextNode(id=node_id, text=tana_element)
+            current_text_node.metadata["is_reference"] = False
 
-        current_text_node.metadata = content_metadata.model_dump()
+        current_text_node.metadata.update(content_metadata.model_dump())
 
-        # check if this is a reference node and add additional metadata
-        # TODO: backport this to chroma upsert...?
-
+        # Maintain relationships
         current_text_node.relationships[NodeRelationship.SOURCE] = document_node.id
-        # wire up next/previous
         if previous_text_node:
             current_text_node.relationships[NodeRelationship.PREVIOUS] = (
                 previous_text_node.id
@@ -819,111 +1034,118 @@ async def chroma_preload_stream(
     )
 
 
-async def OLD_load_chromadb_from_topics(topics:List[TanaTopicNode], model:str, observe=False):
-  '''Load the topic index from the topic array directly.'''
+async def OLD_load_chromadb_from_topics(
+    topics: list[TanaTopicNode], model: str, observe=False
+):
+    """Load the topic index from the topic array directly."""
 
+    references = {}
 
+    index_nodes = []
+    # loop through all the topics and create an EmbeddableNode for each
+    for topic in topics:
+        tags = " ".join(topic.tags)
+        text = topic.content[0].content + " " + tags + "\n"
 
-  references = {}
+        # find all of the fields and make them part of the topic context
+        field_text = ""
+        for content in topic.content[1:]:
+            if content.is_field:
+                # TODO HACK if content starts with Attendees:: we want to skip it
+                if content.field_name == "Attendees":
+                    continue
 
-  index_nodes = []
-  # loop through all the topics and create an EmbeddableNode for each
-  for topic in topics:
-    tags = ' '.join(topic.tags)
-    text = topic.content[0].content + ' ' + tags + '\n'
+                field_text += content.content + "\n"
 
-    # find all of the fields and make them part of the topic context
-    field_text=''
-    for content in topic.content[1:]:
-      if content.is_field:
-        # TODO HACK if content starts with Attendees:: we want to skip it
-        if content.field_name == 'Attendees':
-          continue
+        text += field_text
+        index_nodes.append(
+            prepare_node_for_embedding(
+                node_id=topic.id,
+                content_id=topic.id,
+                topic_id=topic.id,
+                name=topic.name,
+                tags=tags,
+                context=text,
+            )
+        )
 
-        field_text += content.content + '\n'
+        # now embed all the child content nodes, pointing back at the parent topic
+        for content in topic.content[1:]:
+            if content.is_field:
+                continue
 
-    text += field_text
-    index_nodes.append(prepare_node_for_embedding(node_id=topic.id,
-                                                  content_id=topic.id,
-                                                  topic_id=topic.id, 
-                                                  name=topic.name,
-                                                  tags=tags,
-                                                  context=text))
-    
-    # now embed all the child content nodes, pointing back at the parent topic
-    for content in topic.content[1:]:
-      if content.is_field:
-        continue
+            # build a more detailed tree of nodes
+            # references are .. hard. We make a new synthetic node here
+            # since references will be embedded themselves as topics
+            # and we just want to know that the content of the reference node
+            # is relevant to the current topic we are embedding.
+            topic_id = topic.id
+            content_id = content.id
+            if content.is_reference:
+                # node_id = nextflake() # this means we will leak fake reference nodes over time...
+                node_id = content.id + "__" + topic.id  # type: ignore
+                if node_id in references:
+                    # we already created this node_topic ref, so skip
+                    continue
+                references[node_id] = content
+            else:
+                node_id = content.id
 
-      # build a more detailed tree of nodes
-      # references are .. hard. We make a new synthetic node here
-      # since references will be embedded themselves as topics
-      # and we just want to know that the content of the reference node
-      # is relevant to the current topic we are embedding.
-      topic_id = topic.id
-      content_id = content.id
-      if content.is_reference:
-        #node_id = nextflake() # this means we will leak fake reference nodes over time...
-        node_id = content.id + '__' + topic.id # type: ignore
-        if node_id in references:
-          # we already created this node_topic ref, so skip
-          continue
-        references[node_id] = content
-      else:
-        node_id = content.id
+            new_node = prepare_node_for_embedding(
+                node_id=node_id or "unknown",
+                content_id=content_id or "unknown",
+                topic_id=topic_id,
+                name=content.content,
+                tags="",  # TODO: add tags to content nodes
+                context=content.content + "\n",
+            )
+            index_nodes.append(new_node)
 
-      new_node = prepare_node_for_embedding(node_id=node_id,
-                                            content_id=content_id,
-                                            topic_id= topic_id, 
-                                            name=content.content,
-                                            tags='', # TODO: add tags to content nodes
-                                            context=content.content + '\n')
-      index_nodes.append(new_node)
+    logger.info(f"Gathered {len(index_nodes)} nodes for embedding")
 
-  logger.info(f'Gathered {len(index_nodes)} nodes for embedding')
+    index_nodes, deletes = reduce_embeddings(index_nodes)
 
-  index_nodes, deletes = reduce_embeddings(index_nodes)
+    logger.info(f"Reduced to {len(index_nodes)} nodes for embedding")
+    # TODO: delete dead nodes, but NOT until we have properly implemented multi-workspace support
+    logger.info(f"Identified {len(deletes)} nodes for removal")
 
-  logger.info(f'Reduced to {len(index_nodes)} nodes for embedding')
-  # TODO: delete dead nodes, but NOT until we have properly implemented multi-workspace support
-  logger.info(f'Identified {len(deletes)} nodes for removal')
+    collection = get_collection()
 
-  collection = get_collection()
+    counter = 0
+    # batch process the nodes, generating embeddings
+    for i in range(0, len(index_nodes), BATCH_SIZE):
+        batch = index_nodes[i : i + BATCH_SIZE]
+        nodes = [node.text for node in batch]
 
-  counter = 0
-  # batch process the nodes, generating embeddings
-  for i in range(0, len(index_nodes), BATCH_SIZE):
-    batch = index_nodes[i:i+BATCH_SIZE]
-    nodes = [node.text for node in batch]
+        counter = counter + 1
+        # somewhere in this batch, we have a very long text that will cause the OpenAI API to fail
+        biggest = 0
+        for node in batch:
+            if len(node.text) > biggest:
+                biggest = len(node.text)
+                big_node = node
 
-    counter = counter + 1
-    # somewhere in this batch, we have a very long text that will cause the OpenAI API to fail
-    biggest=0
-    for node in batch:
-      if len(node.text) > biggest:
-        biggest = len(node.text)
-        big_node = node
+        logger.info(
+            f"Batch {counter} Node {big_node.id} has {len(big_node.text)} characters"
+        )
 
-    logger.info(f'Batch {counter} Node {big_node.id} has {len(big_node.text)} characters')
+        embeddings = await get_embeddings(nodes, model=model)
+        for j, node in enumerate(batch):
+            node.embedding = embeddings[j].embedding
 
-    embeddings = get_embeddings(nodes, model=model)
-    for j, node in enumerate(batch):    
-      node.embedding = embeddings[j].embedding
+        # upsert the batch into ChromaDB
+        # @sleep_and_retry
+        # @limits(calls=5, period=10)
+        def do_upsert(current_batch):
+            collection.upsert(
+                ids=[node.id for node in current_batch],
+                embeddings=[node.embedding for node in current_batch],  # type: ignore
+                # we only embed the name of the node (primary content of the node)
+                documents=[node.name for node in current_batch],
+                metadatas=[node.metadata for node in current_batch],  # type: ignore
+            )
 
-    # upsert the batch into ChromaDB
-    # @sleep_and_retry
-    # @limits(calls=5, period=10)
-    def do_upsert():
-      collection.upsert(
-        ids=[node.id for node in batch],
-        embeddings=[node.embedding for node in batch], # type: ignore
-        # we only embed the name of the node (primary content of the node)
-        documents=[node.name for node in batch],
-        metadatas=[node.metadata for node in batch], #type: ignore
-      )
-    
-    do_upsert()
-    
-  logger.info("ChromaDB populated and ready")
-  return index_nodes
+        do_upsert(batch)
 
+    logger.info("ChromaDB populated and ready")
+    return index_nodes

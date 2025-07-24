@@ -25,18 +25,22 @@
   "settings": {
     "cSpell.words": [
       "chatcompletion",
+      "hnsw",
       "jsonable",
       "jsonstring",
       "keepalive",
       "levelname",
       "Llamaindex",
+      "metadatas",
+      "nextflake",
       "partialize",
       "serpapi",
       "signum",
       "strerror",
       "supertag",
       "supertags",
-      "tanaparser"
+      "tanaparser",
+      "Upserting"
     ]
   }
 }
