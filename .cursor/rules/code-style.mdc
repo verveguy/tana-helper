@@ -1,0 +1,16 @@
+---
+description: Code style and quality standards for Tana Helper
+alwaysApply: true
+---
+
+# Code Style & Quality Standards
+
+- Use Ruff for Python formatting (88 char line length, Python 3.11+ features)
+- Use Prettier + ESLint for TypeScript (100 char, single quotes, trailing commas)
+- Always make minimal, surgical changes - avoid large refactors
+- NEVER delete commented code without explicit permission
+- Always add comments to explain complex logic and business rules
+- Write proper function documentation for all public APIs
+- Fix code quality errors immediately - user prefers clean code without warnings
+- Use `|` union syntax over `Union` in Python type hints
+- Use Google-style documentation strings for Python functions and classes

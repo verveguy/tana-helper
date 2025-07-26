@@ -1,0 +1,26 @@
+---
+description: Common troubleshooting patterns and platform considerations for Tana Helper
+alwaysApply: false
+---
+
+# Troubleshooting & Platform Considerations
+
+## Common Issues to Watch For
+- CORS problems: Check middleware origins setup in main.py
+- Static file serving: Verify mount paths match build tool output
+- Environment variables: Check both .env files and header overrides
+- Vector DB connections: Verify service availability and configuration
+- Request/response model validation in FastAPI endpoints
+
+## Cross-Platform Considerations
+- Use `os.path.join()` for file paths to ensure compatibility
+- macOS calendar features should degrade gracefully on other platforms
+- Ensure PyInstaller builds work on all target platforms
+- Consider Windows vs Unix process handling differences
+
+## Documentation Requirements
+- Keep README installation instructions current
+- Use FastAPI's automatic OpenAPI generation
+- Document React component props and usage patterns
+- Provide webhook configuration examples
+- Document all environment variables and settings

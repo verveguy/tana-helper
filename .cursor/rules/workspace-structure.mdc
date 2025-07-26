@@ -1,0 +1,50 @@
+---
+description: Workspace structure and directory navigation for Tana Helper
+alwaysApply: true
+---
+
+# Workspace Structure & Navigation
+
+## Project Layout
+The Tana Helper project has this directory structure:
+```
+tana-helper/                    # Project root
+├── service/                    # Python FastAPI backend
+│   ├── service/               # Main Python package
+│   │   ├── endpoints/         # API route handlers
+│   │   ├── scripts/           # Utility scripts
+│   │   └── main.py           # FastAPI application
+│   ├── tests/                 # Backend tests
+│   ├── pyproject.toml        # Python dependencies and scripts
+│   └── uv.lock               # Dependency lock file
+├── webapp/                    # React frontend
+│   ├── src/                   # React source code
+│   │   ├── components/        # React components
+│   │   ├── hooks/            # Custom React hooks
+│   │   └── store/            # Zustand state management
+│   ├── package.json          # Node.js dependencies
+│   └── pnpm-lock.yaml        # Frontend dependency lock
+├── release/                   # Build and release scripts
+├── docs/                      # Documentation
+└── assets/                    # Static assets
+```
+
+## Command Execution Rules
+- **Python/Backend commands**: Always run from `service/` directory
+  - Examples: `uv run`, `uv add`, `pytest`, FastAPI server commands
+- **Frontend commands**: Always run from `webapp/` directory
+  - Examples: `pnpm install`, `pnpm dev`, `pnpm build`, `pnpm lint`
+- **Project-wide commands**: Run from project root
+  - Examples: `git` commands, documentation generation, release scripts
+
+## Directory Context Guidelines
+- When working with Python files in `service/`, cd to `service/` first
+- When working with React/TypeScript files in `webapp/`, cd to `webapp/` first
+- Always verify your current directory matches the technology you're working with
+- Use relative paths from the appropriate working directory
+- The workspace root is the `tana-helper/` directory, not `service/`
+
+## File Path References
+- Backend files: Use `service/` prefix when referencing from project root
+- Frontend files: Use `webapp/` prefix when referencing from project root
+- Shared resources: Reference from project root without prefix

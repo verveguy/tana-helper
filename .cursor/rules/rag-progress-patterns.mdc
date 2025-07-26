@@ -1,0 +1,58 @@
+---
+globs: *RAG*,*rag*,*progress*,*Progress*
+description: RAG Index progress reporting and UI patterns for Tana Helper
+---
+
+# RAG Index Progress Patterns
+
+## State Machine Driven
+
+Use state machine for RAG progress in TanaStreamingUpload.tsx and index.ts:
+
+- Single source of truth: Upload state machine controls all RAG-related state
+- Derived state: ragLoading and ragError automatically derived from machine state
+- Centralized updates: All progress updates go through updateUploadProgress
+
+## SSE Event Processing
+
+Server-Sent Events from preload.py processed with:
+
+- Event validation: validateProgressEvent checks data integrity
+- Progress transformation: createProgressUpdate normalizes all event types  
+- Phase timing: Automatic tracking of phaseStartTimes and phaseCompletedTimes
+
+## PhaseItem Display Rules
+
+Each PhaseItem.tsx manages its own:
+
+- Status determination, progress calculation, timing
+- Visibility (auto-hides deletion phase when not needed)
+- Error detection (shows progress bars only for active phases or errors)
+- Live updates with own timer for real-time elapsed time
+
+## Progress Display Logic
+
+- Active phases: Show progress bar with percentage and ETA
+- Completed phases: Show elapsed time in top-right corner
+- Error cases: Show orange progress bar with "(with errors)" text
+- Hidden phases: Deletion phase hidden when totalNodesToDelete === 0
+
+## Error Handling
+
+Network error recovery with:
+
+- Categorized errors: Network, timeout, file size, auth, server errors
+- Recovery suggestions: Specific guidance for each error type
+- Safeguards: Prevent duplicate completion/error transitions
+
+Timeout detection was removed as progress updates are frequent (every second).
+
+## UI State Management
+
+Consolidated state logic in RAGIndex.tsx:
+
+- Single state function: determineUIState centralizes all UI state logic
+- Clear states: 'progress' | 'error' | 'loading' | 'ready' | 'empty'
+- Switch rendering: Replace complex conditionals with clean switch statements
+
+This ensures consistent, reliable, and maintainable progress reporting.

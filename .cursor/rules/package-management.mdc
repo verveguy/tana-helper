@@ -1,0 +1,11 @@
+---
+description: Package management and build tools for Tana Helper
+alwaysApply: true
+---
+
+# Package Management Standards
+
+- ALWAYS use `uv` commands for Python (`uv run`, `uv add`, etc.)
+- ALWAYS use `pnpm` for Node.js (never npm or yarn)
+- Use `pyproject.toml` [project.scripts] for Python commands (not Makefiles)
+- Follow existing project structure for dependencies and scripts

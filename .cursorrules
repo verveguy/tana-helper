@@ -1,0 +1,80 @@
+# Tana Helper - Cursor Rules
+
+## Code Style & Quality
+- Use Ruff for Python formatting (88 char line length, Python 3.11+ features)
+- Use Prettier + ESLint for TypeScript (100 char, single quotes, trailing commas)
+- Always make minimal, surgical changes - avoid large refactors
+- NEVER delete commented code without explicit permission
+- Always add comments to explain complex logic and business rules
+- Write proper function documentation for all public APIs
+- Fix linting errors immediately - user prefers clean code without warnings
+- Use `|` union syntax over `Union` in Python type hints
+- Use Google-style docstrings for Python functions and classes
+
+## Package Management
+- ALWAYS use `uv` commands for Python (`uv run`, `uv add`, etc.)
+- ALWAYS use `pnpm` for Node.js (never npm or yarn)
+- Use `pyproject.toml` [project.scripts] for Python commands (not Makefiles)
+
+## Architecture Patterns
+- Backend: Organize features into separate routers in `/endpoints/`
+- Middleware order: Settings refresh → logging → CORS
+- Use FastAPI dependency injection with Depends()
+- Use Pydantic models for all API interfaces
+- Frontend: Use Zustand for global state, React state for local
+- Keep React components focused and single-purpose
+- Separate logic (hooks) from presentation (components)
+- Use axios for API calls with consistent loading/error handling
+
+## Technology-Specific Rules
+- FastAPI: Use HTTPException with proper status codes, prefer async for I/O
+- React: Use React Router with `/ui` base path, Tailwind + Radix UI for styling
+- OpenAI: Always handle rate limits and timeouts gracefully
+- Vector DBs: Abstract behind service layer, log operations for debugging
+- Use Jinja2 templates for maintainable AI prompts
+- Implement exponential backoff for AI API failures
+
+## Security & Configuration
+- Always validate inputs with Pydantic models
+- Use header-based auth for API tokens (supports runtime override)
+- Support both .env files and header overrides for configuration
+- Never commit API keys or tokens
+- Keep CORS origins restrictive but functional
+- Don't leak sensitive information in error responses
+
+## Cross-Platform Considerations
+- Use `os.path.join()` for file paths
+- macOS calendar features should degrade gracefully on other platforms
+- Ensure PyInstaller builds work on all target platforms
+- Consider Windows vs Unix process handling differences
+
+## Testing & Debugging
+- Use pytest for backend, React Testing Library for frontend
+- Test both success and error paths for APIs
+- Mock external services (OpenAI, Tana API, vector databases)
+- Use Rich logging with structured output and request ID tracking
+- Follow snowflake IDs through request lifecycle for debugging
+- Use FastAPI's `/docs` for API testing
+- Monitor vector database memory consumption
+
+## Performance Guidelines
+- Use async/await for I/O bound operations
+- Reuse HTTP clients and database connections
+- Cache expensive operations (vector embeddings)
+- Use React.memo, useMemo, useCallback judiciously
+- Implement virtualization for large lists/graphs
+- Use dynamic imports for code splitting large components
+
+## Common Issues to Watch For
+- CORS problems: Check middleware origins setup
+- Static file serving: Verify mount paths match Vite build output
+- Environment variables: Check both .env files and header overrides
+- Vector DB connections: Verify service availability and configuration
+- Request/response model validation in FastAPI endpoints
+
+## Documentation Requirements
+- Keep README installation instructions current
+- Use FastAPI's automatic OpenAPI generation
+- Document React component props and usage patterns
+- Provide webhook configuration examples
+- Document all environment variables and settings 

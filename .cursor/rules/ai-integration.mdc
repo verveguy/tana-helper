@@ -1,0 +1,23 @@
+---
+description: AI and vector database integration patterns for Tana Helper
+globs:
+  - "**/*openai*/**/*.py"
+  - "**/*chroma*/**/*.py" 
+  - "**/*weaviate*/**/*.py"
+  - "**/*webhook*/**/*.py"
+alwaysApply: false
+---
+
+# AI Integration Rules
+
+## OpenAI Integration
+- Always handle rate limits and timeouts gracefully
+- Implement exponential backoff for API failures
+- Use Jinja2 templates for maintainable AI prompts
+- Provide meaningful error messages for AI failures
+
+## Vector Databases
+- Abstract vector databases behind service layer for swappable backends
+- Log vector database operations for debugging and performance tuning
+- Monitor vector database memory consumption
+- Cache expensive operations like vector embeddings

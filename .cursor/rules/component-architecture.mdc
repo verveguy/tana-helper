@@ -1,0 +1,34 @@
+---
+globs: *.tsx,*.ts
+description: React component architecture patterns for Tana Helper
+---
+
+# React Component Architecture Patterns
+
+## Self-Contained Design
+
+Components should be **self-contained** with minimal props:
+
+### Good Pattern
+```typescript
+<PhaseItem phaseId="embedding" progress={progress} />
+```
+
+### Avoid
+```typescript  
+<PhaseItem status={calculated} timing={calculated} progress={calculated} />
+```
+
+## Responsibilities
+
+- Status determination logic inside component
+- Progress calculations inside component  
+- Error detection and display decisions inside component
+- Live updates and timers inside component
+
+## File Organization
+
+Extract components over 200 lines into separate files.
+Keep related logic together in the extracted component.
+
+This makes components reusable, testable, and maintainable.

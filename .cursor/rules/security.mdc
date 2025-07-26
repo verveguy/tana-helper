@@ -1,0 +1,19 @@
+---
+description: Security and configuration standards for Tana Helper
+alwaysApply: true
+---
+
+# Security & Configuration
+
+## Input Validation & API Security
+- Always validate inputs with Pydantic models
+- Use header-based auth for API tokens (supports runtime override)
+- Keep CORS origins restrictive but functional
+- Don't leak sensitive information in error responses
+- Implement rate limiting for webhook endpoints
+
+## Configuration Management
+- Support both .env files and header overrides for configuration
+- Never commit API keys or tokens to version control
+- Use the existing settings refresh middleware pattern
+- Provide clear error messages when API keys are missing

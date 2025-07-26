@@ -1,0 +1,23 @@
+---
+description: Testing and debugging patterns for Tana Helper
+globs:
+  - "**/tests/**/*.py"
+  - "**/*test*.py"
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+alwaysApply: false
+---
+
+# Testing & Debugging
+
+## Testing Strategy
+- Use pytest for backend testing, React Testing Library for frontend
+- Test both success and error paths for all APIs
+- Mock external services (OpenAI, Tana API, vector databases)
+- Follow existing test patterns in `/tests/` directory
+
+## Debugging Practices
+- Use Rich logging with structured output and request ID tracking
+- Follow snowflake IDs through request lifecycle for debugging
+- Use FastAPI's `/docs` for API testing and exploration
+- Monitor vector database memory consumption and performance

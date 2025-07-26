@@ -1,0 +1,18 @@
+---
+description: Architecture patterns and project organization for Tana Helper
+alwaysApply: true
+---
+
+# Architecture Patterns
+
+## Backend Structure
+- Organize features into separate routers in `/endpoints/` directory
+- Middleware order: Settings refresh → logging → CORS
+- Use FastAPI dependency injection with Depends()
+- Use Pydantic models for all API interfaces
+
+## Frontend Structure  
+- Use Zustand for global state, React state for local component state
+- Keep React components focused and single-purpose
+- Separate logic (hooks) from presentation (components)
+- Use axios for API calls with consistent loading/error handling

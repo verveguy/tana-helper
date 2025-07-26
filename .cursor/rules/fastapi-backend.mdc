@@ -1,0 +1,16 @@
+---
+description: FastAPI backend development patterns for Tana Helper
+globs: 
+  - "service/**/*.py"
+  - "**/*endpoints*/**/*.py"
+alwaysApply: false
+---
+
+# FastAPI Backend Rules
+
+- Use HTTPException with proper status codes for error handling
+- Prefer async functions for I/O operations
+- Use Pydantic models for request/response validation
+- Implement proper dependency injection patterns
+- Use structured logging with request ID tracking (snowflake pattern)
+- Follow the existing middleware pattern for settings refresh

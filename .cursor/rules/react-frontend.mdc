@@ -1,0 +1,19 @@
+---
+description: React frontend development patterns for Tana Helper
+globs:
+  - "webapp/**/*.tsx"
+  - "webapp/**/*.ts"
+  - "**/src/**/*.tsx"
+  - "**/src/**/*.ts"
+alwaysApply: false
+---
+
+# React Frontend Rules
+
+- Use React Router with `/ui` base path for routing
+- Use Tailwind CSS + Radix UI components for styling
+- Implement proper loading states and error boundaries
+- Use React.memo, useMemo, useCallback judiciously for performance
+- Follow existing collapsible sidebar pattern
+- Keep components accessible with proper ARIA labels
+- Use dynamic imports for code splitting large components

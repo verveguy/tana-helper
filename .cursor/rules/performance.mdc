@@ -1,0 +1,23 @@
+---
+description: Performance optimization guidelines for Tana Helper
+globs:
+  - "**/*performance*"
+  - "**/*optimization*"
+  - "**/large-components/**"
+alwaysApply: false
+---
+
+# Performance Guidelines
+
+## Backend Performance
+- Use async/await for I/O bound operations
+- Reuse HTTP clients and database connections
+- Cache expensive operations (vector embeddings, AI calls)
+- Implement connection pooling for external services
+
+## Frontend Performance
+- Use React.memo, useMemo, useCallback judiciously
+- Implement virtualization for large lists/graphs
+- Use dynamic imports for code splitting large components
+- Monitor bundle size and optimize imports
+- Implement proper loading states to improve perceived performance

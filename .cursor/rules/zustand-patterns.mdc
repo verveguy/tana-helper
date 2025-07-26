@@ -1,0 +1,70 @@
+---
+globs: *store*,*Store*,*useAppStore*
+description: Zustand state management patterns and best practices for Tana Helper
+---
+
+# Zustand State Management Patterns
+
+## State Machine Integration
+
+Use Zustand with embedded state machines for complex workflows like RAG indexing:
+
+```typescript
+// State machine controls derived state automatically
+const send = (event) => {
+  // Update state machine
+  // Automatically derive ragLoading and ragError from machine state
+  set(state => ({
+    ...state,
+    ragLoading: state.uploadMachine.state === 'uploading',
+    ragError: state.uploadMachine.state === 'error' ? state.uploadMachine.context.lastError : null
+  }));
+};
+```
+
+## Derived State Strategy
+
+- Single source of truth: State machine controls complex workflows
+- Auto-derivation: UI state (ragLoading, ragError) derived from machine state
+- Consistent updates: All updates go through state machine events
+
+## Action Organization
+
+### Deprecated Actions Pattern
+When refactoring to state machines, deprecate old actions with warnings:
+
+```typescript
+// Deprecated - use upload state machine instead
+setRagLoading: (loading: boolean) => {
+  console.warn('setRagLoading is deprecated. Use upload state machine actions instead.');
+  set(state => ({ ...state, ragLoading: loading }));
+},
+```
+
+### Focused Hooks
+Export focused hooks from useAppStore.ts:
+
+```typescript
+// Focused hooks for specific concerns
+export const useRagLoading = () => useAppStore(state => state.ragLoading);
+export const useRagProgress = () => useAppStore(state => state.ragProgress);
+export const useUploadMachine = () => useAppStore(state => state.uploadMachine);
+```
+
+## State Updates
+
+### Progress Updates
+- Batch updates: Use object spread for multiple property updates
+- Immutable updates: Always create new objects for nested state
+- Validation: Validate incoming progress data before state updates
+
+### Reset Patterns
+```typescript
+// Coordinated reset through state machine
+resetRAGIndexState: () => {
+  get().uploadMachine.send('RESET');
+  // State machine handles all related cleanup
+},
+```
+
+This pattern ensures predictable, debuggable, and maintainable state management.
