@@ -283,7 +283,7 @@ async def get_embeddings_batch(
             detail="OpenAI API key not configured. Please set your API key in configuration.",
         )
 
-    openai_client = AsyncOpenAI(api_key=api_key)
+    openai_client = create_http2_async_client(api_key)
 
     # 🎯 RESTORED: Enhanced batch monitoring from OLD function
     total_batches = (len(content_list) + batch_size - 1) // batch_size
@@ -690,7 +690,7 @@ async def get_embedding(req: EmbeddingRequest):
             detail="OpenAI API key not configured. Please set your API key in configuration.",
         )
 
-    openai_client = AsyncOpenAI(api_key=api_key)
+    openai_client = create_http2_async_client(api_key)
     content = req.name + req.context
 
     try:
@@ -759,7 +759,7 @@ def get_chatcompletion(req: OpenAICompletion) -> dict:
             detail="OpenAI API key not configured. Please set your API key in configuration.",
         )
 
-    openai_client = OpenAI(api_key=api_key)
+    openai_client = create_http2_sync_client(api_key)
 
     try:
         completion = openai_client.chat.completions.create(
@@ -944,3 +944,28 @@ async def get_embeddings(texts: list[str], model: str) -> list:
         result.append(embedding_obj)
 
     return result
+
+
+# 🚀 HTTP/2-enabled OpenAI client helpers
+def create_http2_async_client(api_key: str) -> AsyncOpenAI:
+    """Create an AsyncOpenAI client with HTTP/2 support for better performance."""
+    http_client = httpx.AsyncClient(
+        http2=True,
+        timeout=httpx.Timeout(60.0),  # 60 second timeout
+        limits=httpx.Limits(
+            max_keepalive_connections=20, max_connections=100, keepalive_expiry=30.0
+        ),
+    )
+    return AsyncOpenAI(api_key=api_key, http_client=http_client)
+
+
+def create_http2_sync_client(api_key: str) -> OpenAI:
+    """Create a sync OpenAI client with HTTP/2 support for better performance."""
+    http_client = httpx.Client(
+        http2=True,
+        timeout=httpx.Timeout(60.0),  # 60 second timeout
+        limits=httpx.Limits(
+            max_keepalive_connections=20, max_connections=100, keepalive_expiry=30.0
+        ),
+    )
+    return OpenAI(api_key=api_key, http_client=http_client)

@@ -19,6 +19,7 @@ const defaultRAGProgress: RAGProgressState = {
   currentNode: 0,
   totalNodes: 0,
   percentage: 0,
+  skippedPhases: {},
 };
 
 // Default upload context
@@ -67,6 +68,7 @@ const createUploadMachine = (
     completed: {
       SELECT_FILE: 'fileSelected',
       RESET: 'idle',
+      // Don't allow COMPLETE again - already completed
     },
     error: {
       SELECT_FILE: 'fileSelected',
@@ -189,6 +191,9 @@ const createUploadMachine = (
       },
       // Sync legacy ragProgress for backward compatibility
       ragProgress: context.ragProgress,
+      // 🎯 CONSOLIDATED: Derive ragLoading and ragError from state machine
+      ragLoading: currentState === 'uploading' || currentState === 'processing',
+      ragError: context.lastError,
     });
   };
 
@@ -217,11 +222,11 @@ export const useAppStore = create<AppState & AppActions>()(
           loading: false, // Legacy - kept for backward compatibility
           visualizerLoading: false,
           classLoading: false,
-          ragLoading: false,
+          ragLoading: false, // 🎯 DERIVED: Now derived from state machine
           configLoading: false,
           mermaidText: undefined,
           ragIndexData: undefined,
-          ragProgress: defaultRAGProgress,
+          ragProgress: defaultRAGProgress, // 🎯 DERIVED: Now derived from state machine
           config: undefined,
           webhooks: undefined,
           twoDee: false,
@@ -229,7 +234,7 @@ export const useAppStore = create<AppState & AppActions>()(
           error: null, // Legacy - kept for backward compatibility
           visualizerError: null,
           classError: null,
-          ragError: null,
+          ragError: null, // 🎯 DERIVED: Now derived from state machine
           configError: null,
 
           // Upload State Machine
@@ -245,7 +250,11 @@ export const useAppStore = create<AppState & AppActions>()(
 
           setClassLoading: classLoading => set({ classLoading }, false, 'setClassLoading'),
 
-          setRagLoading: ragLoading => set({ ragLoading }, false, 'setRagLoading'),
+          // 🎯 DEPRECATED: Use state machine instead
+          setRagLoading: ragLoading => {
+            console.warn('setRagLoading is deprecated, use upload state machine instead');
+            set({ ragLoading }, false, 'setRagLoading');
+          },
 
           setConfigLoading: configLoading => set({ configLoading }, false, 'setConfigLoading'),
 
@@ -253,18 +262,27 @@ export const useAppStore = create<AppState & AppActions>()(
 
           setRagIndexData: ragIndexData => set({ ragIndexData }, false, 'setRagIndexData'),
 
-          setRagProgress: progress =>
-            set({ ragProgress: { ...get().ragProgress, ...progress } }, false, 'setRagProgress'),
+          // 🎯 DEPRECATED: Use state machine instead
+          setRagProgress: progress => {
+            console.warn('setRagProgress is deprecated, use updateUploadProgress instead');
+            set({ ragProgress: { ...get().ragProgress, ...progress } }, false, 'setRagProgress');
+          },
 
-          resetRagProgress: () =>
-            set({ ragProgress: defaultRAGProgress }, false, 'resetRagProgress'),
+          // 🎯 DEPRECATED: Use state machine instead
+          resetRagProgress: () => {
+            console.warn('resetRagProgress is deprecated, use resetUpload instead');
+            set({ ragProgress: defaultRAGProgress }, false, 'resetRagProgress');
+          },
 
-          updateRagProgress: updates =>
+          // 🎯 DEPRECATED: Use state machine instead
+          updateRagProgress: updates => {
+            console.warn('updateRagProgress is deprecated, use updateUploadProgress instead');
             set(
               state => ({ ragProgress: { ...state.ragProgress, ...updates } }),
               false,
               'updateRagProgress'
-            ),
+            );
+          },
 
           setConfig: config => set({ config }, false, 'setConfig'),
 
@@ -282,7 +300,11 @@ export const useAppStore = create<AppState & AppActions>()(
 
           setClassError: classError => set({ classError }, false, 'setClassError'),
 
-          setRagError: ragError => set({ ragError }, false, 'setRagError'),
+          // 🎯 DEPRECATED: Use state machine instead
+          setRagError: ragError => {
+            console.warn('setRagError is deprecated, use errorUpload instead');
+            set({ ragError }, false, 'setRagError');
+          },
 
           setConfigError: configError => set({ configError }, false, 'setConfigError'),
 
@@ -326,17 +348,19 @@ export const useAppStore = create<AppState & AppActions>()(
               'resetClassDiagramState'
             ),
 
-          resetRAGIndexState: () =>
+          // 🎯 UPDATED: Use state machine for RAG state reset
+          resetRAGIndexState: () => {
+            const machine = get().uploadMachine;
+            machine.send({ type: 'RESET' });
             set(
               {
                 ragIndexData: undefined,
-                ragError: null,
-                ragLoading: false,
-                ragProgress: defaultRAGProgress,
+                // ragError and ragLoading are now derived from state machine
               },
               false,
               'resetRAGIndexState'
-            ),
+            );
+          },
 
           // Async actions
           loadConfig: async () => {
@@ -400,7 +424,7 @@ export const useAppStore = create<AppState & AppActions>()(
             }
           },
 
-          // Upload State Machine actions
+          // 🎯 CONSOLIDATED: Upload State Machine actions
           sendUploadEvent: event => {
             const machine = get().uploadMachine;
             machine.send(event);
@@ -416,6 +440,7 @@ export const useAppStore = create<AppState & AppActions>()(
             machine.send({ type: 'START_UPLOAD' });
           },
 
+          // 🎯 CONSOLIDATED: Primary progress update function
           updateUploadProgress: progress => {
             const machine = get().uploadMachine;
             machine.send({ type: 'UPLOAD_PROGRESS', progress });

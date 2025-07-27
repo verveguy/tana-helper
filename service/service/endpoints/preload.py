@@ -156,6 +156,16 @@ async def load_chromadb_from_topics_with_progress(
 
         collection = get_collection()
 
+        # 🎯 PROGRESS: Send initial collection start event
+        if progress_callback:
+            await progress_callback(
+                {
+                    "type": "collection_start",
+                    "total_topics": len(topics),
+                    "phase": "batch_processing",
+                }
+            )
+
         for topic_idx, topic in enumerate(topics):
             # Check for cancellation every 100 topics during collection
             if topic_idx % 100 == 0:
@@ -163,6 +173,23 @@ async def load_chromadb_from_topics_with_progress(
                     logger.debug("Task cancelled during node collection")
                     raise asyncio.CancelledError()
                 await asyncio.sleep(0)
+
+                # 🎯 PROGRESS: Send collection progress every 100 topics
+                if progress_callback and topic_idx > 0:
+                    await progress_callback(
+                        {
+                            "type": "collection_progress",
+                            "current_topic": topic_idx,
+                            "total_topics": len(topics),
+                            "current_nodes": len(all_nodes),
+                            "phase": "batch_processing",
+                            "collection": {
+                                "current": topic_idx,
+                                "total": len(topics),
+                                "completed": False,
+                            },
+                        }
+                    )
 
             # Get all nodes for this topic using existing logic
             (doc_node, text_nodes) = document_from_topic(topic)
@@ -188,6 +215,22 @@ async def load_chromadb_from_topics_with_progress(
                         "content_hash": current_hash,  # 🎯 Store individual node hash
                     }
                 )
+
+        # 🎯 PROGRESS: Send collection completion event
+        if progress_callback:
+            await progress_callback(
+                {
+                    "type": "collection_complete",
+                    "total_topics": len(topics),
+                    "total_nodes": len(all_nodes),
+                    "phase": "batch_processing",
+                    "collection": {
+                        "current": len(topics),
+                        "total": len(topics),
+                        "completed": True,
+                    },
+                }
+            )
 
         # 🎯 BATCH HASH CHECKING - Check all nodes at once for efficiency
         logger.info(f"Collected {len(all_nodes)} nodes, checking for changes...")
@@ -324,6 +367,15 @@ async def load_chromadb_from_topics_with_progress(
                     )
             else:
                 logger.info("✅ No orphaned nodes found - ChromaDB is synchronized")
+                # Notify frontend that deletion phase was skipped
+                if progress_callback:
+                    await progress_callback(
+                        {
+                            "type": "phase_skipped",
+                            "phase": "deletion",
+                            "reason": "No orphaned nodes found",
+                        }
+                    )
 
         except Exception as e:
             logger.warning(f"Could not check for orphaned nodes: {e}")
@@ -351,6 +403,15 @@ async def load_chromadb_from_topics_with_progress(
         # === PASS 2: Get embeddings in batches with content monitoring ===
         if not content_list:
             logger.info("Pass 2: No nodes to embed - skipping embedding phase")
+            # Notify frontend that embedding phase was skipped
+            if progress_callback:
+                await progress_callback(
+                    {
+                        "type": "phase_skipped",
+                        "phase": "embedding",
+                        "reason": "No nodes to embed",
+                    }
+                )
         else:
             logger.info("Pass 2: Processing embeddings in batches...")
 
@@ -406,6 +467,15 @@ async def load_chromadb_from_topics_with_progress(
         # === PASS 3: Batch Upsert to ChromaDB ===
         if not all_nodes:
             logger.info("Pass 3: No nodes to store - skipping storage phase")
+            # Notify frontend that storage phase was skipped
+            if progress_callback:
+                await progress_callback(
+                    {
+                        "type": "phase_skipped",
+                        "phase": "storing",
+                        "reason": "No nodes to store",
+                    }
+                )
         else:
             logger.info("Pass 3: Batch upserting to ChromaDB...")
 
@@ -708,8 +778,8 @@ def document_from_topic(topic) -> tuple[Document, list[TextNode]]:
     references = {}  # Track references to avoid duplicates
     previous_text_node = None
 
-    if len(topic.content) > 30:
-        logger.warning(f"Large topic {topic.id} with {len(topic.content)} children")
+    # if len(topic.content) > 30:
+    #     logger.warning(f"Large topic {topic.id} with {len(topic.content)} children")
 
     # Process all child content with enhanced reference handling
     for content_id, is_ref, tana_element in topic.content[1:]:

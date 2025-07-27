@@ -61,10 +61,17 @@ export interface RAGProgressState {
   // Incremental deletion tracking
   deletedNodes?: number;
   totalNodesToDelete?: number;
+  deletionEta?: number;
 
-  // Frontend-tracked phase timing
-  phaseStartTimes?: { [phaseId: string]: number };
-  phaseCompletedTimes?: { [phaseId: string]: number };
+  // Track which phases were explicitly skipped by the backend
+  skippedPhases?: {
+    [phaseId: string]: {
+      skipped: boolean;
+      reason: string;
+    };
+  };
+
+  // Note: Phase timing is now handled client-side within individual PhaseItem components
 
   // Phase-specific progress tracking
   collection?: {

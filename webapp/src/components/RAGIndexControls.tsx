@@ -1,35 +1,52 @@
 // React import not needed for JSX in React 17+
 import TanaStreamingUpload from './ui/TanaStreamingUpload';
 // Replace context with Zustand store
-import { useAppStore, useAppActions } from '../hooks/useAppStore';
+import { useUploadMachine, useUploadActions } from '../hooks/useAppStore';
+
+// 🎯 SIMPLIFIED: Helper function to determine if upload should be disabled
+function shouldDisableUpload(uploadState: string, ragProgress: any): boolean {
+  // Disable during active upload/processing states
+  if (uploadState === 'uploading' || uploadState === 'processing' || uploadState === 'cancelling') {
+    return true;
+  }
+
+  // Disable during active RAG progress (except when idle or complete)
+  if (ragProgress.isActive && ragProgress.phase !== 'idle' && ragProgress.phase !== 'complete') {
+    return true;
+  }
+
+  return false;
+}
 
 export default function RAGIndexControls() {
-  const { ragLoading, ragProgress } = useAppStore();
-  const { setRagIndexData, setRagLoading, setRagError } = useAppActions();
+  const uploadMachine = useUploadMachine();
+  // Note: Upload actions are handled internally by TanaStreamingUpload
+  // const uploadActions = useUploadActions(); // Not needed here
 
-  // Note: Removed automatic state reset - global state should persist across component lifecycle
+  const { state, context } = uploadMachine;
+  const { ragProgress } = context;
 
   const handleUploadSuccess = (data: any) => {
     console.log('RAG index streaming completed:', data);
-    setRagIndexData(data);
-    setRagError(null); // Clear RAG-specific error
-    setRagLoading(false); // Ensure loading state is cleared
+    // Note: completeUpload is already called by TanaStreamingUpload component
+    // This callback is just for additional success handling if needed
   };
 
   const handleUploadError = (errorMessage: string) => {
-    setRagError(errorMessage); // Set RAG-specific error
-    setRagLoading(false); // Ensure loading state is cleared
+    console.error('RAG index upload failed:', errorMessage);
+    // Note: errorUpload is already called by TanaStreamingUpload component
+    // This callback is just for additional error handling if needed
   };
 
-  // Don't show the upload interface if we're currently processing
-  const isProcessing = ragProgress.isActive && ragProgress.phase !== 'idle' && ragProgress.phase !== 'complete';
+  // 🎯 SIMPLIFIED: Clear disable logic
+  const isUploadDisabled = shouldDisableUpload(state, ragProgress);
 
   return (
     <TanaStreamingUpload
       endpoint="/chroma/preload"
       onSuccess={handleUploadSuccess}
       onError={handleUploadError}
-      disabled={ragLoading || isProcessing}
+      disabled={isUploadDisabled}
     />
   );
 }
