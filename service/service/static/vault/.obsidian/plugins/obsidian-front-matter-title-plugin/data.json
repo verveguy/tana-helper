@@ -1,0 +1,15 @@
+{
+  "feature_inline_title": true,
+  "feature_file_explorer": true,
+  "feature_tab": true,
+  "feature_graph": true,
+  "feature_search": true,
+  "feature_backlink": true,
+  "feature_outline": true,
+  "feature_quick_switcher": true,
+  "title_template": "{{title}}",
+  "title_sources": [
+    "title",
+    "alias"
+  ]
+}

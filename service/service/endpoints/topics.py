@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from service.tana_types import (
     GraphLink,
+    TanaContentElement,
     TanaDocument,
     TanaDump,
     TanaField,
@@ -102,7 +103,11 @@ async def extract_topics(
 
             topics.append(topic)
 
-            topic.content = [(source_id, False, "- " + topic_name)]
+            topic.content = [
+                TanaContentElement(
+                    id=source_id, is_reference=False, content="- " + topic_name
+                )
+            ]
 
             # add all the tag names as structured elements
             # for tag_id in node.tags:
@@ -156,10 +161,61 @@ async def extract_topics(
                     # structure fields in Tana paste format
                     if len(value_contents) > 0 and len(value_contents[0]) > 0:
                         topic.content.append(
-                            (None, False, f"  - {field_name}:: {value_contents[0]}")
+                            TanaContentElement(
+                                id=None,
+                                is_reference=False,
+                                is_field=True,
+                                field_name=field_name,
+                                content=f"  - {field_name}:: {value_contents[0]}",
+                            )
                         )
                         for value in value_contents[1:]:
-                            topic.content.append((None, False, f"    - {value}"))
+                            topic.content.append(
+                                TanaContentElement(
+                                    id=None,
+                                    is_reference=False,
+                                    is_field=True,
+                                    field_name=field_name,
+                                    content=f"    - {value}",
+                                )
+                            )
+                    # and remove any structured fields
+                    topic.fields = None
+
+                elif format == "OBSIDIAN":
+                    # structure fields in Obsidian front matter format
+                    if len(value_contents) > 0:
+                        if len(value_contents) > 1:
+                            topic.content.append(
+                                TanaContentElement(
+                                    id=None,
+                                    is_field=True,
+                                    field_name=field_name,
+                                    is_reference=False,
+                                    content=f"{field_name}:",
+                                )
+                            )
+                            for value in value_contents:
+                                topic.content.append(
+                                    TanaContentElement(
+                                        id=None,
+                                        is_field=True,
+                                        field_name=field_name,
+                                        is_reference=False,
+                                        content=f"  - {value}",
+                                    )
+                                )
+                        else:
+                            topic.content.append(
+                                TanaContentElement(
+                                    id=None,
+                                    is_field=True,
+                                    field_name=field_name,
+                                    is_reference=False,
+                                    content=f"{field_name}: {value_contents[0]}",
+                                )
+                            )
+
                     # and remove any structured fields
                     topic.fields = None
 
@@ -220,7 +276,7 @@ def tana_node_ids_from_text(text: str) -> list[str]:
 
 def recurse_content(
     index: NodeIndex, parent_id: str, depth_limit=10
-) -> list[tuple[str | None, bool, str]]:
+) -> list[TanaContentElement]:
     parent_node = index.node(parent_id)
     content = []
 
@@ -234,10 +290,10 @@ def recurse_content(
                 # but we want to reduce redundant content and Day nodes mess with this
                 # concept rather badly)
                 content.append(
-                    (
-                        content_id,
-                        True,
-                        indent(11 - depth_limit)
+                    TanaContentElement(
+                        id=content_id,
+                        is_reference=True,
+                        content=indent(11 - depth_limit)
                         + "- [["
                         + patch_node_name(index, content_id)
                         + "^"
@@ -253,10 +309,10 @@ def recurse_content(
 
                 # here we know the Tana nodeId of the child, so we capture it as content_id
                 content.append(
-                    (
-                        content_id,
-                        False,
-                        indent(11 - depth_limit)
+                    TanaContentElement(
+                        id=content_id,
+                        is_reference=False,
+                        content=indent(11 - depth_limit)
                         + "- "
                         + patch_node_name(index, content_id),
                     )
@@ -266,10 +322,10 @@ def recurse_content(
         else:
             # this is a Tana reference link, so don't recurse
             content.append(
-                (
-                    content_id,
-                    True,
-                    indent(11 - depth_limit)
+                TanaContentElement(
+                    id=content_id,
+                    is_reference=True,
+                    content=indent(11 - depth_limit)
                     + "- [["
                     + patch_node_name(index, content_id)
                     + "^"
@@ -305,7 +361,9 @@ def extract_topic_from_context(tana_id: str, tana_context: str):
         id=tana_id, description=None, fields=[], tags=tags_from_name(name), name=name
     )
 
-    topic.content = [(tana_id, False, "- " + name)]
+    topic.content = [
+        TanaContentElement(id=tana_id, is_reference=False, content="- " + name)
+    ]
 
     fields = []
     for line in pruned_content.split("\n"):
@@ -325,11 +383,15 @@ def extract_topic_from_context(tana_id: str, tana_context: str):
             # we've hit a content line, break it down for "sentence splitting"
             (ref, ref_id) = is_reference_content(line)
             if ref:
-                topic.content.append((ref_id, True, line))
+                topic.content.append(
+                    TanaContentElement(id=ref_id, is_reference=True, content=line)
+                )
             else:
                 # Unfortunately, we don't know the Tana node id of the child content
                 # unlike in the preload case (where we build from full graph info)
-                topic.content.append((None, False, line))
+                topic.content.append(
+                    TanaContentElement(id=None, is_reference=False, content=line)
+                )
 
     topic.fields = fields
 

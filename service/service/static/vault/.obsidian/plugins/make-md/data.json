@@ -1,0 +1,26 @@
+{
+  "settings": {
+    "enableFolderNote": true,
+    "deleteFileOption": "trash",
+    "filePreviewOnHover": false,
+    "flowMenuEnabled": true,
+    "markSans": false,
+    "blinkEnabled": true,
+    "makeMenuPlaceholder": true,
+    "mobileMakeBar": true,
+    "inlineStyler": true,
+    "makerMode": true,
+    "hideFrontmatter": true,
+    "activeView": "root",
+    "hiddenFiles": [],
+    "hiddenExtensions": ["canvas"],
+    "newFileLocation": "current",
+    "newFileFolderPath": "",
+    "expandFolderOnClick": true,
+    "openFolders": [],
+    "fileIcons": [],
+    "spaceRowHeight": 29,
+    "spaceFolderPath": "",
+    "readableLineWidth": true
+  }
+}

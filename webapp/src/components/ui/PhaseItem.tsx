@@ -5,21 +5,37 @@ import { Progress } from './progress';
 
 interface PhaseItemProps {
   phaseId: string;
-  progress: RAGProgressState;
+  progress: any; // Generic progress state
+  phases?: Array<{
+    id: string;
+    name: string;
+    description: string;
+    icon: string;
+  }>;
+  type?: 'rag' | 'obsidian';
 }
 
 /**
  * Self-contained phase item component that handles all logic for displaying
  * individual processing phases in the RAG index operation.
  */
-const PhaseItem: React.FC<PhaseItemProps> = ({ phaseId, progress }) => {
+const PhaseItem: React.FC<PhaseItemProps> = ({ phaseId, progress, phases = [], type = 'rag' }) => {
   const [phaseStartTime, setPhaseStartTime] = useState<number | null>(null);
   const [phaseEndTime, setPhaseEndTime] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState(Date.now() / 1000);
 
   // Phase definitions with metadata
   const getPhaseInfo = (id: string) => {
-    const phases = {
+    // Use provided phases if available
+    if (phases.length > 0) {
+      const phaseInfo = phases.find(p => p.id === id);
+      if (phaseInfo) {
+        return phaseInfo;
+      }
+    }
+
+    // Default phases for RAG
+    const ragPhases = {
       batch_processing: {
         name: 'Node Collection',
         description: 'Collecting nodes and detecting changes',
@@ -46,7 +62,30 @@ const PhaseItem: React.FC<PhaseItemProps> = ({ phaseId, progress }) => {
         icon: '✅',
       },
     };
-    return phases[id as keyof typeof phases] || { name: id, description: '', icon: '❓' };
+
+    // Default phases for Obsidian
+    const obsidianPhases = {
+      starting: {
+        name: 'Initializing Export',
+        description: 'Preparing to convert Tana data to Obsidian format',
+        icon: '🚀',
+      },
+      processing: {
+        name: 'Converting Topics',
+        description: 'Converting topics to markdown files',
+        icon: '📝',
+      },
+      complete: {
+        name: 'Export Complete',
+        description: 'Obsidian vault created successfully',
+        icon: '✅',
+      },
+    };
+
+    const defaultPhases = type === 'obsidian' ? obsidianPhases : ragPhases;
+    return (
+      defaultPhases[id as keyof typeof defaultPhases] || { name: id, description: '', icon: '❓' }
+    );
   };
 
   /**
@@ -58,7 +97,11 @@ const PhaseItem: React.FC<PhaseItemProps> = ({ phaseId, progress }) => {
       return 'skipped';
     }
 
-    const phaseOrder = ['batch_processing', 'deletion', 'embedding', 'storing', 'complete'];
+    // Different phase orders for different types
+    const ragPhaseOrder = ['batch_processing', 'deletion', 'embedding', 'storing', 'complete'];
+    const obsidianPhaseOrder = ['starting', 'processing', 'complete'];
+
+    const phaseOrder = type === 'obsidian' ? obsidianPhaseOrder : ragPhaseOrder;
     const currentPhaseIndex = phaseOrder.indexOf(progress.phase);
     const thisPhaseIndex = phaseOrder.indexOf(phaseId);
 
@@ -179,7 +222,25 @@ const PhaseItem: React.FC<PhaseItemProps> = ({ phaseId, progress }) => {
         return { percentage: 100, text: 'No storage needed' };
 
       case 'complete':
+        if (type === 'obsidian') {
+          return { percentage: 100, text: 'Vault created successfully' };
+        }
         return { percentage: 100, text: 'Processing finished successfully' };
+
+      // Obsidian-specific phases
+      case 'starting':
+        return { percentage: 100, text: 'Export initialized' };
+
+      case 'processing':
+        if (progress.totalTopics && progress.totalTopics > 0) {
+          const current = progress.currentTopic || 0;
+          const percentage = progress.percentage || (current / progress.totalTopics) * 100;
+          return {
+            percentage: percentage,
+            text: `${current.toLocaleString()} / ${progress.totalTopics.toLocaleString()} topics`,
+          };
+        }
+        return { percentage: 0, text: 'Processing topics...' };
 
       default:
         return { percentage: 0, text: '' };

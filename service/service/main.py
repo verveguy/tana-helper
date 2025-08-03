@@ -35,6 +35,7 @@ from service.endpoints import (
     inlinerefs,
     jsonify,
     logmonitor,
+    obsidian_migrate,
     preload,
     proxy,
     topics,
@@ -105,6 +106,7 @@ app.include_router(jsonify.router)
 app.include_router(graph_view.router)
 app.include_router(class_diagram.router)
 app.include_router(topics.router)
+app.include_router(obsidian_migrate.router)
 app.include_router(configure.router)
 app.include_router(cleanups.router)
 app.include_router(proxy.router)

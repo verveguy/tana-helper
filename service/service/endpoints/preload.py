@@ -740,7 +740,7 @@ def document_from_topic(topic) -> tuple[Document, list[TextNode]]:
     tags = " ".join(topic.tags) if topic.tags else ""
 
     # Start with the main content (first line) + tags
-    base_text = topic.content[0][2] if topic.content else topic.name
+    base_text = topic.content[0].content if topic.content else topic.name
     text = base_text + " " + tags + "\n"
 
     # 🎯 CRITICAL RESTORATION: Fields become part of searchable content!
@@ -782,7 +782,10 @@ def document_from_topic(topic) -> tuple[Document, list[TextNode]]:
     #     logger.warning(f"Large topic {topic.id} with {len(topic.content)} children")
 
     # Process all child content with enhanced reference handling
-    for content_id, is_ref, tana_element in topic.content[1:]:
+    for content in topic.content[1:]:
+        content_id = content.id
+        is_ref = content.is_reference
+        tana_element = content.content
         content_metadata = TanaNodeMetadata(
             category=TANA_TEXT,
             title=topic.name,

@@ -4,6 +4,7 @@ import {
   AppState,
   AppActions,
   RAGProgressState,
+  ObsidianProgressState,
   UploadState,
   UploadEvent,
   UploadContext,
@@ -22,11 +23,21 @@ const defaultRAGProgress: RAGProgressState = {
   skippedPhases: {},
 };
 
+// Default Obsidian progress state
+const defaultObsidianProgress: ObsidianProgressState = {
+  isActive: false,
+  phase: 'idle',
+  currentTopic: 0,
+  totalTopics: 0,
+  percentage: 0,
+};
+
 // Default upload context
 const defaultUploadContext: UploadContext = {
   file: null,
   abortController: null,
   ragProgress: defaultRAGProgress,
+  obsidianProgress: defaultObsidianProgress,
   lastError: null,
   completionData: null,
 };
@@ -117,10 +128,23 @@ const createUploadMachine = (
         break;
 
       case 'UPLOAD_PROGRESS':
-        context = {
-          ...context,
-          ragProgress: { ...context.ragProgress, ...event.progress },
-        };
+        // Handle both RAG and Obsidian progress updates
+        if (
+          event.progress.phase &&
+          ['starting', 'processing', 'complete', 'error'].includes(event.progress.phase)
+        ) {
+          // This is an Obsidian progress update
+          context = {
+            ...context,
+            obsidianProgress: { ...context.obsidianProgress, ...event.progress },
+          };
+        } else {
+          // This is a RAG progress update
+          context = {
+            ...context,
+            ragProgress: { ...context.ragProgress, ...event.progress },
+          };
+        }
         break;
 
       case 'CANCEL':
@@ -191,9 +215,13 @@ const createUploadMachine = (
       },
       // Sync legacy ragProgress for backward compatibility
       ragProgress: context.ragProgress,
-      // 🎯 CONSOLIDATED: Derive ragLoading and ragError from state machine
+      // Sync obsidian progress
+      obsidianProgress: context.obsidianProgress,
+      // 🎯 CONSOLIDATED: Derive loading and error states from state machine
       ragLoading: currentState === 'uploading' || currentState === 'processing',
+      obsidianLoading: currentState === 'uploading' || currentState === 'processing',
       ragError: context.lastError,
+      obsidianError: context.lastError,
     });
   };
 
@@ -223,10 +251,13 @@ export const useAppStore = create<AppState & AppActions>()(
           visualizerLoading: false,
           classLoading: false,
           ragLoading: false, // 🎯 DERIVED: Now derived from state machine
+          obsidianLoading: false,
           configLoading: false,
           mermaidText: undefined,
           ragIndexData: undefined,
           ragProgress: defaultRAGProgress, // 🎯 DERIVED: Now derived from state machine
+          obsidianExportData: undefined,
+          obsidianProgress: defaultObsidianProgress,
           config: undefined,
           webhooks: undefined,
           twoDee: false,
@@ -235,6 +266,7 @@ export const useAppStore = create<AppState & AppActions>()(
           visualizerError: null,
           classError: null,
           ragError: null, // 🎯 DERIVED: Now derived from state machine
+          obsidianError: null,
           configError: null,
 
           // Upload State Machine
@@ -256,11 +288,17 @@ export const useAppStore = create<AppState & AppActions>()(
             set({ ragLoading }, false, 'setRagLoading');
           },
 
+          setObsidianLoading: obsidianLoading =>
+            set({ obsidianLoading }, false, 'setObsidianLoading'),
+
           setConfigLoading: configLoading => set({ configLoading }, false, 'setConfigLoading'),
 
           setMermaidText: mermaidText => set({ mermaidText }, false, 'setMermaidText'),
 
           setRagIndexData: ragIndexData => set({ ragIndexData }, false, 'setRagIndexData'),
+
+          setObsidianExportData: obsidianExportData =>
+            set({ obsidianExportData }, false, 'setObsidianExportData'),
 
           // 🎯 DEPRECATED: Use state machine instead
           setRagProgress: progress => {
@@ -281,6 +319,24 @@ export const useAppStore = create<AppState & AppActions>()(
               state => ({ ragProgress: { ...state.ragProgress, ...updates } }),
               false,
               'updateRagProgress'
+            );
+          },
+
+          setObsidianProgress: progress =>
+            set(
+              { obsidianProgress: { ...get().obsidianProgress, ...progress } },
+              false,
+              'setObsidianProgress'
+            ),
+
+          resetObsidianProgress: () =>
+            set({ obsidianProgress: defaultObsidianProgress }, false, 'resetObsidianProgress'),
+
+          updateObsidianProgress: updates => {
+            set(
+              state => ({ obsidianProgress: { ...state.obsidianProgress, ...updates } }),
+              false,
+              'updateObsidianProgress'
             );
           },
 
@@ -305,6 +361,8 @@ export const useAppStore = create<AppState & AppActions>()(
             console.warn('setRagError is deprecated, use errorUpload instead');
             set({ ragError }, false, 'setRagError');
           },
+
+          setObsidianError: obsidianError => set({ obsidianError }, false, 'setObsidianError'),
 
           setConfigError: configError => set({ configError }, false, 'setConfigError'),
 
@@ -361,6 +419,18 @@ export const useAppStore = create<AppState & AppActions>()(
               'resetRAGIndexState'
             );
           },
+
+          resetObsidianState: () =>
+            set(
+              {
+                obsidianExportData: undefined,
+                obsidianError: null,
+                obsidianLoading: false,
+                obsidianProgress: defaultObsidianProgress,
+              },
+              false,
+              'resetObsidianState'
+            ),
 
           // Async actions
           loadConfig: async () => {

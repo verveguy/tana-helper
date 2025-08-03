@@ -557,8 +557,8 @@ def create_node_content_hash(topic) -> str:
     """
     # Extract all content text
     content_parts = []
-    for _, _, text in topic.content:
-        content_parts.append(text)
+    for content in topic.content:
+        content_parts.append(content.content)
     full_content = "\n".join(content_parts)
 
     # Extract fields as serializable data

@@ -1,0 +1,10 @@
+{
+  "id": "obsidian-front-matter-title-plugin",
+  "name": "Front Matter Title",
+  "version": "2.9.0",
+  "minAppVersion": "0.15.0",
+  "description": "Define a custom title for notes using the frontmatter",
+  "author": "Snezhig",
+  "authorUrl": "https://github.com/Snezhig",
+  "isDesktopOnly": false
+}

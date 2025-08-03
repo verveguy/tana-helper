@@ -1,0 +1,23 @@
+{
+  "legacyEditor": false,
+  "livePreview": true,
+  "showFrontmatter": true,
+  "showLineNumber": false,
+  "showInlineTitle": true,
+  "rightToLeft": false,
+  "foldHeading": true,
+  "foldIndent": true,
+  "defaultViewMode": "preview",
+  "attachmentFolderPath": "/",
+  "newLinkFormat": "shortest",
+  "useMarkdownLinks": true,
+  "alwaysUpdateLinks": false,
+  "newFileLocation": "current",
+  "promptDelete": false,
+  "pdfExportSettings": {
+    "pageSize": "Letter",
+    "landscape": false,
+    "margin": "0",
+    "downscalePercent": 100
+  }
+}

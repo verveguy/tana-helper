@@ -9,6 +9,10 @@ export interface TanaStreamingUploadProps {
   onSuccess: (data: any) => void;
   onError: (error: string) => void;
   disabled?: boolean;
+  progressHandler?: (eventData: ProgressEventData, currentProgress: any) => any;
+  eventValidator?: (data: ProgressEventData) => boolean;
+  uploadButtonText?: string;
+  dropZoneText?: string;
 }
 
 // 🎯 RELIABLE: Progress event handler with validation and error recovery
@@ -40,6 +44,9 @@ function validateProgressEvent(data: ProgressEventData): boolean {
       return (
         typeof data.total_nodes_to_delete === 'number' || typeof data.deleted_nodes === 'number'
       );
+    case 'starting':
+    case 'processing':
+      return typeof data.total_topics === 'number';
     default:
       return true; // Allow unknown event types to pass through
   }
@@ -255,6 +262,10 @@ export default function TanaStreamingUpload({
   onSuccess,
   onError,
   disabled = false,
+  progressHandler = createProgressUpdate,
+  eventValidator = validateProgressEvent,
+  uploadButtonText = 'Start Upload',
+  dropZoneText = 'Drop file or click to browse',
 }: TanaStreamingUploadProps) {
   const uploadMachine = useUploadMachine();
   const {
@@ -267,7 +278,7 @@ export default function TanaStreamingUpload({
   } = useUploadActions();
 
   const { state, context } = uploadMachine;
-  const { file, abortController, ragProgress, lastError } = context;
+  const { file, abortController, ragProgress, obsidianProgress, lastError } = context;
 
   // 🎯 SIMPLIFIED: Direct progress updates without timeout detection
   // Since RAG operations provide frequent batch updates (~1 second intervals),
@@ -398,7 +409,7 @@ export default function TanaStreamingUpload({
                     const data = JSON.parse(line.slice(6));
 
                     // 🎯 RELIABLE: Validate event before processing
-                    if (!validateProgressEvent(data)) {
+                    if (!eventValidator(data)) {
                       console.warn('Invalid progress event received:', data);
                       continue; // Skip invalid events
                     }
@@ -406,7 +417,14 @@ export default function TanaStreamingUpload({
                     console.log('Valid progress update:', data);
 
                     // 🎯 RELIABLE: Use centralized progress update creation
-                    const progressUpdate = createProgressUpdate(data, ragProgress);
+                    // Determine which progress state to use based on event type
+                    const currentProgress =
+                      data.type === 'starting' ||
+                      data.type === 'processing' ||
+                      data.type === 'complete'
+                        ? context.obsidianProgress
+                        : ragProgress;
+                    const progressUpdate = progressHandler(data, currentProgress);
                     if (Object.keys(progressUpdate).length > 0) {
                       trackProgressUpdate(progressUpdate);
                     }
@@ -564,7 +582,7 @@ export default function TanaStreamingUpload({
         ) : (
           <>
             <Upload className="mx-auto h-6 w-6 text-muted-foreground mb-2" />
-            <div className="text-sm text-muted-foreground">Drop file or click to browse</div>
+            <div className="text-sm text-muted-foreground">{dropZoneText}</div>
           </>
         )}
 

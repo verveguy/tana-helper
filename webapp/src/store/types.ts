@@ -21,6 +21,13 @@ export interface RAGIndexData {
   [key: string]: any;
 }
 
+export interface ObsidianExportData {
+  vaultPath?: string;
+  topicCount: number;
+  exportedAt: string;
+  [key: string]: any;
+}
+
 // Progress state for RAG indexing operations
 export interface RAGProgressState {
   isActive: boolean;
@@ -95,6 +102,24 @@ export interface RAGProgressState {
   };
 }
 
+// Progress state for Obsidian export operations
+export interface ObsidianProgressState {
+  isActive: boolean;
+  phase: 'idle' | 'starting' | 'processing' | 'complete' | 'error' | 'converting' | 'writing_vault';
+  currentTopic: number;
+  totalTopics: number;
+  percentage: number;
+  currentTopicName?: string;
+  currentTopicId?: string;
+  elapsedSeconds?: number;
+  etaSeconds?: number;
+  processingRate?: number;
+  error?: string;
+  errorType?: string;
+  errorHelp?: string;
+  vaultPath?: string;
+}
+
 export interface Config {
   openai_api_key?: string;
   [key: string]: any;
@@ -115,10 +140,13 @@ export interface AppState {
   visualizerLoading: boolean;
   classLoading: boolean;
   ragLoading: boolean;
+  obsidianLoading: boolean;
   configLoading: boolean;
   mermaidText?: string;
   ragIndexData?: RAGIndexData;
   ragProgress: RAGProgressState;
+  obsidianExportData?: ObsidianExportData;
+  obsidianProgress: ObsidianProgressState;
   config?: Config;
   webhooks?: Webhook[];
   twoDee: boolean;
@@ -127,6 +155,7 @@ export interface AppState {
   visualizerError: string | null;
   classError: string | null;
   ragError: string | null;
+  obsidianError: string | null;
   configError: string | null;
 
   // Upload State Machine
@@ -141,12 +170,17 @@ export interface AppActions {
   setVisualizerLoading: (loading: boolean) => void;
   setClassLoading: (loading: boolean) => void;
   setRagLoading: (loading: boolean) => void;
+  setObsidianLoading: (loading: boolean) => void;
   setConfigLoading: (loading: boolean) => void;
   setMermaidText: (mermaidText?: string) => void;
   setRagIndexData: (ragIndexData?: RAGIndexData) => void;
   setRagProgress: (progress: Partial<RAGProgressState>) => void;
   resetRagProgress: () => void;
   updateRagProgress: (updates: Partial<RAGProgressState>) => void;
+  setObsidianExportData: (obsidianExportData?: ObsidianExportData) => void;
+  setObsidianProgress: (progress: Partial<ObsidianProgressState>) => void;
+  resetObsidianProgress: () => void;
+  updateObsidianProgress: (updates: Partial<ObsidianProgressState>) => void;
   setConfig: (config?: Config) => void;
   setWebhooks: (webhooks?: Webhook[]) => void;
   setTwoDee: (twoDee: boolean) => void;
@@ -155,6 +189,7 @@ export interface AppActions {
   setVisualizerError: (error: string | null) => void;
   setClassError: (error: string | null) => void;
   setRagError: (error: string | null) => void;
+  setObsidianError: (error: string | null) => void;
   setConfigError: (error: string | null) => void;
 
   // Utility actions
@@ -163,6 +198,7 @@ export interface AppActions {
   resetVisualizerState: () => void;
   resetClassDiagramState: () => void;
   resetRAGIndexState: () => void;
+  resetObsidianState: () => void;
 
   // Async actions
   loadConfig: () => Promise<Config>;
@@ -205,6 +241,7 @@ export interface UploadContext {
   file: File | null;
   abortController: AbortController | null;
   ragProgress: RAGProgressState;
+  obsidianProgress: ObsidianProgressState;
   lastError: string | null;
   completionData: any | null;
 }

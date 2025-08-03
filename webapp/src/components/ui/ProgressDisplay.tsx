@@ -4,8 +4,44 @@ import { AlertCircle, CheckCircle } from 'lucide-react';
 import { RAGProgressState } from '../../store/types';
 import PhaseChecklist from './PhaseChecklist';
 
+// Generic progress state interface
+interface GenericProgressState {
+  phase?: string;
+  currentTopic?: number;
+  totalTopics?: number;
+  currentNode?: number;
+  totalNodes?: number;
+  currentTopicName?: string;
+  currentTopicId?: string;
+  elapsedSeconds?: number;
+  etaSeconds?: number;
+  processingRate?: number;
+  error?: string;
+  errorType?: string;
+  errorHelp?: string;
+  currentBatch?: number;
+  totalBatches?: number;
+  failedNodes?: number;
+  skippedTopics?: number;
+  deletedNodes?: number;
+  totalNodesToDelete?: number;
+  deletionEta?: number;
+  percentage?: number;
+  vaultPath?: string;
+  isActive?: boolean;
+  [key: string]: any; // Allow additional properties
+}
+
 interface ProgressDisplayProps {
-  progress: RAGProgressState;
+  progress: GenericProgressState;
+  type?: 'rag' | 'obsidian';
+  phases?: Array<{
+    id: string;
+    name: string;
+    description: string;
+    icon: string;
+  }>;
+  phaseOrder?: string[];
 }
 
 // Helper function to format duration in seconds to human readable format
@@ -31,7 +67,12 @@ function formatRate(rate: number): string {
   return `${rate.toFixed(1)} nodes/sec`;
 }
 
-export default function ProgressDisplay({ progress }: ProgressDisplayProps) {
+export default function ProgressDisplay({
+  progress,
+  type = 'rag',
+  phases,
+  phaseOrder,
+}: ProgressDisplayProps) {
   const {
     currentTopic,
     totalTopics,
@@ -60,12 +101,76 @@ export default function ProgressDisplay({ progress }: ProgressDisplayProps) {
     return null;
   }
 
+  // Default phases for RAG
+  const defaultRAGPhases = [
+    {
+      id: 'batch_processing',
+      name: 'Node Collection',
+      description: 'Collecting nodes and detecting changes',
+      icon: '📋',
+    },
+    {
+      id: 'deletion',
+      name: 'Cleanup',
+      description: 'Removing orphaned nodes from ChromaDB',
+      icon: '🗑️',
+    },
+    {
+      id: 'embedding',
+      name: 'Embeddings',
+      description: 'Generating embeddings in batches',
+      icon: '🧠',
+    },
+    { id: 'storing', name: 'Storage', description: 'Storing embeddings to ChromaDB', icon: '💾' },
+    {
+      id: 'complete',
+      name: 'Complete',
+      description: 'Processing finished successfully',
+      icon: '✅',
+    },
+  ];
+
+  // Default phases for Obsidian
+  const defaultObsidianPhases = [
+    {
+      id: 'starting',
+      name: 'Initializing Export',
+      description: 'Preparing to convert Tana data to Obsidian format',
+      icon: '🚀',
+    },
+    {
+      id: 'processing',
+      name: 'Converting Topics',
+      description: 'Converting topics to markdown files',
+      icon: '📝',
+    },
+    {
+      id: 'complete',
+      name: 'Export Complete',
+      description: 'Obsidian vault created successfully',
+      icon: '✅',
+    },
+  ];
+
+  // Use provided phases or defaults based on type
+  const displayPhases = phases || (type === 'obsidian' ? defaultObsidianPhases : defaultRAGPhases);
+  const displayPhaseOrder =
+    phaseOrder ||
+    (type === 'obsidian'
+      ? ['starting', 'processing', 'complete']
+      : ['batch_processing', 'deletion', 'embedding', 'storing', 'complete']);
+
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardContent className="pt-6">
         <div className="space-y-4">
           {/* Phase Checklist */}
-          <PhaseChecklist progress={progress} />
+          <PhaseChecklist
+            progress={progress}
+            phases={displayPhases}
+            phaseOrder={displayPhaseOrder}
+            type={type}
+          />
           {/* Note: Timeout warnings removed - RAG operations provide frequent batch updates */}
 
           {/* Enhanced Error Display */}

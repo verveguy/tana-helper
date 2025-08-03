@@ -17,6 +17,8 @@ export const useClassLoading = () => useAppStoreBase(state => state.classLoading
 
 export const useRagLoading = () => useAppStoreBase(state => state.ragLoading);
 
+export const useObsidianLoading = () => useAppStoreBase(state => state.obsidianLoading);
+
 export const useConfigLoading = () => useAppStoreBase(state => state.configLoading);
 
 export const useError = () => useAppStoreBase(state => state.error);
@@ -27,6 +29,8 @@ export const useClassError = () => useAppStoreBase(state => state.classError);
 
 export const useRagError = () => useAppStoreBase(state => state.ragError);
 
+export const useObsidianError = () => useAppStoreBase(state => state.obsidianError);
+
 export const useConfigError = () => useAppStoreBase(state => state.configError);
 
 export const useGraphData = () => useAppStoreBase(state => state.graphData);
@@ -36,6 +40,10 @@ export const useMermaidText = () => useAppStoreBase(state => state.mermaidText);
 export const useRagIndexData = () => useAppStoreBase(state => state.ragIndexData);
 
 export const useRagProgress = () => useAppStoreBase(state => state.ragProgress);
+
+export const useObsidianExportData = () => useAppStoreBase(state => state.obsidianExportData);
+
+export const useObsidianProgress = () => useAppStoreBase(state => state.obsidianProgress);
 
 export const useConfig = () => useAppStoreBase(state => state.config);
 
@@ -52,12 +60,17 @@ export const useAppActions = () => {
   const setVisualizerLoading = useAppStoreBase(state => state.setVisualizerLoading);
   const setClassLoading = useAppStoreBase(state => state.setClassLoading);
   const setRagLoading = useAppStoreBase(state => state.setRagLoading);
+  const setObsidianLoading = useAppStoreBase(state => state.setObsidianLoading);
   const setConfigLoading = useAppStoreBase(state => state.setConfigLoading);
   const setMermaidText = useAppStoreBase(state => state.setMermaidText);
   const setRagIndexData = useAppStoreBase(state => state.setRagIndexData);
   const setRagProgress = useAppStoreBase(state => state.setRagProgress);
   const resetRagProgress = useAppStoreBase(state => state.resetRagProgress);
   const updateRagProgress = useAppStoreBase(state => state.updateRagProgress);
+  const setObsidianExportData = useAppStoreBase(state => state.setObsidianExportData);
+  const setObsidianProgress = useAppStoreBase(state => state.setObsidianProgress);
+  const resetObsidianProgress = useAppStoreBase(state => state.resetObsidianProgress);
+  const updateObsidianProgress = useAppStoreBase(state => state.updateObsidianProgress);
   const setConfig = useAppStoreBase(state => state.setConfig);
   const setWebhooks = useAppStoreBase(state => state.setWebhooks);
   const setTwoDee = useAppStoreBase(state => state.setTwoDee);
@@ -66,12 +79,14 @@ export const useAppActions = () => {
   const setVisualizerError = useAppStoreBase(state => state.setVisualizerError);
   const setClassError = useAppStoreBase(state => state.setClassError);
   const setRagError = useAppStoreBase(state => state.setRagError);
+  const setObsidianError = useAppStoreBase(state => state.setObsidianError);
   const setConfigError = useAppStoreBase(state => state.setConfigError);
   const clearError = useAppStoreBase(state => state.clearError);
   const resetState = useAppStoreBase(state => state.resetState);
   const resetVisualizerState = useAppStoreBase(state => state.resetVisualizerState);
   const resetClassDiagramState = useAppStoreBase(state => state.resetClassDiagramState);
   const resetRAGIndexState = useAppStoreBase(state => state.resetRAGIndexState);
+  const resetObsidianState = useAppStoreBase(state => state.resetObsidianState);
   const loadConfig = useAppStoreBase(state => state.loadConfig);
   const saveConfig = useAppStoreBase(state => state.saveConfig);
 
@@ -81,12 +96,17 @@ export const useAppActions = () => {
     setVisualizerLoading,
     setClassLoading,
     setRagLoading,
+    setObsidianLoading,
     setConfigLoading,
     setMermaidText,
     setRagIndexData,
     setRagProgress,
     resetRagProgress,
     updateRagProgress,
+    setObsidianExportData,
+    setObsidianProgress,
+    resetObsidianProgress,
+    updateObsidianProgress,
     setConfig,
     setWebhooks,
     setTwoDee,
@@ -95,12 +115,14 @@ export const useAppActions = () => {
     setVisualizerError,
     setClassError,
     setRagError,
+    setObsidianError,
     setConfigError,
     clearError,
     resetState,
     resetVisualizerState,
     resetClassDiagramState,
     resetRAGIndexState,
+    resetObsidianState,
     loadConfig,
     saveConfig,
   };

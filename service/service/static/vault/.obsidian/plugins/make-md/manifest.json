@@ -1,0 +1,11 @@
+{
+  "id": "make-md",
+  "name": "Make.md",
+  "version": "0.7.3",
+  "minAppVersion": "0.15.0",
+  "description": "Make.md brings you features like Notion to Obsidian, including a visual folder system, image galleries, and more.",
+  "author": "Make.md",
+  "authorUrl": "https://www.make.md/",
+  "fundingUrl": "https://www.make.md/",
+  "isDesktopOnly": false
+}

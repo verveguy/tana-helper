@@ -55,6 +55,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      '/migrate': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false,
+      },
       '/openapi.json': {
         target: 'http://localhost:8000',
         changeOrigin: true,

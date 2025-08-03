@@ -85,7 +85,7 @@ class TanaDocument(BaseModel):
     tags: list[str] = []
     fields: list[TanaField] | None
     # TODO: consider whether we should preserve more node structure here
-    content: list[tuple[str | None, bool, str]] = []
+    content: list["TanaContentElement"] = []
 
 
 class TanaContent(BaseModel):
@@ -108,7 +108,7 @@ class TanaTopicNode(TanaContent):
     tags: list[str] = []
     fields: list[TanaField] | None
     # TODO: consider whether we should preserve more node structure here
-    content: list[TanaContentElement] = []
+    content: list["TanaContentElement"] = []
 
 
 # A Tana Content Node is a child of a topic node. We split this out for
