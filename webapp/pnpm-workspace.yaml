@@ -1,0 +1,6 @@
+ignoredBuiltDependencies:
+  - core-js-pure
+  - esbuild
+  - tree-sitter
+  - tree-sitter-json
+  - tree-sitter-yaml

@@ -39,23 +39,37 @@ datas += [
 
 # chromadb, llamindex and ollama need things that aren't detected
 # automatically by pyinstaller
-hidden_imports += ['hnswlib', 'tiktoken_ext.openai_public', 'tiktoken_ext', 'llama_index']
+# Note: llama-index now uses modular structure, so we need llama_index.core instead
+# Note: hnswlib is provided by chroma-hnswlib, transformers is not actually used
+hidden_imports += ['tiktoken_ext.openai_public', 'tiktoken_ext', 'llama_index.core']
 
-for meta in ['opentelemetry-sdk', 'tqdm', 'regex', 'requests', 'llama_index']:
-  datas += copy_metadata(meta)
+# Add ChromaDB-specific dependencies
+hidden_imports += ['chromadb.api.models.Collection', 'chromadb.config']
 
-# llamaindex is really picky about package metadata...
-if plat == 'Windows':
-  datas += [('.venv/lib/site-packages/llama_index/VERSION', 'llama_index/')]
-else:
-  datas += [('.venv/lib/python3.11/site-packages/llama_index/VERSION', 'llama_index/')]
-  datas += [('.venv/lib/python3.11/site-packages/llama_index/_static', 'llama_index/_static')]
+# Add OpenTelemetry dependencies that ChromaDB needs
+hidden_imports += ['opentelemetry.instrumentation', 'opentelemetry.instrumentation.requests']
 
-for coll in ['transformers', 'chromadb']:
-  stuff = collect_all(coll)
-  datas += stuff[0]
-  binaries += stuff[1]
-  hidden_imports += stuff[2]
+# Copy metadata for required packages
+for meta in ['opentelemetry-sdk', 'opentelemetry-api', 'tqdm', 'regex', 'requests', 'llama_index', 'llama_index_core', 'chromadb']:
+  try:
+    datas += copy_metadata(meta)
+  except Exception:
+    # Skip if package not found
+    pass
+
+# Modern llama-index uses modular structure - no need for specific VERSION files
+# The old structure with VERSION and _static files no longer exists
+
+# Only collect ChromaDB since transformers is not used
+for coll in ['chromadb']:
+  try:
+    stuff = collect_all(coll)
+    datas += stuff[0]
+    binaries += stuff[1]
+    hidden_imports += stuff[2]
+  except Exception:
+    # Skip if package collection fails
+    pass
 
 analysis = Analysis(
   ['tanahelper.py'],
@@ -67,7 +81,7 @@ analysis = Analysis(
   hookspath=[],
   hooksconfig={},
   runtime_hooks=[],
-  excludes=[],
+  excludes=['tkinter', 'matplotlib', 'FixTk', 'tcl', 'tk', '_tkinter', 'tkinter.constants', 'Tkinter'],
   noarchive=False,
 )
 

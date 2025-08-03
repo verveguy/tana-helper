@@ -1,15 +1,28 @@
-#!/bin/sh
+#!/bin/bash
 set -euo pipefail # return error if any command fails
 
-# activate correct python virtual env
-poetry env use 3.11
+# Detect OS type if OSTYPE is not set
+if [ -z "${OSTYPE:-}" ]; then
+    case "$(uname -s)" in
+        Darwin*) OSTYPE="darwin" ;;
+        Linux*)  OSTYPE="linux" ;;
+        MINGW*|MSYS*|CYGWIN*) OSTYPE="msys" ;;
+        *) OSTYPE="unknown" ;;
+    esac
+fi
+
+echo "Detected OS type: $OSTYPE"
+
+# activate correct python virtual env using uv
+uv venv --python 3.11
 case "$OSTYPE" in
   darwin*)  source .venv/bin/activate;; 
-  linux*)   echo "LINUX" ;;
+  linux*)   source .venv/bin/activate ;;
   msys*)    source .venv/Scripts/activate ;;
+  *)        source .venv/bin/activate ;;  # fallback
 esac
 
-poetry install --no-root
+uv sync
 
 test -d "service/bin" && rm -r "service/bin"
 mkdir -p service/bin
@@ -54,4 +67,7 @@ elif [[ "$OSTYPE" == "msys"* ]]; then
     # on the pysinstaller bootloader unless we use --clean
     echo "Building tanahelper .exe using pyinstaller..."
     pyinstaller tanahelper.spec --noconfirm # --clean
+else
+    echo "Platform-specific builds not supported for $OSTYPE"
+    echo "Python dependencies synchronized successfully"
 fi

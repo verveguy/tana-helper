@@ -1,24 +1,24 @@
-from fastapi import APIRouter, Body, Header
-from fastapi.responses import HTMLResponse
-from service.settings import settings, set_settings, Settings
-from service.json2tana import tana_to_json
-from starlette.requests import Request
 from logging import getLogger
+
+from fastapi import APIRouter
+
+from service import settings
+from service.settings import Settings, set_settings
 
 router = APIRouter()
 
 logger = getLogger()
 
+
 # expose our configuration Webapp on /configure
-@router.get("/configuration", tags=["Configuration"])
+@router.get("/configure", tags=["Configuration"])
 def configure():
-  global settings
-  return settings
+    return settings.settings
 
 
-@router.post("/configuration", tags=["Configuration"])
-def set_configuration(new_settings:Settings):
-  global settings
-  settings = set_settings(new_settings)
-  return settings
-
+@router.post("/configure", tags=["Configuration"])
+def set_configuration(new_settings: Settings):
+    logger.info("Received new configuration settings")
+    updated_settings = set_settings(new_settings)
+    logger.info("Configuration updated successfully")
+    return updated_settings

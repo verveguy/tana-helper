@@ -1,0 +1,28 @@
+{
+  "recommendations": [
+    // Frontend/React tools
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "bradlc.vscode-tailwindcss",
+    "ms-vscode.vscode-typescript-next",
+
+    // Backend/Python tools
+    "charliermarsh.ruff",
+    "ms-python.python",
+    "ms-python.debugpy",
+
+    // General development tools
+    "redhat.vscode-yaml",
+    "tamasfe.even-better-toml",
+    "ms-vscode.vscode-json",
+    "formulahendry.auto-rename-tag",
+    "christian-kohler.path-intellisense",
+
+    // Spell checking and documentation
+    "streetsidesoftware.code-spell-checker",
+    "ms-vscode.vscode-markdown",
+
+    // Git and collaboration
+    "eamodio.gitlens"
+  ]
+}

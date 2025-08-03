@@ -1,82 +1,93 @@
-import sys
 import os
+import sys
 
 # workaround for Windows --noconsole mode
 # let's ensure stdout and stderr are not None
 # see https://pyinstaller.org/en/stable/common-issues-and-pitfalls.html?highlight=windowed
 if sys.stdin is None:
-  sys.stdin = open(os.devnull, "r")
+    sys.stdin = open(os.devnull)
 if sys.stdout is None:
-  sys.stdout = open(os.devnull, "w")
+    sys.stdout = open(os.devnull, "w")
 if sys.stderr is None:
-  sys.stderr = open(os.devnull, "w")
+    sys.stderr = open(os.devnull, "w")
 
-from pathlib import Path
 import platform
 import time
-from logging import getLogger
 from contextlib import asynccontextmanager
+from logging import getLogger
 
-from fastapi import BackgroundTasks, FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-
-from starlette.responses import StreamingResponse
-from starlette.background import BackgroundTask
-
-import httpx
-
-from service.settings import settings
-from service.endpoints import (calendar, chroma, class_diagram, configure, exec_code, graph_view, home, 
-                 inlinerefs, jsonify, logmonitor, api_docs, preload, cleanups, proxy, topics, weaviate, webhooks)
-from service.logconfig import setup_rich_logger
 from snowflake import SnowflakeGenerator
+
+from service.endpoints import (
+    api_docs,
+    calendar,
+    chroma,
+    class_diagram,
+    cleanups,
+    configure,
+    exec_code,
+    graph_view,
+    home,
+    inlinerefs,
+    jsonify,
+    logmonitor,
+    preload,
+    proxy,
+    topics,
+    weaviate,
+    webhooks,
+)
 from service.endpoints.api_docs import get_api_metadata
+from service.logconfig import setup_rich_logger
 
 log_filename = None
+
 
 # essentially, context managers are aspect-oriented constructs for python
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-  # TODO: find out the actual configured port at runtime
-  logger.info("Tana Helper running on port 8000")
-  logger.info("Try opening http://localhost:8000/")
-  logger.info(f"Log file is {log_filename}")
-  # ...do other expensive startup things here
-  # ...
-  yield # yield 
-  # ... do any shutdown cleanup stuff before finishing
-  # ...
+    # TODO: find out the actual configured port at runtime
+    logger.info("Tana Helper running on port 8000")
+    logger.info("Try opening http://localhost:8000/")
+    logger.info(f"Log file is {log_filename}")
+    # ...do other expensive startup things here
+    # ...
+    yield  # yield
+    # ... do any shutdown cleanup stuff before finishing
+    # ...
 
 
 def get_app() -> FastAPI:
-  global log_filename
-  app = FastAPI(
-    lifespan=lifespan,
-    **get_api_metadata(),
+    global log_filename
+    app = FastAPI(
+        lifespan=lifespan,
+        **get_api_metadata(),
     )
-  log_filename = setup_rich_logger()
-  return app
+    log_filename = setup_rich_logger()
+    return app
+
 
 app = get_app()
 
 logger = getLogger()
 
 origins = [
-  "http://localhost",
-  "https://localhost",
-  "http://app.tana.inc",
-  "https://app.tana.inc",
+    "http://localhost",
+    "https://localhost",
+    "http://app.tana.inc",
+    "https://app.tana.inc",
 ]
 
 app.add_middleware(
-  CORSMiddleware,
-  allow_origins=origins,
-  allow_credentials=True,
-  allow_methods=["*"],
-  allow_headers=["*"],
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # import our various service endpoints
@@ -84,8 +95,8 @@ app.add_middleware(
 # and remove the import from above (line 4)
 
 plat = platform.system()
-if plat == 'Darwin':
-  app.include_router(calendar.router)
+if plat == "Darwin":
+    app.include_router(calendar.router)
 
 app.include_router(inlinerefs.router)
 app.include_router(exec_code.router)
@@ -115,51 +126,94 @@ app.include_router(weaviate.router)
 # async helpers to get the body during middleware evaluation
 # useful for debugging in the layer _prior_ to pydantic validation
 async def set_body(request: Request, body: bytes):
-  async def receive():
-    return {"type": "http.request", "body": body}
-  request._receive = receive
+    async def receive():
+        return {"type": "http.request", "body": body}
+
+    request._receive = receive
+
 
 async def get_body(request: Request) -> bytes:
-  body = await request.body()
-  await set_body(request, body)
-  return body
+    body = await request.body()
+    await set_body(request, body)
+    return body
 
+
+# Middleware that ensures fresh config on every request
 @app.middleware("http")
-async def add_get_authorization_headers(request: Request, call_next):
-  # find headers in request
-  x_tana_api_token = request.headers.get('x-tana-api-token')
-  x_openai_api_key = request.headers.get('x-openai-api-key')
-  # TODO: make settings per-request context, not gobal
-  # use passed in header tokens if present, otherwise look for env vars
-  settings.openai_api_key = settings.openai_api_key if not x_openai_api_key else x_openai_api_key
-  settings.tana_api_token = settings.tana_api_token if not x_tana_api_token else x_tana_api_token
-  response = await call_next(request)
-  return response
+async def refresh_settings_middleware(request: Request, call_next):
+    """
+    Always start with fresh config from file, then apply any header overrides.
+    This ensures we never have stale config in multi-worker setups while still
+    supporting per-request header overrides.
+    """
+    from . import settings
+    from .settings import get_settings
+
+    # Always start with fresh settings from file
+    fresh_settings = get_settings()
+
+    logger.info("Middleware: Loaded fresh settings from config file")
+
+    # Apply any header overrides
+    x_tana_api_token = request.headers.get("x-tana-api-token")
+    x_openai_api_key = request.headers.get("x-openai-api-key")
+
+    # Use header values if provided, otherwise keep fresh file values
+    if x_openai_api_key:
+        fresh_settings.openai_api_key = x_openai_api_key
+        logger.info("Middleware: Applied OpenAI API key override from request header")
+    if x_tana_api_token:
+        fresh_settings.tana_api_token = x_tana_api_token
+        logger.info("Middleware: Applied Tana API token override from request header")
+
+    # Update the existing global settings object in-place (don't replace it)
+    # This ensures all modules that imported settings get the updated values
+    logger.info(f"Middleware: Updating settings object ID: {id(settings.settings)}")
+    settings.settings.openai_api_key = fresh_settings.openai_api_key
+    settings.settings.tana_api_token = fresh_settings.tana_api_token
+    settings.settings.webhook_template_path = fresh_settings.webhook_template_path
+    settings.settings.temp_files = fresh_settings.temp_files
+    settings.settings.export_path = fresh_settings.export_path
+    settings.settings.tana_environment = fresh_settings.tana_environment
+    settings.settings.tana_namespace = fresh_settings.tana_namespace
+    settings.settings.tana_index = fresh_settings.tana_index
+
+    logger.info("Middleware: Successfully updated global settings")
+
+    response = await call_next(request)
+    return response
+
 
 snowflakes = SnowflakeGenerator(42)
 
+
 @app.middleware("http")
 async def log_entry_exit(request: Request, call_next):
-  x_request_id = request.headers.get('x-request-id')
-  idem = next(snowflakes) if not x_request_id else x_request_id
-  if not x_request_id:
-    id_header = (b'x-request-id', bytes(str(idem), 'utf-8'))
-    request.headers.__dict__["_list"].append(id_header)
-     
-  logger.info(f"txid={idem} start request path={request.url.path}")
-  start_time = time.time()
+    x_request_id = request.headers.get("x-request-id")
+    idem = next(snowflakes) if not x_request_id else x_request_id
+    if not x_request_id:
+        id_header = (b"x-request-id", bytes(str(idem), "utf-8"))
+        request.headers.__dict__["_list"].append(id_header)
 
-  # await set_body(request, await request.body())
-  # body = await get_body(request)
-  # logger.info(f"txid={idem} body={body}")
-  response:Response = await call_next(request)
+    logger.info(f"txid={idem} start request path={request.url.path}")
+    start_time = time.time()
 
-  process_time = (time.time() - start_time) * 1000
-  formatted_process_time = '{0:.2f}'.format(process_time)
-  logger.info(f"txid={idem} completed_in={formatted_process_time}ms status_code={response.status_code}")
-  if not x_request_id:
-     response.headers['x-request-id'] = str(idem)
-  return response
+    response: Response = await call_next(request)
+
+    process_time = (time.time() - start_time) * 1000
+    formatted_process_time = f"{process_time:.2f}"
+    logger.info(
+        f"txid={idem} completed_in={formatted_process_time}ms status_code={response.status_code}"
+    )
+    if not x_request_id:
+        response.headers["x-request-id"] = str(idem)
+
+    # Add security headers
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+
+    return response
 
 
 # fiddle with the CWD to satsify double-clickable .app
@@ -173,24 +227,31 @@ cwd = os.getcwd()
 # logger.info(f"Setting cwd = {cwd}")
 
 
-# for local file serving (favicon, etc)
-app.mount("/static", StaticFiles(directory="dist"), name="static")
+# Mount assets under /ui/assets to match Vite base path
+app.mount("/ui/assets", StaticFiles(directory="dist/assets"), name="ui_assets")
 
 # for HTML template responses
 # settings.templates = Jinja2Templates(directory=os.path.join(basedir,'dist','templates'))
 
-@app.get('/favicon.ico', include_in_schema=False)
+
+@app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
-  favicon_path = os.path.join(basedir,'dist','assets','favicon.ico')
-  return FileResponse(favicon_path)
+    favicon_path = os.path.join(basedir, "dist", "favicon.ico")
+    return FileResponse(favicon_path)
+
+
+@app.get("/ui/favicon.ico", include_in_schema=False)
+async def ui_favicon():
+    favicon_path = os.path.join(basedir, "dist", "favicon.ico")
+    return FileResponse(favicon_path)
 
 
 # expose our various Webapps on /ui/{app_name}
 @app.get("/testui/{app_file}", response_class=HTMLResponse, tags=["UI"])
-async def app_ui(app_file:str):
-  # return a completely generic index.html that assumes the app is
-  # available on App_file.js (note initial cap)
-  return f"""<!doctype html>
+async def app_ui(app_file: str):
+    # return a completely generic index.html that assumes the app is
+    # available on App_file.js (note initial cap)
+    return f"""<!doctype html>
 <html lang="en">
 
 <head>
@@ -208,18 +269,21 @@ async def app_ui(app_file:str):
 </html>
   """
 
+
 @app.get("/", response_class=HTMLResponse, tags=["UI"])
 def root_ui():
-  return RedirectResponse(url="/ui", status_code=301)
+    return RedirectResponse(url="/ui", status_code=301)
+
 
 @app.get("/ui", response_class=HTMLResponse, tags=["UI"])
 async def new_app_ui():
-  # return a completely generic index.html that assumes the app is
-  # available on App_file.js (note initial cap)
-  return await app_ui('root')
+    # Serve the actual Vite-generated index.html file
+    index_path = os.path.join(basedir, "dist", "index.html")
+    return FileResponse(index_path, media_type="text/html")
+
 
 @app.get("/ui/{full_path:path}", response_class=HTMLResponse, tags=["UI"])
-async def new_app_ui_path(full_path:str):
-  # return a completely generic index.html that assumes the app is
-  # available on App_file.js (note initial cap)
-  return await app_ui('root')
+async def new_app_ui_path(full_path: str):
+    # For SPA routing, also serve the index.html for any sub-paths
+    index_path = os.path.join(basedir, "dist", "index.html")
+    return FileResponse(index_path, media_type="text/html")

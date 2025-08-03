@@ -1,66 +1,34 @@
-import React, { useContext, useEffect, useState } from "react";
-
-import axios from 'axios';
-import { TanaHelperContext } from "../TanaHelperContext";
-import { Box, Button, Divider } from "@mui/material";
-
+// React import not needed for JSX in React 17+
+import TanaFileUpload from './ui/TanaFileUpload';
+// Replace context with Zustand store
+import { useAppStore, useAppActions } from '../hooks/useAppStore';
 
 export default function ClassDiagramControls() {
-  const { setMermaidText, setLoading } = useContext(TanaHelperContext)
-  const [dumpFile, setDumpFile] = useState<File>();
-  const [upload, setUpload] = useState(false);
+  // Use Zustand actions instead of context
+  const { classLoading } = useAppStore();
+  const { setMermaidText, setClassLoading, setClassError } = useAppActions();
 
-  const handleFileUpload = (event: React.FormEvent<HTMLInputElement>) => {
-    const target = event.currentTarget;
-    const file = target.files?.[0];
-    setDumpFile(file);
-    setUpload(true);
-    // reset input field so we can upload another file later
-    event.currentTarget.value = "";
+  // Note: Removed automatic state reset - global state should persist across component lifecycle
+
+  const handleUploadSuccess = (data: string, _rawFileData?: any) => {
+    console.log('Class diagram data received:', data);
+    setMermaidText(data);
+    setClassError(null); // Clear class-specific error
+    // Note: rawFileData not needed for class diagrams as they don't have live config changes
   };
 
-  useEffect(() => {
-    if (upload) {
-      setLoading(true);
-      setMermaidText(null);
-      axios.post('/mermaid_classes', dumpFile, {
-        headers: {
-          "Content-Type": "application/json",
-        }
-      })
-        .then(response => {
-          setMermaidText(response.data);
-        })
-        .catch(error => {
-          console.error(error);
-        })
-        .finally(() => {
-          setLoading(false);
-          setUpload(false);
-        })
-    }
-  }, [upload]);
+  const handleUploadError = (errorMessage: string) => {
+    setClassError(errorMessage); // Set class-specific error
+  };
 
   return (
-    <div>
-      <Divider />
-      <Box style={{ padding: 10, marginLeft: 'auto', marginRight: 'auto' }}>
-        <input hidden
-          id="raised-button-file"
-          accept="application/json"
-          style={{ display: 'none' }}
-          type="file"
-          onChange={handleFileUpload}
-        />
-        <label htmlFor="raised-button-file">
-          <Button component="span"  sx={{ width: '100%', alignContent:'center'}}>
-            <span style={{ fontSize: 14 }}>
-              Upload
-            </span>
-          </Button>
-        </label>
-      </Box>
-      <Divider />
-    </div>
-  )
+    <TanaFileUpload
+      endpoint="/mermaid_classes"
+      uploadType="json"
+      onSuccess={handleUploadSuccess}
+      onError={handleUploadError}
+      loading={classLoading}
+      setLoading={setClassLoading}
+    />
+  );
 }

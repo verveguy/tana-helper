@@ -6,15 +6,15 @@ Check out this [video demo](https://share.cleanshot.com/VY0zm55s) and this
 
 ## Building
 
-The visualizer UI requires you to build a TypeScript webapp using `yarn`
+The visualizer UI requires you to build a TypeScript webapp using `pnpm`
 
 If you haven't already done so from the instruction on the [top-level README](./README.md), follow these instructions:
 
-Install yarn first, then:
+Install pnpm first, then:
 
-`yarn install`  (downloads all `npm` packages required)
+`pnpm install`  (downloads all `npm` packages required)
 
-`yarn build` (generates the required `.js` files in `./dist`)
+`pnpm build` (generates the required `.js` files in `./dist`)
 
 After that, you should be able to hit the url `http://localhost:8000/ui/graph` in your web browser. Use the left sidebar menu to upload your Tana JSON export.
 
